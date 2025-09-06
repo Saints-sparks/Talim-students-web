@@ -5,7 +5,14 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import { useCurriculum } from "@/hooks/useCurriculum";
 import { Course } from "@/services/curriculum.service";
-import { BookOpen, Users, Calendar, ArrowRight, Search, Filter } from "lucide-react";
+import {
+  BookOpen,
+  Users,
+  Calendar,
+  ArrowRight,
+  Search,
+  Filter,
+} from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoadingCard from "@/components/LoadingCard";
 
@@ -14,15 +21,18 @@ interface SubjectCardProps {
   onViewCurriculum: (course: Course) => void;
 }
 
-const SubjectCard: React.FC<SubjectCardProps> = ({ course, onViewCurriculum }) => {
+const SubjectCard: React.FC<SubjectCardProps> = ({
+  course,
+  onViewCurriculum,
+}) => {
   const { getSubjectNameByCourse, getTeacherNameByCourse } = useCurriculum();
-  
+
   const handleViewCurriculum = () => {
     onViewCurriculum(course);
   };
 
   return (
-    <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:border-[#003366] group">
+    <div className="bg-white rounded-xl border border-gray-200 p-6 hover:shadow-lg transition-all duration-300 hover:bnorder-[#003366] group">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-gradient-to-br from-[#003366] to-[#004080] rounded-lg flex items-center justify-center">
@@ -57,12 +67,6 @@ const SubjectCard: React.FC<SubjectCardProps> = ({ course, onViewCurriculum }) =
             {getTeacherNameByCourse(course)}
           </span>
         </div>
-        <div className="flex items-center space-x-2">
-          <Calendar className="w-4 h-4 text-gray-500" />
-          <span className="text-sm text-gray-600">
-            {course.classId?.name || "All Classes"}
-          </span>
-        </div>
       </div>
 
       <div className="flex justify-between items-center">
@@ -85,17 +89,28 @@ const SubjectGrid: React.FC = () => {
   const [selectedSubject, setSelectedSubject] = useState<string>("all");
 
   const handleViewCurriculum = (course: Course) => {
-    router.push(`/subjects/curriculum?courseId=${course._id}&courseTitle=${encodeURIComponent(course.title)}&courseCode=${encodeURIComponent(course.courseCode)}`);
+    router.push(
+      `/subjects/curriculum?courseId=${
+        course._id
+      }&courseTitle=${encodeURIComponent(
+        course.title
+      )}&courseCode=${encodeURIComponent(course.courseCode)}`
+    );
   };
 
-  const filteredCourses = courses.filter(course => {
-    const matchesSearch = course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         course.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         (course.subjectId?.name || "").toLowerCase().includes(searchTerm.toLowerCase());
-    
-    const matchesSubject = selectedSubject === "all" || 
-                          (course.subjectId?.name || "").toLowerCase() === selectedSubject.toLowerCase();
-    
+  const filteredCourses = courses.filter((course) => {
+    const matchesSearch =
+      course.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      course.courseCode.toLowerCase().includes(searchTerm.toLowerCase()) ||
+      (course.subjectId?.name || "")
+        .toLowerCase()
+        .includes(searchTerm.toLowerCase());
+
+    const matchesSubject =
+      selectedSubject === "all" ||
+      (course.subjectId?.name || "").toLowerCase() ===
+        selectedSubject.toLowerCase();
+
     return matchesSearch && matchesSubject;
   });
 
@@ -106,8 +121,10 @@ const SubjectGrid: React.FC = () => {
     return (
       <div className="px-6 py-4 h-full">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Subjects</h2>
-          <p className="text-gray-600">Explore your course curriculum and materials</p>
+          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Courses</h2>
+          <p className="text-gray-600">
+            Explore your course curriculum and materials
+          </p>
         </div>
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {Array.from({ length: 6 }).map((_, i) => (
@@ -125,9 +142,11 @@ const SubjectGrid: React.FC = () => {
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">Failed to Load Subjects</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            Failed to Load Courses
+          </h3>
           <p className="text-gray-600 text-center max-w-md mb-4">{error}</p>
-          <Button 
+          <Button
             onClick={() => window.location.reload()}
             className="bg-[#003366] hover:bg-[#002244] text-white"
           >
@@ -142,16 +161,21 @@ const SubjectGrid: React.FC = () => {
     return (
       <div className="px-6 py-4 h-full">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Subjects</h2>
-          <p className="text-gray-600">Explore your course curriculum and materials</p>
+          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Courses</h2>
+          <p className="text-gray-600">
+            Explore your course curriculum and materials
+          </p>
         </div>
         <div className="flex flex-col items-center justify-center py-20">
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Subjects Available</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No Subjects Available
+          </h3>
           <p className="text-gray-600 text-center max-w-md">
-            You don't have any subjects assigned yet. Please contact your administrator.
+            You don't have any subjects assigned yet. Please contact your
+            administrator.
           </p>
         </div>
       </div>
@@ -161,8 +185,10 @@ const SubjectGrid: React.FC = () => {
   return (
     <div className="px-6 py-4 h-full">
       <div className="mb-6">
-        <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Subjects</h2>
-        <p className="text-gray-600">Explore your course curriculum and materials</p>
+        <h2 className="text-2xl font-bold mb-2 text-[#030E18]">My Courses</h2>
+        <p className="text-gray-600">
+          Explore your course curriculum and materials
+        </p>
       </div>
 
       {/* Search and Filter */}
@@ -184,8 +210,8 @@ const SubjectGrid: React.FC = () => {
             onChange={(e) => setSelectedSubject(e.target.value)}
             className="pl-10 pr-8 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366] focus:border-transparent min-w-[200px]"
           >
-            <option value="all">All Subjects</option>
-            {subjectNames.map(subjectName => (
+            <option value="all">All Courses</option>
+            {subjectNames.map((subjectName) => (
               <option key={subjectName} value={subjectName}>
                 {subjectName}
               </option>
@@ -204,9 +230,9 @@ const SubjectGrid: React.FC = () => {
       {/* Subjects Grid */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {filteredCourses.map((course) => (
-          <SubjectCard 
-            key={course._id} 
-            course={course} 
+          <SubjectCard
+            key={course._id}
+            course={course}
             onViewCurriculum={handleViewCurriculum}
           />
         ))}
@@ -217,9 +243,12 @@ const SubjectGrid: React.FC = () => {
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <Search className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">No Results Found</h3>
+          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+            No Results Found
+          </h3>
           <p className="text-gray-600 text-center max-w-md">
-            Try adjusting your search terms or filters to find what you're looking for.
+            Try adjusting your search terms or filters to find what you're
+            looking for.
           </p>
         </div>
       )}

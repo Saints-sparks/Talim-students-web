@@ -8,16 +8,15 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { WebSocketStatus } from "./WebSocketStatus";
 
 export function Header({ onMenuClick }: { onMenuClick: () => void }) {
-
-  const { user } = useAuthContext()
+  const { user } = useAuthContext();
 
   // Generate initials from first and last names
   const getInitials = () => {
     if (!user) return "US"; // Default if no user
-    
-    const firstNameInitial = user.firstName?.[0]?.toUpperCase() || '';
-    const lastNameInitial = user.lastName?.[0]?.toUpperCase() || '';
-    
+
+    const firstNameInitial = user.firstName?.[0]?.toUpperCase() || "";
+    const lastNameInitial = user.lastName?.[0]?.toUpperCase() || "";
+
     // Handle cases where only one name exists
     return `${firstNameInitial}${lastNameInitial}` || "US";
   };
@@ -53,20 +52,15 @@ export function Header({ onMenuClick }: { onMenuClick: () => void }) {
             <Link href="/profile">
               <Avatar>
                 <AvatarImage src="/placeholder.svg" alt="User avatar" />
-                <AvatarFallback className="bg-green-300">{getInitials()}</AvatarFallback>
+                <AvatarFallback className="bg-green-300">
+                  {getInitials()}
+                </AvatarFallback>
               </Avatar>
             </Link>
           </div>
         </div>
         {/* Search Bar: Below on Mobile, Left-Aligned on Larger Screens */}
-        <div className="relative w-full sm:w-[40%] max-w-md sm:order-first">
-          <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-500" />
-          <Input
-            type="search"
-            placeholder="Search"
-            className="pl-10 py-5 rounded-lg bg-white"
-          />
-        </div>
+        <div className="relative w-full sm:w-[40%] max-w-md sm:order-first"></div>
       </div>
     </header>
   );

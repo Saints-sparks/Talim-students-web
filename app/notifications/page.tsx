@@ -31,8 +31,10 @@ type Notification = {
 function NotificationsPage() {
   const router = useRouter();
   const { isAuthenticated, isLoading: isAuthLoading } = useAuthContext();
-  const { notifications, isLoading: isNotificationsLoading } = useNotifications();
-  const [selectedNotification, setSelectedNotification] = useState<Notification | null>(null);
+  const { notifications, isLoading: isNotificationsLoading } =
+    useNotifications();
+  const [selectedNotification, setSelectedNotification] =
+    useState<Notification | null>(null);
 
   // Redirect if not authenticated
   React.useEffect(() => {
@@ -42,17 +44,18 @@ function NotificationsPage() {
   }, [isAuthLoading, isAuthenticated, router]);
 
   // Map API notifications to UI format
-  const allNotifications: Notification[] = notifications?.data.map((n: ApiNotification) => ({
-    id: n._id,
-    sender: `${n.senderId.firstName} ${n.senderId.lastName}`,
-    avatar: "/image/teachers/default.png", // Replace with real avatar if API provides it
-    message: n.message,
-    time: new Date(n.createdAt).toLocaleTimeString([], {
-      hour: "numeric",
-      minute: "2-digit",
-    }),
-    unread: n.readBy.length === 0, // Assume unread if readBy is empty
-  })) || [];
+  const allNotifications: Notification[] =
+    notifications?.data.map((n: ApiNotification) => ({
+      id: n._id,
+      sender: `${n.senderId.firstName} ${n.senderId.lastName}`,
+      avatar: "/image/teachers/default.png", // Replace with real avatar if API provides it
+      message: n.message,
+      time: new Date(n.createdAt).toLocaleTimeString([], {
+        hour: "numeric",
+        minute: "2-digit",
+      }),
+      unread: n.readBy.length === 0, // Assume unread if readBy is empty
+    })) || [];
 
   if (isAuthLoading || isNotificationsLoading) {
     return <div>Loading...</div>;
@@ -94,7 +97,7 @@ function NotificationsPage() {
                 <div className="flex gap-2">
                   <p className="text-[#003366] cursor-pointer">All</p>
                   <p className="text-[#8F8F8F] cursor-pointer">
-                    Unread({allNotifications.filter(n => n.unread).length})
+                    Unread({allNotifications.filter((n) => n.unread).length})
                   </p>
                 </div>
                 <div className="flex gap-1 items-center text-[#003366] cursor-pointer">
@@ -105,8 +108,13 @@ function NotificationsPage() {
               <div className="w-full h-full overflow-y-auto scrollbar-hide">
                 {allNotifications.length === 0 ? (
                   <div className="flex flex-col items-center justify-center h-full">
-                    <img src="/icons/notifications.svg" alt="No notifications" />
-                    <p className="text-[#525252]">There are no updates for now</p>
+                    <img
+                      src="/icons/notifications.svg"
+                      alt="No notifications"
+                    />
+                    <p className="text-[#525252]">
+                      There are no updates for now
+                    </p>
                   </div>
                 ) : (
                   allNotifications.map((notification: Notification) => (
@@ -128,7 +136,9 @@ function NotificationsPage() {
                       </div>
                       <span
                         className={`text-sm ${
-                          notification.unread ? "text-[#030E18]" : "text-[#737373]"
+                          notification.unread
+                            ? "text-[#030E18]"
+                            : "text-[#737373]"
                         }`}
                       >
                         {notification.time}

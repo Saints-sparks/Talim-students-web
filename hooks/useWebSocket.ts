@@ -4,7 +4,7 @@ import { toast } from "react-hot-toast";
 
 // WebSocket connection configuration
 const WEBSOCKET_URL =
-  process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:5000";
+  process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:5005";
 
 // Event types that match the backend gateway
 export interface ChatMessage {

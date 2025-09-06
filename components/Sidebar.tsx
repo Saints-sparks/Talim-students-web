@@ -16,7 +16,7 @@ type MenuItem = {
 
 const menuItems: MenuItem[] = [
   { label: "Dashboard", iconPath: "/icons/dashboard.svg", link: "/dashboard" },
-  { label: "Subjects", iconPath: "/icons/subjects.svg", link: "/subjects" },
+  { label: "Courses", iconPath: "/icons/subjects.svg", link: "/subjects" },
   { label: "Resources", iconPath: "/icons/resources.svg", link: "/resources" },
   { label: "Timetable", iconPath: "/icons/timetable.svg", link: "/timetable" },
   { label: "Attendance", iconPath: "/icons/attendance.svg", link: "/attendance" },

@@ -37,7 +37,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({ children }
     
     if (isAuthenticated && userId && !webSocket.isConnected && webSocket.connectionStatus !== 'connecting') {
       console.log('🔌 Auto-connecting WebSocket for user:', userId);
-      console.log('🔌 WebSocket URL:', process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:5000');
+      console.log('🔌 WebSocket URL:', process.env.NEXT_PUBLIC_WEBSOCKET_URL || 'http://localhost:5005');
       webSocket.connect(userId);
     } else if (!isAuthenticated && webSocket.isConnected) {
       console.log('🔌 Auto-disconnecting WebSocket - user not authenticated');

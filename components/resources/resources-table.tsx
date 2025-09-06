@@ -35,7 +35,7 @@ export function ResourcesTable() {
           <TableHead>
             <Checkbox /> Name
           </TableHead>
-          <TableHead>Subject</TableHead>
+          <TableHead>Course</TableHead>
           <TableHead>Upload Date</TableHead>
           <TableHead>Teacher's Name</TableHead>
           <TableHead>Download file</TableHead>
