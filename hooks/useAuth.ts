@@ -1,7 +1,7 @@
 // hooks/useAuth.ts
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "react-hot-toast";
 import nookies from "nookies";
@@ -14,6 +14,37 @@ export const useAuth = () => {
   const { setAuthState, logout: contextLogout } = useAuthContext();
   const [isLoading, setIsLoading] = useState(false);
 
+  useEffect(() => {
+    // make em check the token
+    const checkToken = async () => {
+      const token =
+        nookies.get(null).access_token || localStorage.getItem("accessToken");
+
+      // if e no dey make e auto redirect go signin
+      if (!token) {
+        router.push("/signin");
+        return;
+      }
+      
+      // We dey try check the token wey dey here
+      // If server say e no active again, we go log the person comot
+      // If wahala happen sef (like network or server scatter), we no dey trust am,
+      // we still go logout make e no use dead token waka
+      try {
+        const introspectResponse = await authService.introspect(token);
+
+        if (!introspectResponse.active) {
+          handleLogout(); // expired token
+        }
+      } catch (err) {
+        console.error("Auth check failed:", err);
+        handleLogout();
+      }
+    };
+
+    checkToken();
+  }, []);
+
   const login = async (credentials: LoginCredentials) => {
     setIsLoading(true);
     try {
@@ -21,7 +52,9 @@ export const useAuth = () => {
       const loginResponse = await authService.login(credentials);
 
       // 2. Use introspect endpoint to get complete user details
-      const introspectResponse = await authService.introspect(loginResponse.access_token);
+      const introspectResponse = await authService.introspect(
+        loginResponse.access_token
+      );
 
       // 3. Structure user data from introspect response
       const userData = {
@@ -32,7 +65,7 @@ export const useAuth = () => {
         phoneNumber: introspectResponse.user.phoneNumber,
         role: introspectResponse.user.role,
         isActive: introspectResponse.user.isActive,
-        isEmailVerified: introspectResponse.user.isEmailVerified
+        isEmailVerified: introspectResponse.user.isEmailVerified,
       };
 
       // 4. Store tokens and user data
@@ -50,8 +83,12 @@ export const useAuth = () => {
       setAuthState(userData, loginResponse.access_token);
 
       // Trigger custom auth event for WebSocket context
-      if (typeof window !== 'undefined') {
-        window.dispatchEvent(new CustomEvent('auth-changed', { detail: { type: 'login', user: userData } }));
+      if (typeof window !== "undefined") {
+        window.dispatchEvent(
+          new CustomEvent("auth-changed", {
+            detail: { type: "login", user: userData },
+          })
+        );
       }
 
       toast.success("Login successful!");
@@ -59,7 +96,8 @@ export const useAuth = () => {
 
       return userData;
     } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Login failed";
+      const errorMessage =
+        error instanceof Error ? error.message : "Login failed";
       toast.error(errorMessage);
       throw error;
     } finally {
@@ -67,13 +105,18 @@ export const useAuth = () => {
     }
   };
 
-  const logout = () => {
+  const handleLogout = () => {
     contextLogout();
+    router.push("/signin");
+    nookies.destroy(null, "access_token");
+    localStorage.removeItem("accessToken");
+    localStorage.removeItem("refreshToken");
+    localStorage.removeItem("user");
   };
 
   return {
     login,
-    logout,
+    logout: handleLogout,
     isLoading,
   };
 };

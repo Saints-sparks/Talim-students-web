@@ -1,5 +1,5 @@
 // contexts/AuthContext.tsx
-'use client';
+"use client";
 
 import React, { createContext, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
@@ -15,8 +15,6 @@ interface AuthContextType {
   logout: () => void;
   setAuthState: (user: User | null, token: string | null) => void;
 }
-
-
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
@@ -38,17 +36,21 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const router = useRouter();
 
   const setAuthState = (newUser: User | null, newToken: string | null) => {
-    setUser(newUser ? {
-      id: newUser.id,
-      email: newUser.email,
-      firstName: newUser.firstName,
-      lastName: newUser.lastName,
-      phoneNumber: newUser.phoneNumber,
-      role: newUser.role,
-      isActive: newUser.isActive,
-      isEmailVerified: newUser.isEmailVerified
-    } : null);
-    
+    setUser(
+      newUser
+        ? {
+            id: newUser.id,
+            email: newUser.email,
+            firstName: newUser.firstName,
+            lastName: newUser.lastName,
+            phoneNumber: newUser.phoneNumber,
+            role: newUser.role,
+            isActive: newUser.isActive,
+            isEmailVerified: newUser.isEmailVerified,
+          }
+        : null
+    );
+
     setAccessToken(newToken);
     setIsAuthenticated(!!newUser && !!newToken);
   };
@@ -58,7 +60,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       // Check localStorage first (primary storage for students app)
       const userStr = localStorage.getItem("user");
       let token = localStorage.getItem("accessToken");
-      
+
       // Fallback to cookies if no token in localStorage
       if (!token) {
         const cookies = parseCookies();
@@ -76,7 +78,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           localStorage.removeItem("accessToken");
         }
       }
-      
+
       setAuthState(null, null);
       return false;
     } catch (error) {
@@ -92,20 +94,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     // Clear cookies
     destroyCookie(null, "access_token");
     destroyCookie(null, "refresh_token");
-    
+
     // Clear localStorage
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
     localStorage.removeItem("studentDetails");
-    
+
     setAuthState(null, null);
-    
+
     // Trigger custom auth event for WebSocket context
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new CustomEvent('auth-changed', { detail: { type: 'logout' } }));
+    if (typeof window !== "undefined") {
+      window.dispatchEvent(
+        new CustomEvent("auth-changed", { detail: { type: "logout" } })
+      );
     }
-    
+
     router.push("/");
   };
 
@@ -132,7 +136,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         accessToken,
         checkAuth,
         logout,
-        setAuthState
+        setAuthState,
       }}
     >
       {children}
