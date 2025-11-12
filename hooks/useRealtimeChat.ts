@@ -39,6 +39,7 @@ interface UseRealtimeChatReturn {
     duration?: number
   ) => void;
   markAsRead: (messageId: string) => void;
+  markRoomAsRead: (roomId: string) => void;
 
   // Real-time events
   onNewMessage: (callback: (message: ChatMessage) => void) => () => void;
@@ -74,6 +75,7 @@ export const useRealtimeChat = (): UseRealtimeChatReturn => {
       unselectRoom: () => {},
       sendMessage: () => {},
       markAsRead: () => {},
+      markRoomAsRead: () => {},
       onNewMessage: () => () => {},
       onRoomUpdate: () => () => {},
     };
@@ -90,6 +92,8 @@ export const useRealtimeChat = (): UseRealtimeChatReturn => {
     joinChatRoom,
     leaveChatRoom,
     markMessageAsRead,
+    markRoomAsRead: wsMarkRoomAsRead,
+    onPresence,
   } = webSocketContext;
 
   const searchTermRef = useRef<string>("");
@@ -295,6 +299,46 @@ export const useRealtimeChat = (): UseRealtimeChatReturn => {
     return unsubscribe;
   }, [isConnected, onChatRoomsUpdate, transformChatRoom]);
 
+  // Handle presence updates: update participants' isOnline flags
+  useEffect(() => {
+    if (!isConnected || !onPresence) return;
+
+    const unsubscribe = onPresence((data) => {
+      if (!mountedRef.current) return;
+
+      const { userId, isOnline } = data;
+      setChatRooms((prev) =>
+        prev.map((room) => {
+          const updatedParticipants = room.participants.map((p: any) => {
+            const participantData = p._doc || p;
+            const pid =
+              participantData.userId ||
+              participantData._id ||
+              p.userId ||
+              p._id;
+            if (pid === userId) {
+              return { ...p, isOnline };
+            }
+            return p;
+          });
+
+          // If any participant changed online status, update room's isOnline
+          const isRoomOnline = updatedParticipants.some(
+            (p: any) => p.isOnline && p.role === "teacher"
+          );
+
+          return {
+            ...room,
+            participants: updatedParticipants,
+            isOnline: isRoomOnline,
+          };
+        })
+      );
+    });
+
+    return unsubscribe;
+  }, [isConnected, onPresence]);
+
   // Handle real-time messages
   useEffect(() => {
     if (!isConnected) return;
@@ -461,6 +505,23 @@ export const useRealtimeChat = (): UseRealtimeChatReturn => {
     [markMessageAsRead]
   );
 
+  const markRoomAsRead = useCallback(
+    (roomId: string) => {
+      // locally clear unread count for the room
+      setChatRooms((prev) =>
+        prev.map((r) => (r.roomId === roomId ? { ...r, unreadCount: 0 } : r))
+      );
+
+      try {
+        // try server-side mark (if supported)
+        markRoomAsRead?.(roomId as any);
+      } catch (err) {
+        // ignore if not available
+      }
+    },
+    [markMessageAsRead]
+  );
+
   // Event handlers for external use
   const onNewMessage = useCallback(
     (callback: (message: ChatMessage) => void) => {
@@ -501,6 +562,7 @@ export const useRealtimeChat = (): UseRealtimeChatReturn => {
     unselectRoom,
     sendMessage,
     markAsRead,
+    markRoomAsRead,
     onNewMessage,
     onRoomUpdate,
   };
