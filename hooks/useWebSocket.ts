@@ -115,6 +115,30 @@ export interface WebSocketContextType {
     limit?: number;
   }) => void;
 
+  // Optional: mark whole room as read
+  markRoomAsRead: (roomId: string) => void;
+
+  // Typing indicator helpers
+  sendTyping: (data: { roomId: string; isTyping: boolean }) => void;
+  onTyping: (
+    callback: (data: {
+      roomId: string;
+      userId: string;
+      isTyping: boolean;
+      userName?: string;
+    }) => void
+  ) => () => void;
+
+  // Presence updates (user online/offline)
+  sendPresence: (data: { userId: string; isOnline: boolean }) => void;
+  onPresence: (
+    callback: (data: {
+      userId: string;
+      isOnline: boolean;
+      lastSeen?: string;
+    }) => void
+  ) => () => void;
+
   // Event listeners
   onChatMessage: (callback: (message: ChatMessage) => void) => () => void;
   onNotification: (
@@ -327,6 +351,24 @@ export const useWebSocket = (): WebSocketContextType => {
     console.log("🔌 WebSocket manually disconnected");
   }, []);
 
+  const sendTyping = useCallback(
+    (data: { roomId: string; isTyping: boolean }) => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("typing", data);
+      }
+    },
+    []
+  );
+
+  const sendPresence = useCallback(
+    (data: { userId: string; isOnline: boolean }) => {
+      if (socketRef.current?.connected) {
+        socketRef.current.emit("presence", data);
+      }
+    },
+    []
+  );
+
   // Reconnect to WebSocket
   const reconnect = useCallback(() => {
     if (userIdRef.current) {
@@ -376,6 +418,14 @@ export const useWebSocket = (): WebSocketContextType => {
   const markMessageAsRead = useCallback((messageId: string) => {
     if (socketRef.current?.connected) {
       socketRef.current.emit("mark-message-read", { messageId });
+    }
+  }, []);
+
+  // Mark entire room as read (optional server support)
+  const markRoomAsRead = useCallback((roomId: string) => {
+    if (socketRef.current?.connected) {
+      socketRef.current.emit("mark-room-read", { roomId });
+      console.log(`📨 Marked room as read: ${roomId}`);
     }
   }, []);
 
@@ -490,6 +540,43 @@ export const useWebSocket = (): WebSocketContextType => {
     []
   );
 
+  const onTyping = useCallback(
+    (
+      callback: (data: {
+        roomId: string;
+        userId: string;
+        isTyping: boolean;
+        userName?: string;
+      }) => void
+    ) => {
+      if (!socketRef.current) return () => {};
+
+      socketRef.current.on("typing", callback);
+      return () => {
+        socketRef.current?.off("typing", callback as any);
+      };
+    },
+    []
+  );
+
+  const onPresence = useCallback(
+    (
+      callback: (data: {
+        userId: string;
+        isOnline: boolean;
+        lastSeen?: string;
+      }) => void
+    ) => {
+      if (!socketRef.current) return () => {};
+
+      socketRef.current.on("presence", callback);
+      return () => {
+        socketRef.current?.off("presence", callback as any);
+      };
+    },
+    []
+  );
+
   // Cleanup on unmount
   useEffect(() => {
     return () => {
@@ -509,6 +596,9 @@ export const useWebSocket = (): WebSocketContextType => {
     markMessageAsRead,
     fetchChatRooms,
     fetchMessages,
+    sendTyping,
+    sendPresence,
+    markRoomAsRead,
 
     // Event listeners
     onChatMessage,
@@ -517,6 +607,8 @@ export const useWebSocket = (): WebSocketContextType => {
     onChatRoomsUpdate,
     onChatRoomJoined,
     onMessagesUpdate,
+    onTyping,
+    onPresence,
 
     // Connection management
     connect,

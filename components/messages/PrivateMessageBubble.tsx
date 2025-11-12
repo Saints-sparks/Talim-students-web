@@ -31,9 +31,8 @@ export default function MessageBubble({
 }: MessageBubbleProps) {
   return (
     <div
-      className={`flex items-end ${
-        msg.sender === "me" ? "justify-end" : "justify-start"
-      } mb-2 gap-2`}
+      className={`flex items-end ${msg.sender === "me" ? "justify-end" : "justify-start"
+        } mb-2 gap-2`}
     >
       <div className="flex flex-col">
         <div className="flex items-end gap-2">
@@ -43,19 +42,19 @@ export default function MessageBubble({
             </Avatar>
           )}
           <Card
-            className={`p-3 font-normal border-none shadow-none max-w-md ${
-              msg.sender === "me"
-                ? "bg-[#ADBECE] text-white"
+            className={`p-3 font-normal border-none shadow-none max-w-md ${msg.sender === "me"
+                ? "bg-blue-500 text-white"
                 : "bg-white text-[#030E18]"
-            }`}
+              } rounded-2xl`}
+            style={msg.sender === "me" ? { borderTopRightRadius: 4 } : { borderTopLeftRadius: 4 }}
           >
             <MessageOptionsDropdown
-                          index={index}
-                          msg={msg}
-                          openSubMenu={openSubMenu}
-                          toggleSubMenu={toggleSubMenu}
-                          setReplyingMessage={setReplyingMessage}
-                        />
+              index={index}
+              msg={msg}
+              openSubMenu={openSubMenu}
+              toggleSubMenu={toggleSubMenu}
+              setReplyingMessage={setReplyingMessage}
+            />
             {msg.type === "text" ? (
               msg.text
             ) : (
@@ -63,8 +62,11 @@ export default function MessageBubble({
             )}
           </Card>
         </div>
-        <div className="flex gap-1 text-xs text-[#ADADAD] self-end mt-1">
-          {msg.time} {msg.sender === "me" && <CheckCheck size={16} />}
+        <div className="flex gap-1 text-xs text-[#9CA3AF] self-end mt-1">
+          <span className="text-xs">{msg.time}</span>
+          {msg.sender === "me" && (
+            <CheckCheck size={14} className="text-blue-300" />
+          )}
         </div>
       </div>
     </div>

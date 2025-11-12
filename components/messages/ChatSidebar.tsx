@@ -22,37 +22,85 @@ interface ChatSidebarProps {
 export default function ChatSidebar({ onSelectChat, className = "" }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
   const [filterType, setFilterType] = useState<"all" | "classes" | "groups">("all");
-  
-  const { 
-    chatRooms, 
-    isLoading, 
-    isConnected, 
-    error, 
-    refreshChatRooms, 
-    searchChatRooms, 
+
+  const {
+    chatRooms,
+    isLoading,
+    isConnected,
+    error,
+    refreshChatRooms,
+    searchChatRooms,
     getFilteredChatRooms,
     selectRoom,
     selectedRoomId
   } = useChat();
+  // expose markRoomAsRead if the hook provides it
+  const { markRoomAsRead } = useChat();
 
   // Get filtered and searched rooms
   const getDisplayRooms = (): RealtimeChatRoom[] => {
     let rooms = getFilteredChatRooms(filterType);
-    
+
     if (searchTerm.trim()) {
       rooms = searchChatRooms(searchTerm);
     }
-    
+
     return rooms;
   };
 
   const displayRooms = getDisplayRooms();
 
+  // Provide dummy rooms when no real rooms are available (useful for local/dev without backend)
+  const DUMMY_ROOMS: RealtimeChatRoom[] = [
+    {
+      roomId: 'dummy-1',
+      name: 'Mrs. Yetunde Adebayo',
+      type: 'one_to_one',
+      participants: [],
+      unreadCount: 2,
+      updatedAt: new Date(),
+      lastMessage: {
+        content: 'typing...',
+        senderId: 't1',
+        senderName: 'Mrs Yetunde Adebayo',
+        timestamp: new Date(),
+        type: 'text',
+      },
+      displayName: 'Mrs. Yetunde Adebayo',
+      avatarInfo: { type: 'image', value: '/image/teachers/english.png' },
+      isOnline: true,
+    } as any,
+    {
+      roomId: 'dummy-2',
+      name: 'JSS 1',
+      type: 'group',
+      participants: [],
+      unreadCount: 0,
+      updatedAt: new Date(),
+      lastMessage: {
+        content: 'Good evening everyone.',
+        senderId: 's1',
+        senderName: 'Class',
+        timestamp: new Date(Date.now() - 1000 * 60 * 60),
+        type: 'text',
+      },
+      displayName: 'JSS 1',
+      avatarInfo: { type: 'initials', value: 'J1', bgColor: generateColorFromString('JSS 1') },
+      isOnline: false,
+    } as any,
+  ];
+
+  const effectiveRooms = displayRooms.length > 0 ? displayRooms : DUMMY_ROOMS;
+
   const handleSelectChat = (room: RealtimeChatRoom) => {
     selectRoom(room.roomId);
-    onSelectChat({ 
-      type: room.type === 'one_to_one' ? "private" : "group", 
-      room 
+    // clear unread badge locally and inform server
+    try {
+      markRoomAsRead?.(room.roomId);
+    } catch (err) { }
+    onSelectChat({
+      type: room.type === 'one_to_one' ? "private" : "group",
+      room
     });
   };
 
@@ -86,7 +134,7 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
           display: none; /* Chrome, Safari, Opera */
         }
       `}</style>
-      
+
       {/* Header */}
       <div className="flex items-center justify-between p-3 sm:p-4 border-b border-gray-100 bg-white">
         <h2 className="text-lg sm:text-xl font-semibold text-gray-900 flex items-center gap-2">
@@ -111,7 +159,7 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
             onChange={(e) => setSearchTerm(e.target.value)}
           />
         </div>
-        
+
         <div className="flex gap-2">
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
@@ -144,7 +192,7 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
       {error && (
         <div className="mx-3 sm:mx-4 mb-3 p-3 bg-red-50 border border-red-200 rounded-lg">
           <p className="text-sm text-red-600">{error}</p>
-          <button 
+          <button
             onClick={refreshChatRooms}
             className="text-xs text-red-700 underline mt-1 hover:text-red-800"
           >
@@ -184,25 +232,24 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
 
         {/* Chat Items */}
         <div className="px-2 sm:px-3">
-          {displayRooms.map((room) => {
+          {effectiveRooms.map((room) => {
             const roomInitials = room.displayName.split(' ').map(word => word.charAt(0)).join('').substring(0, 2).toUpperCase();
             const roomBgColor = generateColorFromString(room.displayName);
-            
+
             return (
               <div
                 key={room.roomId}
-                className={`flex items-center gap-3 p-3 mx-1 hover:bg-gray-50 active:bg-gray-100 rounded-xl cursor-pointer transition-all duration-200 ${
-                  selectedRoomId === room.roomId 
-                    ? 'bg-blue-50 border border-blue-200 shadow-sm' 
-                    : ''
-                } touch-manipulation`}
+                className={`flex items-center gap-3 p-3 mx-1 hover:bg-gray-50 active:bg-gray-100 rounded-xl cursor-pointer transition-all duration-200 ${selectedRoomId === room.roomId
+                  ? 'bg-blue-50 border border-blue-200 shadow-sm'
+                  : ''
+                  } touch-manipulation`}
                 onClick={() => handleSelectChat(room)}
               >
                 {/* Avatar */}
                 <div className="relative flex-shrink-0">
                   {room.avatarInfo.type === 'image' ? (
-                    <img 
-                      src={room.avatarInfo.value} 
+                    <img
+                      src={room.avatarInfo.value}
                       alt={room.displayName}
                       className="w-11 h-11 rounded-full object-cover"
                     />
@@ -214,16 +261,15 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
                       {room.avatarInfo.value || roomInitials}
                     </div>
                   )}
-                  
+
                   {/* Online indicator for private chats */}
                   {room.type === 'one_to_one' && (
-                    <span 
-                      className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white rounded-full ${
-                        room.isOnline ? 'bg-green-500' : 'bg-gray-400'
-                      }`}
+                    <span
+                      className={`absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 border-2 border-white rounded-full ${room.isOnline ? 'bg-green-500' : 'bg-gray-400'
+                        }`}
                     />
                   )}
-                  
+
                   {/* Group indicator */}
                   {room.type !== 'one_to_one' && (
                     <span className="absolute -bottom-0.5 -right-0.5 w-3.5 h-3.5 bg-blue-500 border-2 border-white rounded-full flex items-center justify-center">
@@ -244,7 +290,7 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
                       </span>
                     )}
                   </div>
-                  
+
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-500 truncate pr-2">
                       {room.lastMessage?.content || "No messages yet"}
