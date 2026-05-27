@@ -211,11 +211,6 @@ export const useWebSocket = (): WebSocketContextType => {
           setIsConnected(true);
           setConnectionStatus("connected");
 
-          // Only show success toast on reconnection after failures
-          if (reconnectAttemptsRef.current > 0) {
-            showToast("success", "Connection restored");
-          }
-
           reconnectAttemptsRef.current = 0; // Reset attempts on successful connection
 
           // Clear any pending reconnection timeout
@@ -232,13 +227,6 @@ export const useWebSocket = (): WebSocketContextType => {
           lastFailedAttemptRef.current = Date.now();
           setIsConnected(false);
           setConnectionStatus("error");
-
-          if (reconnectAttemptsRef.current >= maxReconnectAttempts) {
-            showToast("error", "Unable to connect to real-time services");
-          } else if (reconnectAttemptsRef.current === 1) {
-            // Only show error on first attempt to avoid spam
-            showToast("error", "Connection failed, retrying...");
-          }
         });
 
         // Disconnection

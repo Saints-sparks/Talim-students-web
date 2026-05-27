@@ -13,7 +13,7 @@ interface WebSocketProviderProps {
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   children,
 }) => {
-  const { isAuthenticated, user } = useAuthContext();
+  const { isAuthenticated, user, accessToken } = useAuthContext();
   const webSocket = useWebSocket();
 
   // Auto-connect when user is authenticated
@@ -23,6 +23,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
 
     if (
       isAuthenticated &&
+      accessToken &&
       userId &&
       !webSocket.isConnected &&
       webSocket.connectionStatus !== "connecting"
@@ -33,6 +34,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     }
   }, [
     isAuthenticated,
+    accessToken,
     user?.userId,
     user?.id,
     webSocket.isConnected,
@@ -44,7 +46,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
     const handleAuthEvent = (e: CustomEvent) => {
       if (e.detail?.type === "login" && e.detail?.user) {
         const loginUserId = e.detail.user.userId || e.detail.user.id;
-        if (loginUserId && !webSocket.isConnected) {
+        if (loginUserId && accessToken && !webSocket.isConnected) {
           webSocket.connect(loginUserId);
         }
       }
@@ -57,7 +59,7 @@ export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
         handleAuthEvent as EventListener
       );
     };
-  }, [webSocket.connect, webSocket.isConnected]); // Fixed dependencies
+  }, [accessToken, webSocket.connect, webSocket.isConnected]); // Fixed dependencies
 
   return (
     <WebSocketContext.Provider value={webSocket}>
