@@ -39,9 +39,9 @@ const CurriculumView: React.FC<CurriculumViewProps> = ({
     if (!contentRef.current) return;
     try {
       const canvas = await html2canvas(contentRef.current, {
-        backgroundColor: "#ffffff",
+        background: "#ffffff",
         scale: 2,
-      });
+      } as any);
       const imgData = canvas.toDataURL("image/png");
       const a = document.createElement("a");
       a.href = imgData;

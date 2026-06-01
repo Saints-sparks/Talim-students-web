@@ -85,6 +85,48 @@ export interface StudentKPIData {
   };
 }
 
+export interface PublishedCourse {
+  _id: string;
+  name: string;
+  code?: string;
+  teacher?: string;
+  publishedAssessmentsCount: number;
+  latestPublishedAssessment?: {
+    publicationId: string;
+    assessment: {
+      _id: string;
+      name: string;
+      assessmentType?: string;
+      startDate?: string;
+      endDate?: string;
+    };
+    publishedAt?: string;
+    kpis?: Record<string, unknown>;
+  } | null;
+  currentAverage?: number | null;
+  gradeLevel?: string | null;
+}
+
+export interface PublishedAssessmentResult {
+  publicationId: string;
+  assessment: {
+    _id: string;
+    name: string;
+    assessmentType?: string;
+    startDate?: string;
+    endDate?: string;
+  };
+  publishedAt?: string;
+  score: number;
+  maxScore: number;
+  percentage: number;
+  gradeLevel: string;
+  classAverage?: number | null;
+  highestScore?: number | null;
+  lowestScore?: number | null;
+  comparison?: string;
+}
+
 function extractArray<T>(json: unknown): T[] {
   if (Array.isArray(json)) return json as T[];
   if (json && typeof json === "object") {
@@ -173,6 +215,31 @@ export const gradesService = {
       accessToken
     );
     return extractArray<CourseGradeRecord>(json);
+  },
+
+  /** All courses in the authenticated student's class with published result counts */
+  getPublishedCoursesByTerm: async (
+    termId: string,
+    accessToken: string
+  ): Promise<PublishedCourse[]> => {
+    const json = await apiFetch(
+      `${API_BASE_URL}/grade-records/student/me/courses/term/${termId}`,
+      accessToken
+    );
+    return extractArray<PublishedCourse>(json);
+  },
+
+  /** Published assessments for one course for the authenticated student */
+  getPublishedAssessmentsForCourse: async (
+    courseId: string,
+    termId: string,
+    accessToken: string
+  ): Promise<PublishedAssessmentResult[]> => {
+    const json = await apiFetch(
+      `${API_BASE_URL}/grade-records/student/me/courses/${courseId}/published-assessments/term/${termId}`,
+      accessToken
+    );
+    return extractArray<PublishedAssessmentResult>(json);
   },
 
   /** Cumulative grade record for the authenticated student for a given term */

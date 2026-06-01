@@ -1,28 +1,25 @@
 "use client";
 
-import { useState } from "react";
-import { useCourseGradeRecords } from "@/hooks/useCourseGradeRecords";
+import { useEffect, useMemo, useState } from "react";
+import { usePublishedGradeCourses } from "@/hooks/usePublishedGradeCourses";
+import { usePublishedCourseAssessments } from "@/hooks/usePublishedCourseAssessments";
 import { useStudentCumulativeGrade } from "@/hooks/useStudentCumulativeGrade";
 import { Card, CardContent } from "@/components/ui/card";
 import { ErrorDisplay } from "@/components/ErrorDisplay";
 import { EmptyState } from "@/components/EmptyState";
 import type {
-  CourseGradeRecord,
-  AssessmentGradeRecord,
-  StudentCumulativeGrade,
+  PublishedAssessmentResult,
+  PublishedCourse,
 } from "@/services/grades.service";
 import {
+  BarChart3,
   BookOpen,
+  CheckCircle2,
+  ChevronRight,
   FileText,
-  ChevronDown,
-  ChevronUp,
   RefreshCw,
   Trophy,
-  CheckCircle2,
-  BarChart3,
 } from "lucide-react";
-
-// ─── helpers ───────────────────────────────────────────────────────────────
 
 function gradeBadgeClass(grade: string) {
   const g = (grade || "").toUpperCase();
@@ -43,19 +40,6 @@ function progressColor(pct: number) {
   return "bg-red-500";
 }
 
-function pctToGrade(pct: number) {
-  if (pct >= 90) return "A+";
-  if (pct >= 80) return "A";
-  if (pct >= 75) return "B+";
-  if (pct >= 70) return "B";
-  if (pct >= 65) return "C+";
-  if (pct >= 60) return "C";
-  if (pct >= 55) return "D+";
-  if (pct >= 50) return "D";
-  if (pct >= 45) return "E";
-  return "F";
-}
-
 function getErrorVariant(msg: string): "network" | "auth" | "server" | "default" {
   const m = msg.toLowerCase();
   if (m.includes("network") || m.includes("fetch") || m.includes("connection"))
@@ -65,57 +49,6 @@ function getErrorVariant(msg: string): "network" | "auth" | "server" | "default"
   if (m.includes("500") || m.includes("server")) return "server";
   return "default";
 }
-
-function termName(cumulative: StudentCumulativeGrade | null): string {
-  if (!cumulative) return "";
-  if (typeof cumulative.termId === "object") return cumulative.termId.name;
-  return "";
-}
-
-/** Resolve course display fields from either the flat or populated-object API shape */
-function resolveCourse(r: CourseGradeRecord) {
-  if (r.courseId && typeof r.courseId === "object") {
-    return {
-      name: r.courseId.name ?? r.courseName ?? "Unnamed Course",
-      code: r.courseId.code ?? r.courseCode,
-      credits: r.courseId.creditHours ?? r.creditHours,
-      key: r.courseId._id ?? r._id ?? String(Math.random()),
-    };
-  }
-  return {
-    name: r.courseName ?? "Unnamed Course",
-    code: r.courseCode,
-    credits: r.creditHours,
-    key: (r.courseId as string) ?? r._id ?? String(Math.random()),
-  };
-}
-
-function resolveAssessments(r: CourseGradeRecord): AssessmentGradeRecord[] {
-  return r.assessmentGradeRecords ?? r.assessments ?? [];
-}
-
-function assessmentLabel(a: AssessmentGradeRecord, i: number): string {
-  if (a.assessmentName) return a.assessmentName;
-  if (a.assessmentId && typeof a.assessmentId === "object")
-    return a.assessmentId.title ?? a.assessmentId.name ?? `Assessment ${i + 1}`;
-  return `Assessment ${i + 1}`;
-}
-
-function assessmentType(a: AssessmentGradeRecord): string | null {
-  if (a.assessmentType) return a.assessmentType;
-  if (a.assessmentId && typeof a.assessmentId === "object")
-    return a.assessmentId.type ?? null;
-  return null;
-}
-
-function totalAssessments(records: CourseGradeRecord[]): number {
-  return records.reduce(
-    (sum, r) => sum + resolveAssessments(r).length,
-    0
-  );
-}
-
-// ─── sub-components ────────────────────────────────────────────────────────
 
 function StatCard({
   icon,
@@ -136,7 +69,9 @@ function StatCard({
             <div className="text-xl sm:text-2xl font-bold text-[#030E18] leading-tight tabular-nums">
               {value}
             </div>
-            <div className="text-xs sm:text-sm font-medium text-[#6F6F6F] mt-1 truncate">{label}</div>
+            <div className="text-xs sm:text-sm font-medium text-[#6F6F6F] mt-1 truncate">
+              {label}
+            </div>
             {sub && <div className="text-xs text-[#AAAAAA] mt-0.5">{sub}</div>}
           </div>
           <div className="flex-shrink-0 p-2 sm:p-2.5 bg-[#003366]/10 rounded-xl text-[#003366]">
@@ -145,192 +80,6 @@ function StatCard({
         </div>
       </CardContent>
     </Card>
-  );
-}
-
-function SummaryRow({
-  label,
-  value,
-  sub,
-}: {
-  label: string;
-  value: string;
-  sub?: string;
-}) {
-  return (
-    <div className="flex items-center justify-between py-3 border-b border-[#F5F5F5] last:border-0">
-      <span className="text-sm text-[#6F6F6F]">{label}</span>
-      <div className="text-right">
-        <div className="text-sm font-semibold text-[#030E18]">{value}</div>
-        {sub && <div className="text-xs text-[#AAAAAA]">{sub}</div>}
-      </div>
-    </div>
-  );
-}
-
-function CourseCard({
-  record,
-  isExpanded,
-  onToggle,
-}: {
-  record: CourseGradeRecord;
-  isExpanded: boolean;
-  onToggle: () => void;
-}) {
-  const { name, code, credits } = resolveCourse(record);
-  const assessments = resolveAssessments(record);
-  const pct = record.percentage ?? record.courseAverage ?? 0;
-  const grade = record.gradeLevel ?? record.letterGrade ?? "";
-
-  return (
-    <div className="bg-white rounded-2xl border border-[#F0F0F0] overflow-hidden transition-shadow hover:shadow-sm">
-      {/* Always-visible header */}
-      <button
-        className="w-full text-left p-5 focus:outline-none"
-        onClick={onToggle}
-        aria-expanded={isExpanded}
-      >
-        <div className="flex items-center gap-3">
-          <div className="flex-shrink-0 w-10 h-10 rounded-xl bg-[#003366]/10 flex items-center justify-center">
-            <FileText className="w-5 h-5 text-[#003366]" />
-          </div>
-
-          <div className="flex-1 min-w-0 text-left">
-            <div className="font-semibold text-[#030E18] truncate">{name}</div>
-            <div className="text-xs text-[#AAAAAA] mt-0.5 flex flex-wrap gap-x-2">
-              {code && <span>{code}</span>}
-              {credits != null && (
-                <span>
-                  {credits} credit{credits !== 1 ? "s" : ""}
-                </span>
-              )}
-              {assessments.length > 0 && (
-                <span className="text-[#003366] font-medium">
-                  {assessments.length} assessment
-                  {assessments.length !== 1 ? "s" : ""}
-                </span>
-              )}
-            </div>
-          </div>
-
-          <div className="flex items-center gap-2.5 flex-shrink-0">
-            <div className="text-right hidden sm:block">
-              <div className="text-base font-bold text-[#030E18]">
-                {typeof pct === "number" && !isNaN(pct)
-                  ? `${pct.toFixed(1)}%`
-                  : "N/A"}
-              </div>
-              {record.cumulativeScore != null && record.maxScore != null && (
-                <div className="text-xs text-[#AAAAAA]">
-                  {record.cumulativeScore}/{record.maxScore}
-                </div>
-              )}
-            </div>
-            {grade && (
-              <span
-                className={`text-sm font-bold px-2.5 py-1 rounded-lg ${gradeBadgeClass(grade)}`}
-              >
-                {grade}
-              </span>
-            )}
-            <div className="text-[#CCCCCC]">
-              {isExpanded ? (
-                <ChevronUp className="w-4 h-4" />
-              ) : (
-                <ChevronDown className="w-4 h-4" />
-              )}
-            </div>
-          </div>
-        </div>
-
-        {/* Progress bar */}
-        <div className="mt-4">
-          <div className="flex items-center justify-between mb-1.5">
-            <span className="text-xs text-[#AAAAAA]">Performance</span>
-            <span className="text-xs font-medium text-[#030E18] sm:hidden">
-              {typeof pct === "number" && !isNaN(pct)
-                ? `${pct.toFixed(1)}%`
-                : "N/A"}
-            </span>
-          </div>
-          <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
-            <div
-              className={`h-full rounded-full transition-all duration-500 ${progressColor(pct)}`}
-              style={{ width: `${Math.min(100, Math.max(0, pct))}%` }}
-            />
-          </div>
-        </div>
-      </button>
-
-      {/* Expanded: assessment breakdown */}
-      {isExpanded && (
-        <div className="border-t border-[#F0F0F0] px-5 pb-5 pt-4">
-          {assessments.length === 0 ? (
-            <p className="text-sm text-[#AAAAAA] text-center py-3">
-              No assessment records available yet
-            </p>
-          ) : (
-            <>
-              <div className="text-xs font-semibold text-[#AAAAAA] uppercase tracking-wider mb-3">
-                Assessment Breakdown
-              </div>
-              <div className="space-y-2">
-                {assessments.map((a, i) => {
-                  const score = a.actualScore ?? a.score ?? null;
-                  const max = a.maxScore ?? null;
-                  const aPct =
-                    score != null && max ? (score / max) * 100 : null;
-                  const type = assessmentType(a);
-                  const aId =
-                    a._id ??
-                    (typeof a.assessmentId === "string"
-                      ? a.assessmentId
-                      : a.assessmentId?._id) ??
-                    i;
-
-                  return (
-                    <div
-                      key={aId}
-                      className="flex items-center gap-3 p-3 bg-gray-50 rounded-xl"
-                    >
-                      <div className="flex-1 min-w-0">
-                        <div className="text-sm font-medium text-[#030E18] truncate">
-                          {assessmentLabel(a, i)}
-                        </div>
-                        {type && (
-                          <div className="text-xs text-[#AAAAAA] capitalize">
-                            {type}
-                          </div>
-                        )}
-                      </div>
-                      <div className="flex items-center gap-2 flex-shrink-0">
-                        {aPct != null && (
-                          <span
-                            className={`text-xs font-medium px-2 py-0.5 rounded-md ${gradeBadgeClass(
-                              pctToGrade(aPct)
-                            )}`}
-                          >
-                            {aPct.toFixed(0)}%
-                          </span>
-                        )}
-                        <div className="text-sm font-semibold text-[#030E18] tabular-nums">
-                          {score != null ? score : "—"}
-                          {max != null ? (
-                            <span className="text-[#AAAAAA] font-normal">
-                              /{max}
-                            </span>
-                          ) : null}
-                        </div>
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
-            </>
-          )}
-        </div>
-      )}
-    </div>
   );
 }
 
@@ -355,57 +104,143 @@ function LoadingSkeleton() {
         ))}
       </div>
       <div className="grid gap-6 lg:grid-cols-3">
-        <div className="lg:col-span-2 space-y-3">
+        <div className="lg:col-span-1 space-y-3">
           {[0, 1, 2].map((i) => (
-            <div
-              key={i}
-              className="animate-pulse bg-white rounded-2xl border border-[#F0F0F0] p-5 space-y-4"
-            >
-              <div className="flex gap-3 items-center">
-                <Skeleton className="w-10 h-10 flex-shrink-0" />
-                <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-40" />
-                  <Skeleton className="h-3 w-24" />
-                </div>
-                <Skeleton className="h-8 w-12 flex-shrink-0" />
-              </div>
-              <Skeleton className="h-2 w-full rounded-full" />
-            </div>
+            <Skeleton key={i} className="h-24 w-full" />
           ))}
         </div>
-        <div className="animate-pulse bg-white rounded-2xl border border-[#F0F0F0] h-72" />
+        <Skeleton className="lg:col-span-2 h-96 w-full" />
       </div>
     </div>
   );
 }
 
-// ─── grade scale ────────────────────────────────────────────────────────────
+function CourseButton({
+  course,
+  active,
+  onClick,
+}: {
+  course: PublishedCourse;
+  active: boolean;
+  onClick: () => void;
+}) {
+  const average = course.currentAverage ?? null;
 
-const GRADE_SCALE = [
-  { grade: "A+", range: "≥ 90%", cls: "bg-emerald-100 text-emerald-700" },
-  { grade: "A", range: "≥ 80%", cls: "bg-emerald-100 text-emerald-700" },
-  { grade: "B+", range: "≥ 75%", cls: "bg-blue-100 text-blue-700" },
-  { grade: "B", range: "≥ 70%", cls: "bg-blue-100 text-blue-700" },
-  { grade: "C+", range: "≥ 65%", cls: "bg-amber-100 text-amber-700" },
-  { grade: "C", range: "≥ 60%", cls: "bg-amber-100 text-amber-700" },
-  { grade: "D+", range: "≥ 55%", cls: "bg-orange-100 text-orange-700" },
-  { grade: "D", range: "≥ 50%", cls: "bg-orange-100 text-orange-700" },
-  { grade: "E", range: "≥ 45%", cls: "bg-red-100 text-red-500" },
-  { grade: "F", range: "< 45%", cls: "bg-red-200 text-red-800" },
-];
+  return (
+    <button
+      onClick={onClick}
+      className={`w-full text-left rounded-2xl border p-4 transition-all ${
+        active
+          ? "border-[#003366] bg-[#003366]/5"
+          : "border-[#F0F0F0] bg-white hover:border-[#C8D6E5]"
+      }`}
+    >
+      <div className="flex items-center gap-3">
+        <div className="w-10 h-10 rounded-xl bg-[#003366]/10 flex items-center justify-center flex-shrink-0">
+          <FileText className="w-5 h-5 text-[#003366]" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="font-semibold text-[#030E18] truncate">{course.name}</div>
+          <div className="text-xs text-[#AAAAAA] mt-0.5 flex flex-wrap gap-x-2">
+            {course.code && <span>{course.code}</span>}
+            {course.teacher && <span>{course.teacher}</span>}
+          </div>
+        </div>
+        <ChevronRight
+          className={`w-4 h-4 text-[#AAAAAA] transition-transform ${
+            active ? "rotate-90" : ""
+          }`}
+        />
+      </div>
+      <div className="flex items-center justify-between mt-4 text-xs">
+        <span className="text-[#003366] font-medium">
+          {course.publishedAssessmentsCount} published
+        </span>
+        <span className="text-[#6F6F6F]">
+          {average != null ? `${average.toFixed(1)}%` : "No average"}
+        </span>
+      </div>
+    </button>
+  );
+}
 
-// ─── main ───────────────────────────────────────────────────────────────────
+function AssessmentRow({ item }: { item: PublishedAssessmentResult }) {
+  return (
+    <div className="rounded-2xl border border-[#F0F0F0] bg-white p-4">
+      <div className="flex items-start justify-between gap-4">
+        <div className="min-w-0">
+          <div className="font-semibold text-[#030E18] truncate">
+            {item.assessment.name}
+          </div>
+          <div className="text-xs text-[#AAAAAA] mt-1 capitalize">
+            {item.assessment.assessmentType || "Assessment"}
+          </div>
+        </div>
+        <div className="flex items-center gap-2 flex-shrink-0">
+          <span className={`text-sm font-bold px-2.5 py-1 rounded-lg ${gradeBadgeClass(item.gradeLevel)}`}>
+            {item.gradeLevel}
+          </span>
+          <div className="text-right">
+            <div className="text-sm font-bold text-[#030E18]">
+              {item.percentage.toFixed(1)}%
+            </div>
+            <div className="text-xs text-[#AAAAAA]">
+              {item.score}/{item.maxScore}
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div className="mt-4">
+        <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+          <div
+            className={`h-full rounded-full transition-all duration-500 ${progressColor(item.percentage)}`}
+            style={{ width: `${Math.min(100, Math.max(0, item.percentage))}%` }}
+          />
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 mt-4 text-xs">
+        <div>
+          <div className="text-[#AAAAAA]">Class avg</div>
+          <div className="font-semibold text-[#030E18]">
+            {item.classAverage != null ? `${item.classAverage}%` : "-"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[#AAAAAA]">Highest</div>
+          <div className="font-semibold text-[#030E18]">
+            {item.highestScore ?? "-"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[#AAAAAA]">Lowest</div>
+          <div className="font-semibold text-[#030E18]">
+            {item.lowestScore ?? "-"}
+          </div>
+        </div>
+        <div>
+          <div className="text-[#AAAAAA]">Comparison</div>
+          <div className="font-semibold text-[#030E18] truncate">
+            {item.comparison || "-"}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function ResultsDashboard() {
-  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
   const {
-    gradeRecords,
-    isLoading: recordsLoading,
-    error: recordsError,
-    refetch: refetchRecords,
-  } = useCourseGradeRecords();
+    courses,
+    isLoading: coursesLoading,
+    error: coursesError,
+    refetch: refetchCourses,
+    termId,
+  } = usePublishedGradeCourses();
 
   const {
     cumulativeGrade,
@@ -414,37 +249,48 @@ export default function ResultsDashboard() {
     refetch: refetchCumulative,
   } = useStudentCumulativeGrade();
 
-  const isLoading = recordsLoading || cumulativeLoading;
-  // Only surface cumulative error if course records also failed (cumulative may simply not exist yet)
-  const error = recordsError || (cumulativeError && !gradeRecords ? cumulativeError : null);
+  const {
+    assessments,
+    isLoading: assessmentsLoading,
+    error: assessmentsError,
+    refetch: refetchAssessments,
+  } = usePublishedCourseAssessments(selectedCourseId, termId);
+
+  useEffect(() => {
+    if (!selectedCourseId && courses?.length) {
+      setSelectedCourseId(courses[0]._id);
+    }
+  }, [courses, selectedCourseId]);
+
+  const selectedCourse = useMemo(
+    () => courses?.find((course) => course._id === selectedCourseId) ?? null,
+    [courses, selectedCourseId]
+  );
+
+  const publishedCourseCount =
+    courses?.filter((course) => course.publishedAssessmentsCount > 0).length ?? 0;
+  const publishedAssessmentCount =
+    courses?.reduce((sum, course) => sum + course.publishedAssessmentsCount, 0) ?? 0;
+
+  const isLoading = coursesLoading || cumulativeLoading;
+  const error = coursesError || (cumulativeError && !cumulativeGrade ? cumulativeError : null);
+  const hasCourses = courses && courses.length > 0;
 
   const handleRefresh = () => {
     setIsRefreshing(true);
-    refetchRecords();
+    refetchCourses();
     refetchCumulative();
+    refetchAssessments();
     setTimeout(() => setIsRefreshing(false), 1200);
   };
 
-  const toggleCourse = (key: string) =>
-    setExpanded((prev) => {
-      const next = new Set(prev);
-      next.has(key) ? next.delete(key) : next.add(key);
-      return next;
-    });
-
-  const hasData = (gradeRecords && gradeRecords.length > 0) || cumulativeGrade;
-  const subjectCount = gradeRecords?.length ?? 0;
-  const assessmentCount = gradeRecords ? totalAssessments(gradeRecords) : 0;
-  const term = termName(cumulativeGrade);
-
   return (
     <div className="min-h-full p-3 sm:p-5 lg:p-6 bg-[#F8F8F8] space-y-5 sm:space-y-6">
-      {/* ── Header ── */}
       <div className="flex items-start justify-between gap-4">
         <div>
           <h1 className="text-xl font-bold text-[#030E18]">Results</h1>
           <p className="text-sm text-[#AAAAAA] mt-0.5">
-            {term ? `${term} · ` : ""}Academic performance overview
+            Academic performance overview
           </p>
         </div>
         <button
@@ -457,7 +303,6 @@ export default function ResultsDashboard() {
         </button>
       </div>
 
-      {/* ── States ── */}
       {isLoading ? (
         <LoadingSkeleton />
       ) : error ? (
@@ -469,11 +314,11 @@ export default function ResultsDashboard() {
             variant={getErrorVariant(error)}
           />
         </div>
-      ) : !hasData ? (
+      ) : !hasCourses ? (
         <div className="flex items-center justify-center py-24">
           <EmptyState
-            title="No Academic Data Yet"
-            message="Your results will appear here once your teachers have submitted grades."
+            title="No Courses Found"
+            message="Your class courses will appear here once your enrollment is ready."
             actionLabel="Refresh"
             onAction={handleRefresh}
             icon={<BookOpen className="h-12 w-12" />}
@@ -481,167 +326,116 @@ export default function ResultsDashboard() {
         </div>
       ) : (
         <>
-          {/* ── Stats row ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 sm:gap-4">
             <StatCard
               icon={<BarChart3 className="w-5 h-5" />}
               value={
                 cumulativeGrade?.percentage != null
                   ? `${cumulativeGrade.percentage.toFixed(1)}%`
-                  : "—"
+                  : "-"
               }
               label="Grade Score"
-              sub="This term"
+              sub="Published"
             />
             <StatCard
               icon={<Trophy className="w-5 h-5" />}
-              value={
-                cumulativeGrade?.position != null
-                  ? `#${cumulativeGrade.position}`
-                  : "—"
-              }
+              value={cumulativeGrade?.position != null ? `#${cumulativeGrade.position}` : "-"}
               label="Class Position"
               sub="This term"
             />
             <StatCard
               icon={<BookOpen className="w-5 h-5" />}
-              value={subjectCount || "—"}
-              label="Subjects"
-              sub="Enrolled"
+              value={courses?.length || "-"}
+              label="Courses"
+              sub={`${publishedCourseCount} with results`}
             />
             <StatCard
               icon={<CheckCircle2 className="w-5 h-5" />}
-              value={assessmentCount || "—"}
+              value={publishedAssessmentCount || "-"}
               label="Assessments"
-              sub="Recorded"
+              sub="Published"
             />
           </div>
 
-          {/* ── Main content ── */}
           <div className="grid gap-6 lg:grid-cols-3">
-            {/* Left: subject list */}
-            <div className="lg:col-span-2 space-y-3">
+            <div className="space-y-3">
               <div className="flex items-center justify-between">
                 <h2 className="text-base font-semibold text-[#030E18]">
-                  Subject Performance
+                  Courses
                 </h2>
-                {subjectCount > 0 && (
-                  <span className="text-xs text-[#AAAAAA]">
-                    {subjectCount} subject{subjectCount !== 1 ? "s" : ""}
+                <span className="text-xs text-[#AAAAAA]">
+                  {courses?.length ?? 0} enrolled
+                </span>
+              </div>
+              <div className="space-y-3">
+                {courses?.map((course) => (
+                  <CourseButton
+                    key={course._id}
+                    course={course}
+                    active={course._id === selectedCourseId}
+                    onClick={() => setSelectedCourseId(course._id)}
+                  />
+                ))}
+              </div>
+            </div>
+
+            <div className="lg:col-span-2 space-y-4">
+              <div className="flex items-center justify-between gap-3">
+                <div>
+                  <h2 className="text-base font-semibold text-[#030E18]">
+                    {selectedCourse?.name || "Course Results"}
+                  </h2>
+                  <p className="text-xs text-[#AAAAAA] mt-0.5">
+                    {selectedCourse?.publishedAssessmentsCount ?? 0} published assessments
+                  </p>
+                </div>
+                {selectedCourse?.gradeLevel && (
+                  <span
+                    className={`text-sm font-bold px-3 py-1 rounded-lg ${gradeBadgeClass(
+                      selectedCourse.gradeLevel
+                    )}`}
+                  >
+                    {selectedCourse.gradeLevel}
                   </span>
                 )}
               </div>
 
-              {!gradeRecords || gradeRecords.length === 0 ? (
+              {assessmentsError ? (
+                <Card className="border border-[#F0F0F0] shadow-none rounded-2xl">
+                  <CardContent className="py-10">
+                    <ErrorDisplay
+                      error={assessmentsError}
+                      onRetry={refetchAssessments}
+                      title="Course Results Unavailable"
+                      variant={getErrorVariant(assessmentsError)}
+                    />
+                  </CardContent>
+                </Card>
+              ) : assessmentsLoading ? (
+                <div className="space-y-3">
+                  {[0, 1, 2].map((i) => (
+                    <Skeleton key={i} className="h-36 w-full" />
+                  ))}
+                </div>
+              ) : assessments.length === 0 ? (
                 <Card className="border border-[#F0F0F0] shadow-none rounded-2xl">
                   <CardContent className="py-14 text-center">
                     <FileText className="w-10 h-10 text-gray-300 mx-auto mb-3" />
                     <p className="text-[#6F6F6F] font-medium text-sm">
-                      No course grades yet
+                      No published assessments yet
                     </p>
                     <p className="text-xs text-[#AAAAAA] mt-1">
-                      Grades appear here once teachers submit them
+                      Published results for this course will appear here
                     </p>
                   </CardContent>
                 </Card>
               ) : (
-                gradeRecords.map((record) => {
-                  const { key } = resolveCourse(record);
-                  return (
-                    <CourseCard
-                      key={key}
-                      record={record}
-                      isExpanded={expanded.has(key)}
-                      onToggle={() => toggleCourse(key)}
-                    />
-                  );
-                })
+                <div className="space-y-3">
+                  {assessments.map((item) => (
+                    <AssessmentRow key={item.publicationId} item={item} />
+                  ))}
+                </div>
               )}
-            </div>
-
-            {/* Right: summary + grade scale */}
-            <div className="space-y-4">
-              <h2 className="text-base font-semibold text-[#030E18]">
-                Academic Summary
-              </h2>
-
-              <Card className="border border-[#F0F0F0] shadow-none rounded-2xl">
-                <CardContent className="p-5 space-y-4">
-                  {cumulativeGrade ? (
-                    <>
-                      {/* Grade hero */}
-                      <div className="flex items-center justify-between p-4 bg-[#003366]/5 rounded-xl">
-                        <div>
-                          <div className="text-xs text-[#AAAAAA] font-medium uppercase tracking-wider">
-                            Overall Grade
-                          </div>
-                          <div className="text-sm font-medium text-[#030E18] mt-0.5">
-                            {cumulativeGrade.percentage.toFixed(1)}% score
-                          </div>
-                        </div>
-                        <div
-                          className={`text-2xl font-bold px-4 py-2 rounded-xl ${gradeBadgeClass(
-                            cumulativeGrade.grade
-                          )}`}
-                        >
-                          {cumulativeGrade.grade || "—"}
-                        </div>
-                      </div>
-
-                      {/* Info rows */}
-                      <div>
-                        {term && <SummaryRow label="Term" value={term} />}
-                        <SummaryRow
-                          label="Total Score"
-                          value={String(cumulativeGrade.totalScore)}
-                        />
-                        <SummaryRow
-                          label="Class Rank"
-                          value={
-                            cumulativeGrade.position != null
-                              ? `#${cumulativeGrade.position}`
-                              : "—"
-                          }
-                        />
-                        {cumulativeGrade.remarks && (
-                          <SummaryRow
-                            label="Remarks"
-                            value={cumulativeGrade.remarks}
-                          />
-                        )}
-                      </div>
-                    </>
-                  ) : (
-                    <p className="text-sm text-[#AAAAAA] text-center py-6">
-                      Cumulative summary not yet available
-                    </p>
-                  )}
-                </CardContent>
-              </Card>
-
-              {/* Grade scale reference */}
-              <Card className="border border-[#F0F0F0] shadow-none rounded-2xl">
-                <CardContent className="p-5">
-                  <div className="text-xs font-semibold text-[#AAAAAA] uppercase tracking-wider mb-3">
-                    Grade Scale
-                  </div>
-                  <div className="space-y-1.5">
-                    {GRADE_SCALE.map(({ grade, range, cls }) => (
-                      <div
-                        key={grade}
-                        className="flex items-center justify-between"
-                      >
-                        <span
-                          className={`text-xs font-bold px-2 py-0.5 rounded-md min-w-[32px] text-center ${cls}`}
-                        >
-                          {grade}
-                        </span>
-                        <span className="text-xs text-[#AAAAAA]">{range}</span>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
             </div>
           </div>
         </>
