@@ -28,30 +28,30 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
   const getTeacherNameByCourse = curriculum.getTeacherNameByCourse;
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-200 p-6  transition-all duration-300 hover:border-[#003366] group">
+    <div className="bg-white dark:bg-[#1B2A44] rounded-2xl border border-gray-200 dark:border-[#30435F] p-6 transition-all duration-300 hover:border-[#003366] dark:hover:border-blue-400 group">
       <div className="flex items-start justify-between mb-4">
         <div className="flex items-center space-x-3">
           <div className="w-12 h-12 bg-gradient-to-br from-[#003366] to-[#004080] rounded-xl flex items-center justify-center">
             <BookOpen className="w-6 h-6 text-white" />
           </div>
           <div>
-            <h3 className="font-medium text-gray-900 text-lg group-hover:text-[#003366] transition-colors">
+            <h3 className="font-medium text-gray-900 dark:text-white text-lg group-hover:text-[#003366] dark:group-hover:text-blue-200 transition-colors">
               {course.title}
             </h3>
-            <p className="text-sm text-gray-600 font-medium">
+            <p className="text-sm text-gray-600 dark:text-slate-300 font-medium">
               {getSubjectNameByCourse(course)}
             </p>
           </div>
         </div>
         <div className="text-right">
-          <p className="text-sm font-medium text-[#003366]">
+          <p className="text-sm font-medium text-[#003366] dark:text-blue-200">
             {course.courseCode}
           </p>
         </div>
       </div>
 
       <div className="mb-4">
-        <p className="text-gray-700 text-sm leading-relaxed">
+        <p className="text-gray-700 dark:text-slate-300 text-sm leading-relaxed">
           {course.description || "No description available"}
         </p>
       </div>
@@ -62,7 +62,7 @@ const SubjectCard: React.FC<SubjectCardProps> = ({
         <Button
           onClick={() => onViewCurriculum(course)}
           disabled={loading}
-          className="bg-transparent border border-[#002244] text-black px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200 "
+          className="bg-transparent border border-[#002244] dark:border-blue-400 text-[#030E18] dark:text-white hover:bg-[#003366] hover:text-white dark:hover:bg-blue-700 px-4 py-2 rounded-lg flex items-center space-x-2 transition-all duration-200"
         >
           <span>{loading ? "Loading..." : "View Curriculum"}</span>
           <ArrowRight className="w-4 h-4" />
@@ -303,8 +303,8 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
     return (
       <div className="px-3 sm:px-6 py-4 h-full">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">Loading...</h2>
-          <p className="text-gray-600">
+          <h2 className="text-2xl font-bold mb-2 text-[#030E18] dark:text-white">Loading...</h2>
+          <p className="text-gray-600 dark:text-slate-300">
             Explore your course curriculum and materials
           </p>
         </div>
@@ -324,10 +324,10 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
           <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mb-4">
             <BookOpen className="w-8 h-8 text-red-600" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             Failed to Load Class
           </h3>
-          <p className="text-gray-600 text-center max-w-md mb-4">{error}</p>
+          <p className="text-gray-600 dark:text-slate-300 text-center max-w-md mb-4">{error}</p>
           <Button
             onClick={() => window.location.reload()}
             className="bg-[#003366] hover:bg-[#002244] text-white"
@@ -343,8 +343,8 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
     return (
       <div className="px-3 sm:px-6 py-4 h-full">
         <div className="mb-6">
-          <h2 className="text-2xl font-bold mb-2 text-[#030E18]">No Courses</h2>
-          <p className="text-gray-600">No courses found for this class.</p>
+          <h2 className="text-2xl font-bold mb-2 text-[#030E18] dark:text-white">No Courses</h2>
+          <p className="text-gray-600 dark:text-slate-300">No courses found for this class.</p>
         </div>
       </div>
     );
@@ -353,8 +353,8 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
   return (
     <div className="px-3 sm:px-6 py-4 h-full">
       <div className="mb-4 sm:mb-6" data-guide="subjects-header">
-        <h2 className="text-2xl font-medium mb-2 text-[#030E18]">Subjects</h2>
-        <p className="text-gray-600">
+        <h2 className="text-2xl font-medium mb-2 text-[#030E18] dark:text-white">Subjects</h2>
+        <p className="text-gray-600 dark:text-slate-300">
           Explore your course curriculum and materials
         </p>
       </div>
@@ -368,14 +368,14 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
             placeholder="Search courses or codes..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-[#003366] focus:border-transparent"
+            className="w-full pl-10 pr-4 py-2 border border-gray-300 dark:border-[#30435F] rounded-lg bg-white dark:bg-[#1B2A44] text-gray-900 dark:text-white placeholder:text-gray-400 dark:placeholder:text-slate-500 focus:outline-none focus:ring-2 focus:ring-[#003366] dark:focus:ring-blue-400 focus:border-transparent"
           />
         </div>
       </div>
 
       {/* Results count */}
       <div className="mb-4" data-guide="subjects-count">
-        <p className="text-sm text-gray-600">
+        <p className="text-sm text-gray-600 dark:text-slate-300">
           Showing {filteredCourses.length} of {classData?.courses.length || 0}{" "}
           courses
         </p>
@@ -422,10 +422,10 @@ const SubjectGrid: React.FC<{ classId?: string; termId?: string }> = ({
           <div className="w-16 h-16 bg-gray-100 rounded-full flex items-center justify-center mb-4">
             <Search className="w-8 h-8 text-gray-400" />
           </div>
-          <h3 className="text-lg font-semibold text-gray-900 mb-2">
+          <h3 className="text-lg font-semibold text-gray-900 dark:text-white mb-2">
             No Results Found
           </h3>
-          <p className="text-gray-600 text-center max-w-md">
+          <p className="text-gray-600 dark:text-slate-300 text-center max-w-md">
             Try adjusting your search terms to find what you're looking for.
           </p>
         </div>

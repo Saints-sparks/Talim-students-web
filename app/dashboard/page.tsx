@@ -63,14 +63,14 @@ export default function DashboardPage() {
 
   return (
     <Layout>
-      <div className="relative w-full sm:h-screen bg-[#F8F8F8] px-3 sm:px-4 overflow-hidden">
+      <div className="relative w-full sm:h-screen bg-[#F8F8F8] dark:bg-[#0B1224] px-3 sm:px-4 overflow-hidden">
         <div className="h-full mx-auto flex flex-col space-y-4 sm:space-y-5 2xl:space-y-8 py-4 sm:py-0">
           {/* Onboarding progress widget */}
           <StudentSetupProgressWidget />
 
           {/* Overview */}
           <div className="flex-grow">
-            <h2 className="text-xl font-semibold my-4">Overview</h2>
+            <h2 className="text-xl font-semibold my-4 text-[#030E18] dark:text-white">Overview</h2>
             <div className="grid gap-3 sm:gap-4 grid-cols-1 sm:grid-cols-2 lg:grid-cols-3">
               {isLoading ? (
                 <>

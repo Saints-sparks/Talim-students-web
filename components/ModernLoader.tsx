@@ -13,7 +13,7 @@ const ModernLoader: React.FC<ModernLoaderProps> = ({ visible }) => {
 
   return (
     <div
-      className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50"
+      className="fixed inset-0 z-[9999] flex items-center justify-center bg-gradient-to-br from-blue-50 via-white to-indigo-50 dark:from-[#071024] dark:via-[#0B1224] dark:to-[#111C31]"
       role="status"
       aria-live="polite"
       aria-label="Signing in"
@@ -37,7 +37,7 @@ const ModernLoader: React.FC<ModernLoaderProps> = ({ visible }) => {
           {talimLetters.map((letter, index) => (
             <span
               key={letter}
-              className="text-4xl font-bold text-gray-800 animate-talim-letter"
+              className="text-4xl font-bold text-gray-800 dark:text-white animate-talim-letter"
               style={{
                 animationDelay: `${index * 0.1}s`,
                 textShadow: "0 2px 4px rgba(0,0,0,0.1)",
@@ -52,7 +52,7 @@ const ModernLoader: React.FC<ModernLoaderProps> = ({ visible }) => {
           {[0, 1, 2].map((index) => (
             <span
               key={index}
-              className="h-2 w-2 rounded-full bg-blue-600 animate-talim-dot"
+              className="h-2 w-2 rounded-full bg-blue-600 dark:bg-blue-300 animate-talim-dot"
               style={{ animationDelay: `${index * 0.2}s` }}
             />
           ))}

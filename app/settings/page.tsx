@@ -5,6 +5,7 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { useTheme } from "@/providers/theme-provider";
 import { authFetch } from "@/lib/authFetch";
 import { API_BASE_URL } from "@/lib/constants";
+import Layout from "@/components/Layout";
 import {
   User,
   Bell,
@@ -161,7 +162,7 @@ function Card({
 }) {
   return (
     <div
-      className={`bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl ${className}`}
+      className={`bg-white dark:bg-[#1B2A44] border border-gray-100 dark:border-[#30435F] rounded-xl ${className}`}
     >
       {children}
     </div>
@@ -854,16 +855,22 @@ export default function SettingsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gray-50 dark:bg-slate-950">
-      <div className="max-w-5xl mx-auto px-3 sm:px-4 py-5 sm:py-8">
-        <h1 className="text-2xl font-bold text-gray-900 dark:text-slate-100 mb-6">
-          Settings
-        </h1>
+    <Layout>
+      <div className="min-h-full bg-gray-50 px-3 py-5 dark:bg-[#0B1224] sm:px-5 sm:py-6">
+      <div className="mx-auto max-w-6xl">
+        <div className="mb-6">
+          <h1 className="text-2xl font-bold text-gray-900 dark:text-white">
+            Settings
+          </h1>
+          <p className="mt-1 text-sm text-gray-600 dark:text-slate-300">
+            Manage your profile, notifications, learning preferences, and account security.
+          </p>
+        </div>
 
-        <div className="flex gap-6">
+        <div className="grid gap-5 lg:grid-cols-[280px_minmax(0,1fr)]">
           {/* Sidebar Nav — desktop */}
-          <aside className="hidden md:block w-56 shrink-0">
-            <nav className="bg-white dark:bg-slate-800 border border-gray-100 dark:border-slate-700 rounded-xl overflow-hidden">
+          <aside className="hidden lg:block">
+            <nav className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-[#30435F] dark:bg-[#1B2A44]">
               {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
                 const active = activeSection === id;
                 return (
@@ -872,8 +879,8 @@ export default function SettingsPage() {
                     onClick={() => setActiveSection(id)}
                     className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
                       active
-                        ? "bg-[#EEF3F9] dark:bg-slate-700 text-[#003366] dark:text-blue-400 border-r-2 border-[#003366] dark:border-blue-500"
-                        : "text-gray-600 dark:text-slate-400 hover:bg-gray-50 dark:hover:bg-slate-700/50"
+                        ? "bg-[#EEF3F9] dark:bg-[#25477A] text-[#003366] dark:text-white border-r-2 border-[#003366] dark:border-blue-300"
+                        : "text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#243853]"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -885,7 +892,7 @@ export default function SettingsPage() {
           </aside>
 
           {/* Mobile Tab Bar */}
-          <div className="md:hidden w-full mb-4 overflow-x-auto scrollbar-hide">
+          <div className="lg:hidden w-full overflow-x-auto scrollbar-hide">
             <div className="flex gap-2 pb-1">
               {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
                 const active = activeSection === id;
@@ -896,7 +903,7 @@ export default function SettingsPage() {
                     className={`flex items-center gap-1.5 whitespace-nowrap rounded-full px-4 py-2.5 min-h-[44px] text-xs font-medium transition-colors shrink-0 ${
                       active
                         ? "bg-[#003366] dark:bg-blue-700 text-white"
-                        : "bg-white dark:bg-slate-800 border border-gray-200 dark:border-slate-700 text-gray-600 dark:text-slate-400"
+                        : "bg-white dark:bg-[#1B2A44] border border-gray-200 dark:border-[#30435F] text-gray-600 dark:text-slate-300"
                     }`}
                   >
                     <Icon className="h-4 w-4 shrink-0" />
@@ -908,13 +915,14 @@ export default function SettingsPage() {
           </div>
 
           {/* Content */}
-          <main className="flex-1 min-w-0">{renderSection()}</main>
+          <main className="min-w-0 rounded-xl border border-gray-100 bg-white p-4 shadow-sm dark:border-[#30435F] dark:bg-[#111C31] sm:p-6">{renderSection()}</main>
         </div>
+      </div>
       </div>
 
       {showPwdModal && (
         <ChangePasswordModal onClose={() => setShowPwdModal(false)} />
       )}
-    </div>
+    </Layout>
   );
 }

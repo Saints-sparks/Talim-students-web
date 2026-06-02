@@ -1,5 +1,5 @@
 "use client";
-import { ReactNode, useState } from "react";
+import { ReactNode, useEffect, useState } from "react";
 import Sidebar from "./Sidebar";
 import { Header } from "./header";
 import AppGuide from "./onboarding/AppGuide";
@@ -10,8 +10,26 @@ interface LayoutProps {
 
 function Layout({ children }: LayoutProps) {
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  const [isSidebarCollapsed, setIsSidebarCollapsed] = useState(false);
+
+  useEffect(() => {
+    try {
+      setIsSidebarCollapsed(localStorage.getItem("student_sidebar_collapsed") === "true");
+    } catch {}
+  }, []);
+
+  const toggleSidebarCollapsed = () => {
+    setIsSidebarCollapsed((prev) => {
+      const next = !prev;
+      try {
+        localStorage.setItem("student_sidebar_collapsed", String(next));
+      } catch {}
+      return next;
+    });
+  };
+
   return (
-    <div className="flex flex-row h-screen font-manrope">
+    <div className="flex flex-row h-screen bg-[#F8F8F8] font-manrope dark:bg-[#0B1224]">
       {/* Sidebar: Hidden on mobile, toggled via state */}
       <div
         className={`fixed inset-0 bg-black bg-opacity-50 z-40 ${
@@ -27,9 +45,11 @@ function Layout({ children }: LayoutProps) {
         <Sidebar
           isOpen={isSidebarOpen}
           onClose={() => setIsSidebarOpen(false)}
+          isCollapsed={isSidebarCollapsed}
+          onToggleCollapsed={toggleSidebarCollapsed}
         />
       </div>
-      <div className="bg-[#F8F8F8] dark:bg-[#0f1629] flex flex-col flex-1 border border-[#F0F0F0] dark:border-slate-800 h-full overflow-hidden">
+      <div className="flex h-full flex-1 flex-col overflow-hidden border border-[#F0F0F0] bg-[#F8F8F8] dark:border-slate-800 dark:bg-[#0B1224]">
         <Header onMenuClick={() => setIsSidebarOpen(!isSidebarOpen)} />
         <div className="flex-1 h-full overflow-y-auto">{children}</div>
       </div>
