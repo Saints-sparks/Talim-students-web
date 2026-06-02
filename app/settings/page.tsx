@@ -24,6 +24,10 @@ import {
   EyeOff,
   Check,
   X,
+  Camera,
+  KeyRound,
+  UserCircle,
+  AlertCircle,
 } from "lucide-react";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
@@ -386,58 +390,101 @@ function ChangePasswordModal({ onClose }: { onClose: () => void }) {
 
 // ─── Section Content Components ───────────────────────────────────────────────
 
-function AccountSection({ user }: { user: ReturnType<typeof useAuthContext>["user"] }) {
+function AccountSection({
+  user,
+  onChangePassword,
+}: {
+  user: ReturnType<typeof useAuthContext>["user"];
+  onChangePassword: () => void;
+}) {
+  const initials =
+    `${user?.firstName?.[0] || ""}${user?.lastName?.[0] || ""}`.toUpperCase() ||
+    "ST";
+  const profileRows = [
+    { label: "Full Name", value: `${user?.firstName || ""} ${user?.lastName || ""}`.trim() || "-" },
+    { label: "Role", value: "Student" },
+    { label: "Email Address", value: user?.email || "-" },
+    { label: "School", value: user?.schoolName || "-" },
+    { label: "Phone Number", value: user?.phoneNumber || "-" },
+    { label: "Joined", value: "-" },
+  ];
+
   return (
     <>
       <SectionHeader
         title="Account"
-        subtitle="Your profile details. School-managed fields are read-only."
+        subtitle="View and manage your personal account information."
       />
       <Card>
-        <div className="divide-y divide-gray-100 dark:divide-slate-700">
+        <div className="border-b border-gray-100 px-5 py-4 dark:border-[#30435F]">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Profile</h3>
+        </div>
+        <div className="grid gap-6 p-5 lg:grid-cols-[96px_minmax(0,1fr)]">
+          <div className="flex justify-center lg:justify-start">
+            {user?.userAvatar ? (
+              <img
+                src={user.userAvatar}
+                alt="Profile avatar"
+                className="h-20 w-20 rounded-full object-cover ring-4 ring-[#D7E1ED] dark:ring-[#30435F]"
+              />
+            ) : (
+              <div className="flex h-20 w-20 items-center justify-center rounded-full bg-[#003366] text-xl font-bold text-white ring-4 ring-[#D7E1ED] dark:ring-[#30435F]">
+                {initials}
+              </div>
+            )}
+          </div>
+          <div className="grid gap-x-10 gap-y-5 sm:grid-cols-2">
+            {profileRows.map((row) => (
+              <div key={row.label}>
+                <p className="text-xs font-medium text-gray-500 dark:text-slate-400">
+                  {row.label}
+                </p>
+                <p className="mt-1 break-words text-sm font-semibold text-gray-900 dark:text-white">
+                  {row.value}
+                </p>
+              </div>
+            ))}
+          </div>
+          <div className="rounded-lg border border-[#B9D7FF] bg-[#EEF6FF] px-4 py-3 text-sm text-[#003366] dark:border-[#315D93] dark:bg-[#1B3558] dark:text-blue-100 lg:col-span-2">
+            <span className="inline-flex items-center gap-2">
+              <AlertCircle className="h-4 w-4 shrink-0" />
+              Academic, class assignments, and guardian information are managed by your school administrator.
+            </span>
+          </div>
+        </div>
+      </Card>
+      <Card className="mt-5">
+        <div className="border-b border-gray-100 px-5 py-4 dark:border-[#30435F]">
+          <h3 className="text-sm font-semibold text-gray-900 dark:text-white">Account Actions</h3>
+        </div>
+        <div className="grid gap-4 p-5 md:grid-cols-3">
           {[
-            { label: "First name", value: user?.firstName || "—" },
-            { label: "Last name", value: user?.lastName || "—" },
-            { label: "Email", value: user?.email || "—" },
-            { label: "Phone", value: user?.phoneNumber || "—" },
-          ].map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between px-4 py-3"
+            { label: "View Profile", desc: "Open your full student profile", icon: UserCircle, tone: "blue", onClick: undefined },
+            { label: "Change Photo", desc: "Update the photo shown across Talim", icon: Camera, tone: "green", onClick: undefined },
+            { label: "Change Password", desc: "Keep your account secure", icon: KeyRound, tone: "purple", onClick: onChangePassword },
+          ].map(({ label, desc, icon: Icon, tone, onClick }) => (
+            <button
+              key={label}
+              onClick={onClick}
+              className="rounded-xl border border-gray-100 bg-white p-4 text-left transition-colors hover:border-[#8BB8EA] hover:bg-[#F5F9FF] dark:border-[#30435F] dark:bg-[#111C31] dark:hover:border-blue-400 dark:hover:bg-[#172944]"
             >
-              <span className="text-sm text-gray-500 dark:text-slate-400 w-32 shrink-0">
-                {row.label}
+              <span
+                className={`mb-4 inline-flex h-11 w-11 items-center justify-center rounded-full ${
+                  tone === "green"
+                    ? "bg-green-100 text-green-700 dark:bg-green-900/40 dark:text-green-300"
+                    : tone === "purple"
+                      ? "bg-purple-100 text-purple-700 dark:bg-purple-900/40 dark:text-purple-300"
+                      : "bg-blue-100 text-blue-700 dark:bg-blue-900/40 dark:text-blue-300"
+                }`}
+              >
+                <Icon className="h-5 w-5" />
               </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-slate-100 text-right flex-1">
-                {row.value}
-              </span>
-            </div>
+              <p className="text-sm font-semibold text-gray-900 dark:text-white">{label}</p>
+              <p className="mt-1 text-xs leading-5 text-gray-500 dark:text-slate-400">{desc}</p>
+            </button>
           ))}
         </div>
       </Card>
-      <Card className="mt-4">
-        <div className="divide-y divide-gray-100 dark:divide-slate-700">
-          {[
-            { label: "School", value: user?.schoolName || "—" },
-            { label: "Role", value: "Student" },
-          ].map((row) => (
-            <div
-              key={row.label}
-              className="flex items-center justify-between px-4 py-3"
-            >
-              <span className="text-sm text-gray-500 dark:text-slate-400 w-32 shrink-0">
-                {row.label}
-              </span>
-              <span className="text-sm font-medium text-gray-900 dark:text-slate-100 text-right flex-1">
-                {row.value}
-              </span>
-            </div>
-          ))}
-        </div>
-      </Card>
-      <p className="mt-3 text-xs text-gray-400 dark:text-slate-500">
-        Academic, class and guardian information are managed by your school administrator.
-      </p>
     </>
   );
 }
@@ -809,16 +856,17 @@ const NAV_ITEMS: {
   id: Section;
   label: string;
   icon: React.ElementType;
+  description: string;
 }[] = [
-  { id: "account", label: "Account", icon: User },
-  { id: "notifications", label: "Notifications", icon: Bell },
-  { id: "messages", label: "Messages", icon: MessageSquare },
-  { id: "learning", label: "Learning", icon: BookOpen },
-  { id: "downloads", label: "Downloads", icon: Download },
-  { id: "help", label: "Help", icon: HelpCircle },
-  { id: "security", label: "Security", icon: Shield },
-  { id: "appearance", label: "Appearance", icon: Palette },
-  { id: "about", label: "About", icon: Info },
+  { id: "account", label: "Account", icon: User, description: "Profile and account info" },
+  { id: "notifications", label: "Notifications", icon: Bell, description: "Alerts and notification settings" },
+  { id: "messages", label: "Messages", icon: MessageSquare, description: "Messaging preferences" },
+  { id: "learning", label: "Learning", icon: BookOpen, description: "Study and display options" },
+  { id: "downloads", label: "Downloads", icon: Download, description: "Offline resource settings" },
+  { id: "help", label: "Help", icon: HelpCircle, description: "Support and guides" },
+  { id: "security", label: "Security", icon: Shield, description: "Password and account security" },
+  { id: "appearance", label: "Appearance", icon: Palette, description: "Theme and display preferences" },
+  { id: "about", label: "About", icon: Info, description: "App information and support" },
 ];
 
 // ─── Main Page ────────────────────────────────────────────────────────────────
@@ -832,7 +880,7 @@ export default function SettingsPage() {
   const renderSection = () => {
     switch (activeSection) {
       case "account":
-        return <AccountSection user={user} />;
+        return <AccountSection user={user} onChangePassword={() => setShowPwdModal(true)} />;
       case "notifications":
         return <NotificationsSection prefs={prefs} update={update} />;
       case "messages":
@@ -871,20 +919,25 @@ export default function SettingsPage() {
           {/* Sidebar Nav — desktop */}
           <aside className="hidden lg:block">
             <nav className="overflow-hidden rounded-xl border border-gray-100 bg-white shadow-sm dark:border-[#30435F] dark:bg-[#1B2A44]">
-              {NAV_ITEMS.map(({ id, label, icon: Icon }) => {
+              {NAV_ITEMS.map(({ id, label, icon: Icon, description }) => {
                 const active = activeSection === id;
                 return (
                   <button
                     key={id}
                     onClick={() => setActiveSection(id)}
-                    className={`w-full flex items-center gap-3 px-4 py-3 text-sm font-medium transition-colors ${
+                    className={`w-full flex items-start gap-3 px-4 py-4 text-left text-sm font-medium transition-colors ${
                       active
                         ? "bg-[#EEF3F9] dark:bg-[#25477A] text-[#003366] dark:text-white border-r-2 border-[#003366] dark:border-blue-300"
                         : "text-gray-600 dark:text-slate-300 hover:bg-gray-50 dark:hover:bg-[#243853]"
                     }`}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
-                    {label}
+                    <Icon className="mt-0.5 h-4 w-4 shrink-0" />
+                    <span>
+                      <span className="block">{label}</span>
+                      <span className={`mt-1 block text-xs font-normal ${active ? "text-blue-700 dark:text-blue-100" : "text-gray-500 dark:text-slate-400"}`}>
+                        {description}
+                      </span>
+                    </span>
                   </button>
                 );
               })}
