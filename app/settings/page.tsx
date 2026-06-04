@@ -29,6 +29,7 @@ import {
   UserCircle,
   AlertCircle,
 } from "lucide-react";
+import { PushNotificationToggle } from "@/components/notifications/PushNotificationToggle";
 
 // ─── Types ────────────────────────────────────────────────────────────────────
 
@@ -531,12 +532,9 @@ function NotificationsSection({
           onChange={(v) => update("notifications", "schoolAnnouncements", v)}
         />
         <Divider />
-        <ToggleRow
-          label="Push notifications"
-          description="Allow browser push notifications."
-          checked={prefs.notifications.pushEnabled}
-          onChange={(v) => update("notifications", "pushEnabled", v)}
-        />
+        <div className="px-4">
+          <PushNotificationToggle />
+        </div>
       </Card>
     </>
   );
