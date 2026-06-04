@@ -273,7 +273,7 @@ export default function ResultsDashboard() {
     courses?.reduce((sum, course) => sum + course.publishedAssessmentsCount, 0) ?? 0;
 
   const isLoading = coursesLoading || cumulativeLoading;
-  const error = coursesError || (cumulativeError && !cumulativeGrade ? cumulativeError : null);
+  const error = coursesError ?? null;
   const hasCourses = courses && courses.length > 0;
 
   const handleRefresh = () => {

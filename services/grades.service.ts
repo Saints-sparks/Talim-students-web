@@ -146,13 +146,29 @@ async function apiFetch<T>(url: string, accessToken: string): Promise<T> {
   });
 
   if (!res.ok) {
-    const err = await res.json().catch(() => ({}));
-    throw new Error(
-      (err as { message?: string }).message ?? `HTTP ${res.status}`
-    );
+    const text = await res.text().catch(() => "");
+    let msg = `HTTP ${res.status}`;
+    try {
+      const parsed = text ? JSON.parse(text) : {};
+      msg = (parsed && (parsed as any).message) || msg;
+    } catch (_) {
+      if (text) msg = text;
+    }
+    throw new Error(msg);
   }
 
-  return res.json();
+  // Some endpoints may legitimately return an empty body (204 No Content)
+  // or an empty response. Handle that gracefully instead of calling
+  // `res.json()` which throws on empty bodies.
+  const text = await res.text().catch(() => "");
+  if (!text) return null as unknown as T;
+
+  try {
+    return JSON.parse(text) as T;
+  } catch (err) {
+    // Fallback to res.json() as last resort (preserves original behavior)
+    return (await res.json()) as T;
+  }
 }
 
 export const gradesService = {

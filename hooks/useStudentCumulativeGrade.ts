@@ -44,7 +44,14 @@ export const useStudentCumulativeGrade = () => {
       const data = await gradesService.getCumulativeGradeByTerm(termId, accessToken);
       setCumulativeGrade(data);
     } catch (err) {
-      setError(classifyError(err));
+      const msg = err instanceof Error ? err.message.toLowerCase() : "";
+      const isNotFound =
+        msg.includes("not found") || msg.includes("404") || msg.includes("no cumulative");
+      if (isNotFound) {
+        setCumulativeGrade(null);
+      } else {
+        setError(classifyError(err));
+      }
     } finally {
       setIsLoading(false);
     }
