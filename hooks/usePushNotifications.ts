@@ -34,6 +34,18 @@ async function authFetch(url: string, options: RequestInit = {}): Promise<Respon
   });
 }
 
+/** Sync pushEnabled to the backend NotificationPreference — best-effort, never throws. */
+async function syncPushPreference(enabled: boolean): Promise<void> {
+  try {
+    await authFetch(`${API_BASE_URL}/notifications/preferences`, {
+      method: "PATCH",
+      body: JSON.stringify({ pushEnabled: enabled }),
+    });
+  } catch {
+    // Non-fatal — subscription state is already persisted by the browser
+  }
+}
+
 export type PushPermission = "default" | "granted" | "denied";
 
 export interface UsePushNotificationsReturn {
@@ -129,6 +141,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
 
       localStorage.setItem(STORAGE_KEY, "true");
       setIsSubscribed(true);
+
+      // Sync pushEnabled=true to NotificationPreference
+      await syncPushPreference(true);
     } catch (err: any) {
       setError(err.message || "Failed to enable push notifications");
       throw err;
@@ -142,6 +157,9 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     setError(null);
 
     try {
+      // Sync pushEnabled=false to NotificationPreference before removing subscription
+      await syncPushPreference(false);
+
       const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
       const subscription = await reg?.pushManager.getSubscription();
 
