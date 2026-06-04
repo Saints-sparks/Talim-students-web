@@ -21,21 +21,19 @@ export const usePublishedGradeCourses = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, accessToken } = useAuthContext();
+  const { user, accessToken, isLoading: authLoading } = useAuthContext();
 
   const fetchCourses = useCallback(async () => {
-    if (!accessToken) {
-      setError("No access token available");
+    // Auth is still initialising — stay in loading state, do not set errors
+    if (authLoading) return;
+
+    if (!accessToken || !user?.termId) {
+      // Auth finished but no valid session — stop loading without an error
       setIsLoading(false);
       return;
     }
 
-    const termId = user?.termId;
-    if (!termId) {
-      setError("Term ID not available");
-      setIsLoading(false);
-      return;
-    }
+    const termId = user.termId as string;
 
     setIsLoading(true);
     setError(null);
@@ -48,7 +46,7 @@ export const usePublishedGradeCourses = () => {
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, user?.termId]);
+  }, [accessToken, user?.termId, authLoading]);
 
   useEffect(() => {
     fetchCourses();

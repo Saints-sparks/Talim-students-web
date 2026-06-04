@@ -21,21 +21,19 @@ export const useStudentCumulativeGrade = () => {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const { user, accessToken } = useAuthContext();
+  const { user, accessToken, isLoading: authLoading } = useAuthContext();
 
   const fetchGrade = useCallback(async () => {
-    if (!accessToken) {
-      setError("No access token available");
+    // Auth is still initialising — stay in loading state, do not set errors
+    if (authLoading) return;
+
+    if (!accessToken || !user?.termId) {
+      // Auth finished but no valid session — stop loading without an error
       setIsLoading(false);
       return;
     }
 
-    const termId = user?.termId;
-    if (!termId) {
-      setError("Term ID not available");
-      setIsLoading(false);
-      return;
-    }
+    const termId = user.termId as string;
 
     setIsLoading(true);
     setError(null);
@@ -44,18 +42,18 @@ export const useStudentCumulativeGrade = () => {
       const data = await gradesService.getCumulativeGradeByTerm(termId, accessToken);
       setCumulativeGrade(data);
     } catch (err) {
+      // A missing cumulative record is normal — student hasn't had end-of-term
+      // calculations run yet. Treat it as null, not an error.
       const msg = err instanceof Error ? err.message.toLowerCase() : "";
       const isNotFound =
         msg.includes("not found") || msg.includes("404") || msg.includes("no cumulative");
-      if (isNotFound) {
-        setCumulativeGrade(null);
-      } else {
+      if (!isNotFound) {
         setError(classifyError(err));
       }
     } finally {
       setIsLoading(false);
     }
-  }, [accessToken, user?.termId]);
+  }, [accessToken, user?.termId, authLoading]);
 
   useEffect(() => {
     fetchGrade();

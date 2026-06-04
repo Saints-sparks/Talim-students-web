@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useMemo, useState } from "react";
+import { useAuthContext } from "@/contexts/AuthContext";
 import { usePublishedGradeCourses } from "@/hooks/usePublishedGradeCourses";
 import { usePublishedCourseAssessments } from "@/hooks/usePublishedCourseAssessments";
 import { useStudentCumulativeGrade } from "@/hooks/useStudentCumulativeGrade";
@@ -234,6 +235,8 @@ export default function ResultsDashboard() {
   const [selectedCourseId, setSelectedCourseId] = useState<string | null>(null);
   const [isRefreshing, setIsRefreshing] = useState(false);
 
+  const { isLoading: authLoading } = useAuthContext();
+
   const {
     courses,
     isLoading: coursesLoading,
@@ -272,7 +275,7 @@ export default function ResultsDashboard() {
   const publishedAssessmentCount =
     courses?.reduce((sum, course) => sum + course.publishedAssessmentsCount, 0) ?? 0;
 
-  const isLoading = coursesLoading || cumulativeLoading;
+  const isLoading = authLoading || coursesLoading || cumulativeLoading;
   const error = coursesError ?? null;
   const hasCourses = courses && courses.length > 0;
 
