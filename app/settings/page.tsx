@@ -179,11 +179,13 @@ function ToggleRow({
   description,
   checked,
   onChange,
+  disabled,
 }: {
   label: string;
   description?: string;
   checked: boolean;
   onChange: (v: boolean) => void;
+  disabled?: boolean;
 }) {
   return (
     <div className="flex items-center justify-between py-3 px-4">
@@ -200,8 +202,9 @@ function ToggleRow({
       <button
         role="switch"
         aria-checked={checked}
-        onClick={() => onChange(!checked)}
-        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors ${
+        disabled={disabled}
+        onClick={() => !disabled && onChange(!checked)}
+        className={`relative inline-flex h-6 w-11 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors disabled:opacity-50 disabled:cursor-not-allowed ${
           checked
             ? "bg-[#003366] dark:bg-blue-600"
             : "bg-gray-200 dark:bg-slate-600"
@@ -490,51 +493,158 @@ function AccountSection({
   );
 }
 
-function NotificationsSection({
-  prefs,
-  update,
-}: {
-  prefs: StudentPrefs;
-  update: ReturnType<typeof useStudentPrefs>["update"];
-}) {
+interface StudentNotifPrefs {
+  announcementsEnabled: boolean;
+  attendanceEnabled: boolean;
+  resultsEnabled: boolean;
+  resourcesEnabled: boolean;
+  timetableEnabled: boolean;
+  messagesEnabled: boolean;
+  emailEnabled: boolean;
+  pushEnabled: boolean;
+  quietHoursEnabled: boolean;
+  quietHoursStart: string;
+  quietHoursEnd: string;
+}
+
+const STUDENT_NOTIF_DEFAULTS: StudentNotifPrefs = {
+  announcementsEnabled: true,
+  attendanceEnabled: true,
+  resultsEnabled: true,
+  resourcesEnabled: true,
+  timetableEnabled: true,
+  messagesEnabled: true,
+  emailEnabled: false,
+  pushEnabled: true,
+  quietHoursEnabled: false,
+  quietHoursStart: "22:00",
+  quietHoursEnd: "07:00",
+};
+
+function NotificationsSection() {
+  const [notifPrefs, setNotifPrefs] = useState<StudentNotifPrefs>(STUDENT_NOTIF_DEFAULTS);
+  const [loadingPrefs, setLoadingPrefs] = useState(true);
+  const [saving, setSaving] = useState<Partial<Record<keyof StudentNotifPrefs, boolean>>>({});
+  const [prefError, setPrefError] = useState<string | null>(null);
+
+  useEffect(() => {
+    authFetch(`${API_BASE_URL}/notifications/preferences`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (data && typeof data === "object") {
+          setNotifPrefs((prev) => ({ ...prev, ...data }));
+        }
+      })
+      .catch(() => {
+        setPrefError("Could not load preferences. Defaults shown — your changes will still be saved.");
+      })
+      .finally(() => setLoadingPrefs(false));
+  }, []);
+
+  const toggle = async (field: keyof StudentNotifPrefs, value: boolean | string) => {
+    const prev = notifPrefs[field];
+    setNotifPrefs((p) => ({ ...p, [field]: value }));
+    setSaving((s) => ({ ...s, [field]: true }));
+    try {
+      const res = await authFetch(`${API_BASE_URL}/notifications/preferences`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ [field]: value }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setNotifPrefs((p) => ({ ...p, [field]: prev }));
+      // show inline error without importing toast — use native alert as fallback
+      setPrefError("Failed to save — please try again.");
+      setTimeout(() => setPrefError(null), 4000);
+    } finally {
+      setSaving((s) => ({ ...s, [field]: false }));
+    }
+  };
+
+  if (loadingPrefs) {
+    return (
+      <>
+        <SectionHeader title="Notifications" subtitle="Choose what you want to be notified about." />
+        <div className="space-y-2">
+          {[1, 2, 3, 4].map((i) => (
+            <div key={i} className="h-14 bg-gray-100 dark:bg-slate-700 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      </>
+    );
+  }
+
   return (
     <>
-      <SectionHeader
-        title="Notifications"
-        subtitle="Choose what you want to be notified about."
-      />
+      <SectionHeader title="Notifications" subtitle="Choose what you want to be notified about." />
+
+      {prefError && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">{prefError}</p>
+        </div>
+      )}
+
       <Card>
-        <ToggleRow
-          label="Class reminders"
-          description="Get reminders before your classes start."
-          checked={prefs.notifications.classReminders}
-          onChange={(v) => update("notifications", "classReminders", v)}
-        />
+        <div className="border-b border-gray-100 dark:border-[#30435F] px-4 py-3">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">Notification categories</p>
+        </div>
+        <ToggleRow label="School announcements"    description="Important messages from your school."          checked={notifPrefs.announcementsEnabled} onChange={(v) => toggle("announcementsEnabled", v)} disabled={saving.announcementsEnabled} />
         <Divider />
-        <ToggleRow
-          label="Assignment deadlines"
-          description="Alerts when assignments are due soon."
-          checked={prefs.notifications.assignmentDeadlines}
-          onChange={(v) => update("notifications", "assignmentDeadlines", v)}
-        />
+        <ToggleRow label="Attendance alerts"       description="Reminders and attendance updates."             checked={notifPrefs.attendanceEnabled}    onChange={(v) => toggle("attendanceEnabled", v)}    disabled={saving.attendanceEnabled} />
         <Divider />
-        <ToggleRow
-          label="Result updates"
-          description="Notify when new results are published."
-          checked={prefs.notifications.resultUpdates}
-          onChange={(v) => update("notifications", "resultUpdates", v)}
-        />
+        <ToggleRow label="Result updates"          description="Notify when new results are published."        checked={notifPrefs.resultsEnabled}       onChange={(v) => toggle("resultsEnabled", v)}        disabled={saving.resultsEnabled} />
         <Divider />
-        <ToggleRow
-          label="School announcements"
-          description="Important messages from your school."
-          checked={prefs.notifications.schoolAnnouncements}
-          onChange={(v) => update("notifications", "schoolAnnouncements", v)}
-        />
+        <ToggleRow label="Class &amp; timetable"  description="Class schedule changes and reminders."         checked={notifPrefs.timetableEnabled}     onChange={(v) => toggle("timetableEnabled", v)}      disabled={saving.timetableEnabled} />
         <Divider />
-        <div className="px-4">
+        <ToggleRow label="Resources &amp; assignments" description="New materials and assignment deadlines."  checked={notifPrefs.resourcesEnabled}     onChange={(v) => toggle("resourcesEnabled", v)}      disabled={saving.resourcesEnabled} />
+        <Divider />
+        <ToggleRow label="Messages"               description="Alerts for new chat messages."                 checked={notifPrefs.messagesEnabled}      onChange={(v) => toggle("messagesEnabled", v)}       disabled={saving.messagesEnabled} />
+      </Card>
+
+      <Card className="mt-4">
+        <div className="border-b border-gray-100 dark:border-[#30435F] px-4 py-3">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">Delivery</p>
+        </div>
+        <ToggleRow label="Push notifications"  description="Receive alerts on this device."  checked={notifPrefs.pushEnabled}  onChange={(v) => toggle("pushEnabled", v)}  disabled={saving.pushEnabled} />
+        <Divider />
+        <ToggleRow label="Email notifications" description="Receive updates via email."      checked={notifPrefs.emailEnabled} onChange={(v) => toggle("emailEnabled", v)} disabled={saving.emailEnabled} />
+        <Divider />
+        <div className="px-4 py-1">
           <PushNotificationToggle />
         </div>
+      </Card>
+
+      <Card className="mt-4">
+        <div className="border-b border-gray-100 dark:border-[#30435F] px-4 py-3">
+          <p className="text-sm font-semibold text-gray-900 dark:text-white">Quiet hours</p>
+        </div>
+        <ToggleRow
+          label="Enable quiet hours"
+          description="Suppress non-urgent notifications during set times."
+          checked={notifPrefs.quietHoursEnabled}
+          onChange={(v) => toggle("quietHoursEnabled", v)}
+          disabled={saving.quietHoursEnabled}
+        />
+        {notifPrefs.quietHoursEnabled && (
+          <div className="grid grid-cols-2 gap-4 px-4 py-3">
+            {(["quietHoursStart", "quietHoursEnd"] as const).map((field) => (
+              <div key={field}>
+                <p className="text-xs text-gray-500 dark:text-slate-400 mb-1">
+                  {field === "quietHoursStart" ? "Start time" : "End time"}
+                </p>
+                <input
+                  type="time"
+                  value={notifPrefs[field]}
+                  onChange={(e) => toggle(field, e.target.value)}
+                  className="text-sm rounded-lg border border-gray-200 dark:border-slate-600 bg-white dark:bg-slate-900 px-2 py-1.5 text-gray-900 dark:text-slate-100 focus:outline-none focus:ring-2 focus:ring-[#003366] dark:focus:ring-blue-500"
+                />
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
     </>
   );
@@ -880,7 +990,7 @@ export default function SettingsPage() {
       case "account":
         return <AccountSection user={user} onChangePassword={() => setShowPwdModal(true)} />;
       case "notifications":
-        return <NotificationsSection prefs={prefs} update={update} />;
+        return <NotificationsSection />;
       case "messages":
         return <MessagesSection prefs={prefs} update={update} />;
       case "learning":
