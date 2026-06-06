@@ -105,6 +105,9 @@ export interface PublishedCourse {
   } | null;
   currentAverage?: number | null;
   gradeLevel?: string | null;
+  cumulativeScore?: number | null;
+  maxScore?: number | null;
+  coursePosition?: number | null;
 }
 
 export interface PublishedAssessmentResult {

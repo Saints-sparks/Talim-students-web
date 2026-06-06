@@ -126,6 +126,7 @@ function CourseButton({
   onClick: () => void;
 }) {
   const average = course.currentAverage ?? null;
+  const hasGrade = course.gradeLevel != null;
 
   return (
     <button
@@ -147,19 +148,35 @@ function CourseButton({
             {course.teacher && <span>{course.teacher}</span>}
           </div>
         </div>
-        <ChevronRight
-          className={`w-4 h-4 text-[#AAAAAA] transition-transform ${
-            active ? "rotate-90" : ""
-          }`}
-        />
+        <div className="flex flex-col items-end gap-1">
+          {hasGrade && (
+            <span className={`text-xs font-bold px-2 py-0.5 rounded-lg ${gradeBadgeClass(course.gradeLevel!)}`}>
+              {course.gradeLevel}
+            </span>
+          )}
+          {course.coursePosition != null && (
+            <span className="text-[10px] text-[#6F6F6F] font-medium">
+              #{course.coursePosition} in class
+            </span>
+          )}
+          <ChevronRight
+            className={`w-4 h-4 text-[#AAAAAA] transition-transform ${active ? "rotate-90" : ""}`}
+          />
+        </div>
       </div>
-      <div className="flex items-center justify-between mt-4 text-xs">
+      <div className="flex items-center justify-between mt-3 text-xs">
         <span className="text-[#003366] font-medium">
           {course.publishedAssessmentsCount} published
         </span>
-        <span className="text-[#6F6F6F]">
-          {average != null ? `${average.toFixed(1)}%` : "No average"}
-        </span>
+        {course.cumulativeScore != null && course.maxScore != null ? (
+          <span className="text-[#6F6F6F]">
+            {course.cumulativeScore}/{course.maxScore} = {average?.toFixed(1)}%
+          </span>
+        ) : (
+          <span className="text-[#6F6F6F]">
+            {average != null ? `${average.toFixed(1)}%` : "No grade yet"}
+          </span>
+        )}
       </div>
     </button>
   );
@@ -437,6 +454,19 @@ export default function ResultsDashboard() {
                   {assessments.map((item) => (
                     <AssessmentRow key={item.publicationId} item={item} />
                   ))}
+                  {selectedCourse?.cumulativeScore != null && selectedCourse.maxScore != null && (
+                    <div className="rounded-2xl border border-[#003366]/20 bg-[#003366]/5 px-4 py-3 flex items-center justify-between text-sm">
+                      <span className="font-semibold text-[#003366]">
+                        Course total: {selectedCourse.cumulativeScore}/{selectedCourse.maxScore} = {selectedCourse.currentAverage?.toFixed(1)}%
+                        {selectedCourse.gradeLevel ? ` (${selectedCourse.gradeLevel})` : ""}
+                      </span>
+                      {selectedCourse.coursePosition != null && (
+                        <span className="text-xs font-medium text-[#6F6F6F] bg-white border border-[#F0F0F0] rounded-lg px-2 py-1">
+                          #{selectedCourse.coursePosition} in class
+                        </span>
+                      )}
+                    </div>
+                  )}
                 </div>
               )}
             </div>
