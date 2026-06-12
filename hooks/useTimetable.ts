@@ -15,9 +15,15 @@ export interface TimetableSubject {
   start: number; // Decimal hours (e.g., 9.6833 for 09:41 AM)
   end: number; // Decimal hours (e.g., 10.6333 for 10:38 AM)
   timeString: string; // e.g., "09:41 AM - 10:38 AM"
+  className?: string;
+  teacherName?: string;
+  course?: string;
+  subject?: string;
+  startTime?: string;
+  endTime?: string;
 }
 
-export const useTimetable = () => {
+export const useTimetable = (options?: { silent?: boolean }) => {
   const { user, accessToken, isAuthenticated } = useAuthContext();
   const [subjects, setSubjects] = useState<TimetableSubject[]>([]);
   const [isLoading, setIsLoading] = useState(true);
@@ -41,7 +47,7 @@ export const useTimetable = () => {
 
   const fetchTimetable = async () => {
     if (!isAuthenticated || !user?.userId || !accessToken) {
-      toast.error("User not authenticated");
+      if (!options?.silent) toast.error("User not authenticated");
       setIsLoading(false);
       return;
     }
@@ -95,6 +101,12 @@ export const useTimetable = () => {
             start,
             end,
             timeString,
+            className: entry.class,
+            teacherName: (entry as any).teacherName,
+            course: entry.course,
+            subject: entry.subject,
+            startTime: entry.startTIme,
+            endTime: entry.endTime,
           });
         });
       });
@@ -103,7 +115,7 @@ export const useTimetable = () => {
     } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Failed to load timetable";
-      toast.error(errorMessage);
+      if (!options?.silent) toast.error(errorMessage);
     } finally {
       setIsLoading(false);
     }
