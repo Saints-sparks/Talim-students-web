@@ -247,7 +247,11 @@ function NotificationsPage() {
 
   return (
     <Layout>
-      <div className="h-full overflow-hidden bg-[#F7F9FC]">
+      <div
+        className="h-full overflow-hidden bg-[#F7F9FC]"
+        data-guide-ready={loading ? "false" : "true"}
+        aria-busy={loading}
+      >
         <div className="flex h-full flex-col gap-4 overflow-hidden px-3 py-4 sm:px-5 lg:px-6">
           <Header
             unreadCount={counts.unread}

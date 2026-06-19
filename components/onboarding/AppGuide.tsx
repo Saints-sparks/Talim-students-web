@@ -22,11 +22,17 @@ type TargetRect = {
 };
 
 const STORAGE_PREFIX = "talim_student_guide";
+const GUIDE_READY_SELECTOR = "[data-guide-ready='false'], [aria-busy='true']";
+
+function isGuideElementReady(element: HTMLElement) {
+  return !element.closest(GUIDE_READY_SELECTOR);
+}
 
 function getTargetRect(target: string): TargetRect | null {
   if (typeof window === "undefined") return null;
   const element = document.querySelector<HTMLElement>(`[data-guide="${target}"]`);
   if (!element) return null;
+  if (!isGuideElementReady(element)) return null;
 
   const rect = element.getBoundingClientRect();
   if (rect.width === 0 || rect.height === 0) return null;
@@ -44,10 +50,11 @@ function getVisibleSteps(config: GuideConfig) {
   const visibleSteps = config.steps.filter((step) => {
     const element = document.querySelector<HTMLElement>(`[data-guide="${step.target}"]`);
     if (!element) return false;
+    if (!isGuideElementReady(element)) return false;
     const rect = element.getBoundingClientRect();
     return rect.width > 0 && rect.height > 0;
   });
-  return visibleSteps.length > 0 ? visibleSteps : config.steps;
+  return visibleSteps;
 }
 
 function getUserId(user: any) {
@@ -293,11 +300,42 @@ export default function AppGuide() {
 
     const completed = localStorage.getItem(getStorageKey(config.id, userId)) === "done";
     const seen = localStorage.getItem(getSeenKey(config.id, userId)) === "done";
+    if (completed || seen) {
+      setIsOpen(false);
+      setSteps([]);
+      return;
+    }
 
-    window.requestAnimationFrame(() => {
-      setSteps(getVisibleSteps(config));
-      setIsOpen(!completed && !seen);
-    });
+    let cancelled = false;
+    let timeout: number | null = null;
+    let frame = 0;
+    const startedAt = Date.now();
+
+    const openWhenReady = () => {
+      window.cancelAnimationFrame(frame);
+      frame = window.requestAnimationFrame(() => {
+        if (cancelled) return;
+
+        const nextSteps = getVisibleSteps(config);
+        if (nextSteps.length > 0) {
+          setSteps(nextSteps);
+          setIsOpen(true);
+          return;
+        }
+
+        if (Date.now() - startedAt < 6000) {
+          timeout = window.setTimeout(openWhenReady, 250);
+        }
+      });
+    };
+
+    openWhenReady();
+
+    return () => {
+      cancelled = true;
+      window.cancelAnimationFrame(frame);
+      if (timeout) window.clearTimeout(timeout);
+    };
   }, [config?.id, isLoading, userId, user, config]);
 
   useEffect(() => {
@@ -363,9 +401,10 @@ export default function AppGuide() {
       <button
         type="button"
         onClick={() => {
-          setSteps(getVisibleSteps(config));
+          const nextSteps = getVisibleSteps(config);
+          setSteps(nextSteps);
           setStepIndex(0);
-          setIsOpen(true);
+          setIsOpen(nextSteps.length > 0);
         }}
         className="fixed bottom-5 right-5 z-[900] inline-flex items-center gap-2 rounded-full border border-white/70 bg-white/90 px-4 py-3 text-sm font-bold text-[#003366] shadow-xl shadow-blue-950/10 backdrop-blur transition hover:-translate-y-0.5 hover:bg-white focus:outline-none focus:ring-2 focus:ring-[#F4B740] dark:border-white/10 dark:bg-[#0B1220]/90 dark:text-[#F4B740]"
       >
