@@ -608,7 +608,7 @@ function NotificationsSection() {
         <div className="border-b border-gray-100 dark:border-[#30435F] px-4 py-3">
           <p className="text-sm font-semibold text-gray-900 dark:text-white">Delivery</p>
         </div>
-        <ToggleRow label="Push notifications"  description="Receive alerts on this device."  checked={notifPrefs.pushEnabled}  onChange={(v) => toggle("pushEnabled", v)}  disabled={saving.pushEnabled} />
+        <ToggleRow label="Mobile push notifications"  description="Receive alerts in the Talim mobile app."  checked={notifPrefs.pushEnabled}  onChange={(v) => toggle("pushEnabled", v)}  disabled={saving.pushEnabled} />
         <Divider />
         <ToggleRow label="Email notifications" description="Receive updates via email."      checked={notifPrefs.emailEnabled} onChange={(v) => toggle("emailEnabled", v)} disabled={saving.emailEnabled} />
         <Divider />
@@ -657,9 +657,62 @@ function MessagesSection({
   prefs: StudentPrefs;
   update: ReturnType<typeof useStudentPrefs>["update"];
 }) {
+  // Read receipts are enforced by the server (GET/PATCH /chat/preferences).
+  const [readReceipts, setReadReceipts] = useState<boolean>(prefs.messages.readReceipts);
+  const [loadingReceipts, setLoadingReceipts] = useState(true);
+  const [savingReceipts, setSavingReceipts] = useState(false);
+  const [receiptsError, setReceiptsError] = useState<string | null>(null);
+
+  useEffect(() => {
+    let cancelled = false;
+    authFetch(`${API_BASE_URL}/chat/preferences`)
+      .then(async (res) => {
+        if (!res.ok) throw new Error(`HTTP ${res.status}`);
+        const data = await res.json();
+        if (!cancelled && typeof data?.readReceipts === "boolean") {
+          setReadReceipts(data.readReceipts);
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setReceiptsError("Could not load your read receipt setting.");
+      })
+      .finally(() => {
+        if (!cancelled) setLoadingReceipts(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+
+  const toggleReadReceipts = async (value: boolean) => {
+    const previous = readReceipts;
+    setReadReceipts(value);
+    setSavingReceipts(true);
+    setReceiptsError(null);
+    try {
+      const res = await authFetch(`${API_BASE_URL}/chat/preferences`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ readReceipts: value }),
+      });
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    } catch {
+      setReadReceipts(previous);
+      setReceiptsError("Failed to save — please try again.");
+    } finally {
+      setSavingReceipts(false);
+    }
+  };
+
   return (
     <>
       <SectionHeader title="Messages" subtitle="Control your messaging privacy and behaviour." />
+      {receiptsError && (
+        <div className="mb-4 flex items-start gap-2 rounded-lg border border-amber-200 dark:border-amber-800/50 bg-amber-50 dark:bg-amber-900/20 px-4 py-3">
+          <AlertCircle className="h-4 w-4 text-amber-600 dark:text-amber-400 shrink-0 mt-0.5" />
+          <p className="text-xs text-amber-700 dark:text-amber-300">{receiptsError}</p>
+        </div>
+      )}
       <Card>
         <ToggleRow
           label="Show online status"
@@ -671,8 +724,9 @@ function MessagesSection({
         <ToggleRow
           label="Read receipts"
           description="Send read receipts when you view messages."
-          checked={prefs.messages.readReceipts}
-          onChange={(v) => update("messages", "readReceipts", v)}
+          checked={readReceipts}
+          onChange={toggleReadReceipts}
+          disabled={loadingReceipts || savingReceipts}
         />
         <Divider />
         <ToggleRow
