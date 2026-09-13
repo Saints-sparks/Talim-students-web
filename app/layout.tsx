@@ -4,6 +4,7 @@ import { AuthProvider } from "@/contexts/AuthContext";
 import { StudentOnboardingProvider } from "@/contexts/OnboardingContext";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { ChatProvider } from "@/contexts/ChatContext";
+import RealtimeAlerts from "@/components/RealtimeAlerts";
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
 import { Inter } from "next/font/google";
@@ -83,6 +84,7 @@ export default function RootLayout({
   return (
     <html lang="en" suppressHydrationWarning>
       <head>
+        <link rel="manifest" href="/manifest.json" />
         <script
           dangerouslySetInnerHTML={{
             __html: `(function(){try{var t=localStorage.getItem('talim_student_theme');var d=t==='dark'||(t==='system'||!t)&&window.matchMedia('(prefers-color-scheme: dark)').matches;if(d)document.documentElement.classList.add('dark')}catch(e){}})()`,
@@ -97,6 +99,7 @@ export default function RootLayout({
               <AuthGuard>
                 <WebSocketProvider>
                   <ChatProvider>
+                    <RealtimeAlerts />
                     {children}
                     <ToastViewport />
                   </ChatProvider>

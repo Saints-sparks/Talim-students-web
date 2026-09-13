@@ -9,6 +9,8 @@ export type ToastType = "success" | "error" | "warning" | "info";
 export interface ToastOptions {
   title?: string;
   duration?: number;
+  /** Makes the whole toast clickable (e.g. open the chat it is about). */
+  onClick?: () => void;
 }
 
 export interface ToastProps {
@@ -17,6 +19,7 @@ export interface ToastProps {
   title?: string;
   message: string;
   duration?: number;
+  onClick?: () => void;
   onClose: (id: string) => void;
 }
 
@@ -32,6 +35,7 @@ const normalizeOptions = (
   return {
     title: titleOrOptions?.title,
     duration: titleOrOptions?.duration ?? duration,
+    onClick: titleOrOptions?.onClick,
   };
 };
 
@@ -41,6 +45,7 @@ const Toast: React.FC<ToastProps> = ({
   title,
   message,
   duration = 4000,
+  onClick,
   onClose,
 }) => {
   const [isVisible, setIsVisible] = useState(false);
@@ -99,7 +104,29 @@ const Toast: React.FC<ToastProps> = ({
 
   return (
     <div
+      role={onClick ? "button" : undefined}
+      tabIndex={onClick ? 0 : undefined}
+      onClick={
+        onClick
+          ? () => {
+              onClick();
+              handleClose();
+            }
+          : undefined
+      }
+      onKeyDown={
+        onClick
+          ? (e) => {
+              if (e.key === "Enter" || e.key === " ") {
+                e.preventDefault();
+                onClick();
+                handleClose();
+              }
+            }
+          : undefined
+      }
       className={`
+        ${onClick ? "cursor-pointer" : ""}
         relative mb-3 flex w-[calc(100vw-2rem)] max-w-md items-start rounded-xl border-l-4 bg-white p-4 shadow-lg
         transition-all duration-300 ease-out
         ${config.accent}
@@ -129,7 +156,11 @@ const Toast: React.FC<ToastProps> = ({
 
       <button
         type="button"
-        onClick={handleClose}
+        onClick={(e) => {
+          e.stopPropagation();
+          handleClose();
+        }}
+        onKeyDown={(e) => e.stopPropagation()}
         className="ml-2 flex-shrink-0 rounded-full p-1 transition-colors hover:bg-gray-100"
         aria-label="Close notification"
       >

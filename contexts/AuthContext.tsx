@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { destroyCookie, parseCookies, setCookie } from "nookies";
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
+import { unsubscribeBrowserPush } from "@/lib/webPush";
 
 interface AuthContextType {
   user: User | null;
@@ -101,6 +102,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   };
 
   const logout = () => {
+    // Stop this browser receiving the user's pushes. Captures the token first;
+    // runs in the background so sign-out is never blocked.
+    void unsubscribeBrowserPush(
+      localStorage.getItem("accessToken"),
+      user?.userId || user?.id
+    );
+
     // Clear cookies
     destroyCookie(null, "access_token");
     destroyCookie(null, "refresh_token");
@@ -143,6 +151,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     };
 
     const handleRefreshFailure = () => {
+      // Session expired: no token left for the server call, but the browser
+      // subscription is still removed so nobody else gets these pushes.
+      void unsubscribeBrowserPush(null);
       setAuthState(null, null);
       router.push("/signin");
     };

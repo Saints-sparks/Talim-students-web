@@ -2,49 +2,17 @@
 
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/constants";
-
-const STORAGE_KEY = "talim:push-subscribed";
-const SW_PATH = "/sw.js";
-
-function urlBase64ToUint8Array(base64String: string): Uint8Array {
-  const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
-  const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
-  const rawData = window.atob(base64);
-  const output = new Uint8Array(rawData.length);
-  for (let i = 0; i < rawData.length; ++i) {
-    output[i] = rawData.charCodeAt(i);
-  }
-  return output;
-}
-
-function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken") || null;
-}
-
-async function authFetch(url: string, options: RequestInit = {}): Promise<Response> {
-  const token = getAccessToken();
-  return fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-}
-
-/** Sync pushEnabled to the backend NotificationPreference — best-effort, never throws. */
-async function syncPushPreference(enabled: boolean): Promise<void> {
-  try {
-    await authFetch(`${API_BASE_URL}/notifications/preferences`, {
-      method: "PATCH",
-      body: JSON.stringify({ pushEnabled: enabled }),
-    });
-  } catch {
-    // Non-fatal — subscription state is already persisted by the browser
-  }
-}
+import { useAuthContext } from "@/contexts/AuthContext";
+import {
+  LEGACY_STORAGE_KEY,
+  SW_PATH,
+  getCurrentSubscription,
+  isPushSupported,
+  pushAuthFetch,
+  pushFlagKey,
+  syncWebPushPreference,
+  urlBase64ToUint8Array,
+} from "@/lib/webPush";
 
 export type PushPermission = "default" | "granted" | "denied";
 
@@ -59,24 +27,36 @@ export interface UsePushNotificationsReturn {
 }
 
 export function usePushNotifications(): UsePushNotificationsReturn {
+  const { user } = useAuthContext();
+  const userId = user?.userId || user?.id || null;
+
   const [isSupported, setIsSupported] = useState(false);
   const [permission, setPermission] = useState<PushPermission>("default");
   const [isSubscribed, setIsSubscribed] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // The browser's real subscription decides the toggle; the per-user flag only
+  // tells us this subscription was made by the signed-in user.
   useEffect(() => {
-    if (
-      typeof window !== "undefined" &&
-      "serviceWorker" in navigator &&
-      "PushManager" in window &&
-      "Notification" in window
-    ) {
-      setIsSupported(true);
-      setPermission(Notification.permission as PushPermission);
-      setIsSubscribed(localStorage.getItem(STORAGE_KEY) === "true");
-    }
-  }, []);
+    if (!isPushSupported()) return;
+    setIsSupported(true);
+    setPermission(Notification.permission as PushPermission);
+
+    let cancelled = false;
+    getCurrentSubscription()
+      .then((subscription) => {
+        if (cancelled) return;
+        const mine = Boolean(userId && localStorage.getItem(pushFlagKey(userId)) === "true");
+        setIsSubscribed(Boolean(subscription) && mine);
+      })
+      .catch(() => {
+        if (!cancelled) setIsSubscribed(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [userId]);
 
   const getVapidKey = useCallback(async (): Promise<string> => {
     const res = await fetch(`${API_BASE_URL}/notifications/web-push/vapid-public-key`);
@@ -125,7 +105,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         keys: { p256dh: string; auth: string };
       };
 
-      const res = await authFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
+      const res = await pushAuthFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
         method: "POST",
         body: JSON.stringify({
           endpoint: subJson.endpoint,
@@ -139,39 +119,37 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         throw new Error(body?.message || "Failed to save push subscription on server");
       }
 
-      localStorage.setItem(STORAGE_KEY, "true");
+      if (userId) localStorage.setItem(pushFlagKey(userId), "true");
       setIsSubscribed(true);
 
-      // Sync pushEnabled=true to NotificationPreference
-      await syncPushPreference(true);
+      await syncWebPushPreference(true);
     } catch (err: any) {
       setError(err.message || "Failed to enable push notifications");
       throw err;
     } finally {
       setIsLoading(false);
     }
-  }, [getVapidKey, getOrRegisterSW]);
+  }, [getVapidKey, getOrRegisterSW, userId]);
 
   const unsubscribe = useCallback(async () => {
     setIsLoading(true);
     setError(null);
 
     try {
-      // Sync pushEnabled=false to NotificationPreference before removing subscription
-      await syncPushPreference(false);
+      await syncWebPushPreference(false);
 
-      const reg = await navigator.serviceWorker.getRegistration(SW_PATH);
-      const subscription = await reg?.pushManager.getSubscription();
+      const subscription = await getCurrentSubscription();
 
       if (subscription) {
-        await authFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
+        await pushAuthFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
           method: "DELETE",
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();
       }
 
-      localStorage.removeItem(STORAGE_KEY);
+      if (userId) localStorage.removeItem(pushFlagKey(userId));
+      localStorage.removeItem(LEGACY_STORAGE_KEY);
       setIsSubscribed(false);
     } catch (err: any) {
       setError(err.message || "Failed to disable push notifications");
@@ -179,7 +157,7 @@ export function usePushNotifications(): UsePushNotificationsReturn {
     } finally {
       setIsLoading(false);
     }
-  }, []);
+  }, [userId]);
 
   return { isSupported, permission, isSubscribed, isLoading, error, subscribe, unsubscribe };
 }

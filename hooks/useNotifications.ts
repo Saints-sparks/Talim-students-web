@@ -4,6 +4,9 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { notificationService } from "@/services/notification.service";
 
+// Fired by RealtimeAlerts for every socket `notification` event.
+export const NOTIFICATION_EVENT = "talim:notification";
+
 export type NotificationSource = "school" | "talim" | "system";
 
 export type NotificationCategory =
@@ -88,33 +91,65 @@ const getTextBlob = (item: any) =>
     .join(" ")
     .toLowerCase();
 
-const inferCategory = (item: any, fallback: NotificationCategory) => {
-  const explicit = String(
-    item?.category || item?.type || item?.metadata?.category || item?.metadata?.module || "",
-  ).toLowerCase();
-  const text = `${explicit} ${getTextBlob(item)}`;
+const CATEGORIES: NotificationCategory[] = [
+  "announcement",
+  "attendance",
+  "academics",
+  "grading",
+  "resources",
+  "messages",
+  "account",
+  "other",
+];
 
-  if (text.includes("attendance") || text.includes("absence") || text.includes("absent") || text.includes("late")) {
-    return "attendance";
+// Backend NotificationType → category. Checked before any text matching.
+const CATEGORY_BY_TYPE: Record<string, NotificationCategory> = {
+  announcement: "announcement",
+  attendance_alert: "attendance",
+  result_published: "grading",
+  grade_released: "grading",
+  assessment_reminder: "academics",
+  assignment_due: "academics",
+  class_assigned: "academics",
+  class_unassigned: "academics",
+  course_assigned: "academics",
+  course_unassigned: "academics",
+  timetable_update: "academics",
+  assignment_or_resource: "resources",
+  chat_message: "messages",
+  chat_message_reminder: "messages",
+  security_alert: "account",
+  login_alert: "account",
+  fee_reminder: "other",
+  fee_overdue: "other",
+  payment_confirmed: "other",
+  receipt_generated: "other",
+  system_alert: "other",
+  system_notice: "other",
+  app_update: "other",
+};
+
+const hasWord = (text: string, words: string[]) =>
+  words.some((word) => new RegExp(`\\b${word}`, "i").test(text));
+
+const inferCategory = (item: any, fallback: NotificationCategory) => {
+  const explicit = String(item?.category || item?.metadata?.category || "").toLowerCase();
+  if (CATEGORIES.includes(explicit as NotificationCategory)) {
+    return explicit as NotificationCategory;
   }
-  if (text.includes("grade") || text.includes("grading") || text.includes("result") || text.includes("report")) {
-    return "grading";
-  }
-  if (text.includes("assessment") || text.includes("assignment") || text.includes("curriculum") || text.includes("academic")) {
-    return "academics";
-  }
-  if (text.includes("resource") || text.includes("material") || text.includes("pdf") || text.includes("e-library")) {
-    return "resources";
-  }
-  if (text.includes("chat") || text.includes("message")) {
-    return "messages";
-  }
-  if (text.includes("account") || text.includes("password") || text.includes("login") || text.includes("security")) {
-    return "account";
-  }
-  if (text.includes("announcement")) {
-    return "announcement";
-  }
+
+  const type = String(item?.type || "").toLowerCase();
+  if (CATEGORY_BY_TYPE[type]) return CATEGORY_BY_TYPE[type];
+
+  // Unknown or missing type: fall back to whole-word matching over the text.
+  const text = `${type} ${getTextBlob(item)}`;
+  if (hasWord(text, ["attendance", "absence", "absent", "late\\b"])) return "attendance";
+  if (hasWord(text, ["grade", "grading", "result", "report card"])) return "grading";
+  if (hasWord(text, ["assessment", "assignment", "curriculum", "academic"])) return "academics";
+  if (hasWord(text, ["resource", "material", "pdf", "e-library"])) return "resources";
+  if (hasWord(text, ["chat", "message"])) return "messages";
+  if (hasWord(text, ["account", "password", "login", "security"])) return "account";
+  if (hasWord(text, ["announcement"])) return "announcement";
 
   return fallback;
 };
@@ -314,7 +349,19 @@ export const useNotifications = () => {
     fetchNotifications();
     const interval = setInterval(fetchNotifications, 1000 * 60 * 5);
 
-    return () => clearInterval(interval);
+    // A realtime notification arrived: refresh the list and the bell count.
+    let refetchTimer: ReturnType<typeof setTimeout> | undefined;
+    const onRealtimeNotification = () => {
+      clearTimeout(refetchTimer);
+      refetchTimer = setTimeout(fetchNotifications, 500);
+    };
+    window.addEventListener(NOTIFICATION_EVENT, onRealtimeNotification);
+
+    return () => {
+      clearInterval(interval);
+      clearTimeout(refetchTimer);
+      window.removeEventListener(NOTIFICATION_EVENT, onRealtimeNotification);
+    };
   }, [fetchNotifications]);
 
   const persistNotifications = useCallback(
