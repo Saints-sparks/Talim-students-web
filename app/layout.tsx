@@ -3,6 +3,7 @@
 import { AuthProvider } from "@/contexts/AuthContext";
 import { StudentOnboardingProvider } from "@/contexts/OnboardingContext";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
+import { ChatProvider } from "@/contexts/ChatContext";
 import { ThemeProvider } from "@/providers/theme-provider";
 import "./globals.css";
 import { Inter } from "next/font/google";
@@ -95,8 +96,10 @@ export default function RootLayout({
               <OnboardingSyncEffect />
               <AuthGuard>
                 <WebSocketProvider>
-                  {children}
-                  <ToastViewport />
+                  <ChatProvider>
+                    {children}
+                    <ToastViewport />
+                  </ChatProvider>
                 </WebSocketProvider>
               </AuthGuard>
             </StudentOnboardingProvider>

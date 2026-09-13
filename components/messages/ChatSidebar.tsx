@@ -3,8 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarImage } from "@radix-ui/react-avatar";
-import { Search, ChevronDown, CheckCheck, Wifi, WifiOff, Loader2, Filter, MessageCircle, Users } from "lucide-react";
+import { Search, ChevronDown, Wifi, WifiOff, Loader2, Filter, MessageCircle, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,55 +12,41 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { useChat, RealtimeChatRoom } from "@/hooks/useChat";
 import { generateColorFromString } from "@/lib/colorUtils";
+import { ChatRoomFilter, filterRooms } from "@/lib/chat";
 
 interface ChatSidebarProps {
-  onSelectChat: (chat: { type: "private" | "group"; room?: RealtimeChatRoom }) => void;
+  onSelectChat: (room: RealtimeChatRoom) => void;
   className?: string;
 }
 
 export default function ChatSidebar({ onSelectChat, className = "" }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
-  const [filterType, setFilterType] = useState<"all" | "classes" | "groups">("all");
-  
-  const { 
-    chatRooms, 
-    isLoading, 
-    isConnected, 
-    error, 
-    refreshChatRooms, 
-    searchChatRooms, 
-    getFilteredChatRooms,
-    selectRoom,
+  const [filterType, setFilterType] = useState<ChatRoomFilter>("all");
+
+  const {
+    chatRooms,
+    isLoading,
+    isConnected,
+    error,
+    refreshChatRooms,
     selectedRoomId
   } = useChat();
 
-  // Get filtered and searched rooms
-  const getDisplayRooms = (): RealtimeChatRoom[] => {
-    let rooms = getFilteredChatRooms(filterType);
-    
-    if (searchTerm.trim()) {
-      rooms = searchChatRooms(searchTerm);
-    }
-    
-    return rooms;
-  };
+  // Search applies within the active filter
+  const displayRooms = filterRooms(chatRooms, filterType, searchTerm);
 
-  const displayRooms = getDisplayRooms();
-
+  // Selection (and joining) is driven by the page's ?room= URL
   const handleSelectChat = (room: RealtimeChatRoom) => {
-    selectRoom(room.roomId);
-    onSelectChat({ 
-      type: room.type === 'one_to_one' ? "private" : "group", 
-      room 
-    });
+    onSelectChat(room);
   };
 
-  const handleFilterChange = (newFilter: "all" | "classes" | "groups") => {
+  const handleFilterChange = (newFilter: ChatRoomFilter) => {
     setFilterType(newFilter);
   };
 
   const formatTime = (timestamp: Date | string) => {
     const date = new Date(timestamp);
+    if (Number.isNaN(date.getTime())) return "";
     const now = new Date();
     const diffInHours = (now.getTime() - date.getTime()) / (1000 * 60 * 60);
 
@@ -171,9 +156,9 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
             <div className="text-center">
               <MessageCircle className="w-8 h-8 mx-auto mb-2 text-gray-400" />
               <p className="text-sm">
-                {searchTerm ? 'No chats found' : 'No chats yet'}
+                {searchTerm || filterType !== 'all' ? 'No chats found' : 'No chats yet'}
               </p>
-              {!searchTerm && (
+              {!searchTerm && filterType === 'all' && (
                 <p className="text-xs text-gray-400 mt-1">
                   Join a class to start chatting
                 </p>
@@ -247,7 +232,16 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
                   
                   <div className="flex items-center justify-between">
                     <p className="text-sm text-gray-500 truncate pr-2">
-                      {room.lastMessage?.content || "No messages yet"}
+                      {room.lastMessage
+                        ? room.lastMessage.content ||
+                          (room.lastMessage.type === "voice"
+                            ? "Voice note"
+                            : room.lastMessage.type === "image"
+                              ? "Photo"
+                              : room.lastMessage.type === "file"
+                                ? "File"
+                                : "")
+                        : "No messages yet"}
                     </p>
                     {room.unreadCount > 0 && (
                       <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 text-xs font-medium text-white bg-blue-600 rounded-full">

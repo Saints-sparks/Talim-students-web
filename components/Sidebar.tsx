@@ -40,11 +40,8 @@ const Sidebar: React.FC<SidebarProps> = ({
 }) => {
   const pathname = usePathname();
   const { logout, user } = useAuthContext();
-  const { chatRooms } = useRealtimeChat();
-  const unreadMessages = chatRooms.reduce(
-    (total, room) => total + (room.unreadCount || 0),
-    0,
-  );
+  // Shared chat store: the server's unread total (unread-messages-update).
+  const { totalUnread: unreadMessages } = useRealtimeChat();
 
   const handleLogout = () => {
     logout();

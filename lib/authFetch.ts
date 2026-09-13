@@ -41,7 +41,12 @@ const clearClientAuth = () => {
   window.dispatchEvent(new CustomEvent("auth-refresh-failed"));
 };
 
-const refreshAccessToken = async (): Promise<string> => {
+/**
+ * Exchanges the refresh cookie for a new access token (single-flight). On
+ * failure the client session is cleared and `auth-refresh-failed` is fired,
+ * which the AuthContext turns into a sign-out.
+ */
+export const refreshAccessToken = async (): Promise<string> => {
   if (!refreshPromise) {
     refreshPromise = fetch(API_ENDPOINTS.REFRESH, {
       method: "POST",

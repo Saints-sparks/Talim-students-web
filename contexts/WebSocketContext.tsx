@@ -10,56 +10,25 @@ interface WebSocketProviderProps {
   children: ReactNode;
 }
 
+/**
+ * Owns the app's one socket. It is created when a user is signed in and closed
+ * on sign-out or user change; Socket.IO's built-in reconnection handles drops.
+ */
 export const WebSocketProvider: React.FC<WebSocketProviderProps> = ({
   children,
 }) => {
-  const { isAuthenticated, user, accessToken } = useAuthContext();
+  const { isAuthenticated, user } = useAuthContext();
   const webSocket = useWebSocket();
+  const { connect, disconnect } = webSocket;
 
-  // Auto-connect when user is authenticated
+  // Always prefer user.userId, fallback to user.id only if userId is missing
+  const userId = user?.userId || user?.id;
+
   useEffect(() => {
-    // Always prefer user.userId, fallback to user.id only if userId is missing
-    const userId = user?.userId || user?.id;
-
-    if (
-      isAuthenticated &&
-      accessToken &&
-      userId &&
-      !webSocket.isConnected &&
-      webSocket.connectionStatus !== "connecting"
-    ) {
-      webSocket.connect(userId);
-    } else if (!isAuthenticated && webSocket.isConnected) {
-      webSocket.disconnect();
-    }
-  }, [
-    isAuthenticated,
-    accessToken,
-    user?.userId,
-    user?.id,
-    webSocket.isConnected,
-    webSocket.connectionStatus,
-  ]);
-
-  // Listen for custom auth events separately
-  useEffect(() => {
-    const handleAuthEvent = (e: CustomEvent) => {
-      if (e.detail?.type === "login" && e.detail?.user) {
-        const loginUserId = e.detail.user.userId || e.detail.user.id;
-        if (loginUserId && accessToken && !webSocket.isConnected) {
-          webSocket.connect(loginUserId);
-        }
-      }
-    };
-
-    window.addEventListener("auth-changed", handleAuthEvent as EventListener);
-    return () => {
-      window.removeEventListener(
-        "auth-changed",
-        handleAuthEvent as EventListener
-      );
-    };
-  }, [accessToken, webSocket.connect, webSocket.isConnected]); // Fixed dependencies
+    if (!isAuthenticated || !userId) return;
+    connect(userId);
+    return () => disconnect();
+  }, [isAuthenticated, userId, connect, disconnect]);
 
   return (
     <WebSocketContext.Provider value={webSocket}>

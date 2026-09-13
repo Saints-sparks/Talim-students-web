@@ -85,9 +85,10 @@ export default function ChatHeader({
             <div className="flex w-full justify-between items-center gap-3">
                 {/* Avatar & Name / Search Bar */}
                 <div className="flex items-center gap-3 flex-1">
-                    <div className="block sm:hidden" onClick={onBack}>
+                    {/* Same breakpoint as the messages page layout switch (md) */}
+                    <button type="button" className="block md:hidden" onClick={onBack} aria-label="Back to chats">
                         <ChevronLeft />
-                    </div>
+                    </button>
                     <Avatar className="w-10 h-10 rounded-full">
                         <AvatarImage src={avatar} />
                         <AvatarFallback

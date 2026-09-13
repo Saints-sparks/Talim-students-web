@@ -569,7 +569,7 @@ export default function DashboardPage() {
     loading: notificationsLoading,
     error: notificationsError,
   } = useNotifications();
-  const { chatRooms, isLoading: chatLoading, error: chatError } = useRealtimeChat();
+  const { isLoading: chatLoading, error: chatError, totalUnread } = useRealtimeChat();
 
   const todayName = getTodayName();
   const todaySchedule = useMemo<TodayClass[]>(
@@ -602,7 +602,7 @@ export default function DashboardPage() {
   const completedClasses = todaySchedule.filter((item) => item.status === "Completed").length;
   const inProgressClasses = todaySchedule.filter((item) => item.status === "In Progress").length;
   const upcomingClasses = todaySchedule.filter((item) => item.status === "Upcoming").length;
-  const unreadMessages = chatRooms.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+  const unreadMessages = totalUnread;
   const unreadUpdates = (notificationCounts?.unread || 0) + unreadMessages;
   const publishedAssessmentCount =
     publishedCourses?.reduce((sum, course) => sum + (course.publishedAssessmentsCount || 0), 0) || 0;

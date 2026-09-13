@@ -14,13 +14,17 @@ interface MessageBubbleProps {
     type: string;
     text?: string;
     videoThumbnail?: string;
-    duration?: string;
+    duration?: string | number;
     time: string;
+    status?: "sent" | "pending" | "failed";
+    error?: string;
   };
   index: number;
   openSubMenu: { index: number; type: string } | null;
   toggleSubMenu: (index: number, type: string) => void;
   setReplyingMessage: (msg: any) => void;
+  onRetry?: () => void;
+  onDelete?: () => void;
 }
 
 export default function GroupMessageBubble({
@@ -29,7 +33,12 @@ export default function GroupMessageBubble({
   openSubMenu,
   toggleSubMenu,
   setReplyingMessage,
+  onRetry,
+  onDelete,
 }: MessageBubbleProps) {
+  const isPending = msg.status === "pending";
+  const isFailed = msg.status === "failed";
+
   const initials = getUserInitials(msg.sender);
   const bgColor = msg.color || generateColorFromString(msg.sender);
 
@@ -76,21 +85,25 @@ export default function GroupMessageBubble({
           {/* Message Bubble */}
           <Card
             className={`px-3 py-2 sm:px-4 sm:py-3 border-none shadow-sm relative ${
+              isPending ? "opacity-70" : ""
+            } ${
               msg.senderType === "self"
                 ? "bg-blue-500 text-white rounded-2xl rounded-br-md"
                 : "bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-bl-md"
             }`}
           >
-            <MessageOptionsDropdown
-              index={index}
-              msg={msg}
-              openSubMenu={openSubMenu}
-              toggleSubMenu={toggleSubMenu}
-              setReplyingMessage={setReplyingMessage}
-            />
+            {!isPending && !isFailed && (
+              <MessageOptionsDropdown
+                index={index}
+                msg={msg}
+                openSubMenu={openSubMenu}
+                toggleSubMenu={toggleSubMenu}
+                setReplyingMessage={setReplyingMessage}
+              />
+            )}
 
-            {msg.type === "text" && (
-              <p className="text-sm sm:text-base leading-relaxed break-words">
+            {msg.type !== "voice" && msg.text && (
+              <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
                 {msg.text}
               </p>
             )}
@@ -98,7 +111,7 @@ export default function GroupMessageBubble({
             {msg.type === "video" && (
               <VideoMessage
                 videoThumbnail={msg.videoThumbnail || ""}
-                videoDuration={msg.duration || ""}
+                videoDuration={String(msg.duration || "")}
                 messageText={msg.text || ""}
               />
             )}
@@ -108,8 +121,30 @@ export default function GroupMessageBubble({
           <div className={`flex items-center gap-1 text-xs text-gray-400 mt-1 px-1 ${
             msg.senderType === "self" ? "flex-row-reverse" : "flex-row"
           }`}>
-            <span>{msg.time}</span>
-            {msg.senderType === "self" && (
+            {isFailed ? (
+              <span className="text-red-600" title={msg.error}>
+                Not sent
+                {onRetry && (
+                  <>
+                    {" · "}
+                    <button className="underline hover:text-red-800" onClick={onRetry}>
+                      Retry
+                    </button>
+                  </>
+                )}
+                {onDelete && (
+                  <>
+                    {" · "}
+                    <button className="underline hover:text-red-800" onClick={onDelete}>
+                      Delete
+                    </button>
+                  </>
+                )}
+              </span>
+            ) : (
+              <span>{isPending ? "Sending…" : msg.time}</span>
+            )}
+            {msg.senderType === "self" && !isPending && !isFailed && (
               <svg 
                 width="12" 
                 height="12" 
