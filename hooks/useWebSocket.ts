@@ -198,9 +198,11 @@ export const useWebSocket = (): WebSocketContextType => {
       userIdRef.current = userId;
 
       try {
+        // The server authenticates the socket with the access token. The callback runs
+        // on every connect and reconnect, so a refreshed token is always used.
         const socket = io(WEBSOCKET_URL, {
+          auth: (cb) => cb({ token: localStorage.getItem("accessToken") }),
           query: { userId },
-          auth: { userId },
           transports: ["websocket", "polling"],
           timeout: 10000,
           reconnection: false,
