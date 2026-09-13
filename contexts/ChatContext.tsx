@@ -224,19 +224,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       clearJoinTimer(roomId);
       patchRoom(roomId, { status: "joining", error: null });
 
-      joinTimersRef.current.set(
-        roomId,
-        setTimeout(() => {
-          joinTimersRef.current.delete(roomId);
-          if (roomStatesRef.current[roomId]?.status === "joining") {
-            failJoin(roomId);
-          }
-        }, JOIN_TIMEOUT)
-      );
-
-      // While offline the join is sent by the `connect` handler instead.
+      // While offline the join is sent by the `connect` handler instead, and the
+      // offline banner explains the wait, so the timeout only runs once sent.
       const current = socketRef.current;
       if (current?.connected) {
+        joinTimersRef.current.set(
+          roomId,
+          setTimeout(() => {
+            joinTimersRef.current.delete(roomId);
+            if (roomStatesRef.current[roomId]?.status === "joining") {
+              failJoin(roomId);
+            }
+          }, JOIN_TIMEOUT)
+        );
         current.emit("join-chat-room", { roomId }, (ack: ChatAck) => {
           if (ack && ack.ok === false) failJoin(roomId, ack.error);
         });
