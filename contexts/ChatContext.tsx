@@ -12,20 +12,33 @@ import React, {
 } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useWebSocketContext } from "@/contexts/WebSocketContext";
+import { toast } from "@/components/CustomToast";
+import { authFetch } from "@/lib/authFetch";
+import { API_BASE_URL } from "@/lib/constants";
 import type { ConnectionStatus } from "@/hooks/useWebSocket";
 import type {
   ChatAck,
   ChatMessage,
+  ChatParticipantsChangedEvent,
+  ChatReadEvent,
   ChatRoomActivity,
+  ChatRoomUpdatedEvent,
   RealtimeChatRoom,
   RoomState,
 } from "@/types/chat";
 import {
+  applyMessagesRead,
+  applyParticipants,
+  applyRoomDetails,
   isSameUser,
+  laterTime,
   mergeMessages,
+  needsReadMark,
   newClientMessageId,
+  newestReadableMessage,
   newestServerMessageId,
   normalizeMessage,
+  participantId,
   sortRooms,
   toRealtimeRoom,
 } from "@/lib/chat";
@@ -37,6 +50,10 @@ const BACKFILL_PAGE_SIZE = 100;
 const BACKFILL_MAX_PAGES = 10;
 
 export const JOIN_FAILED_MESSAGE = "Couldn't load this chat";
+
+/** Why a room left my list: I left it, or someone removed me. */
+export type RoomRemovalReason = "left" | "removed";
+export type RoomRemovedListener = (roomId: string, reason: RoomRemovalReason) => void;
 
 export interface ChatContextValue {
   // Chat list
@@ -66,6 +83,12 @@ export interface ChatContextValue {
   // Drafts survive switching rooms
   getDraft: (roomId: string) => string;
   setDraft: (roomId: string, text: string) => void;
+
+  // Membership
+  /** Leaves a group (removes me). Resolves with the server's message on failure. */
+  leaveGroup: (roomId: string) => Promise<{ ok: boolean; message?: string }>;
+  /** Called when a room is dropped because I left or was removed (e.g. to navigate away). */
+  onRoomRemoved: (listener: RoomRemovedListener) => () => void;
 }
 
 const ChatContext = createContext<ChatContextValue | null>(null);
@@ -82,10 +105,14 @@ const emptyRoomState = (roomId: string): RoomState => ({
   roomName: "",
   roomType: undefined,
   participants: [],
+  description: "",
+  avatarUrl: "",
 });
 
+/** The chat is actually being looked at: tab visible and window focused. */
 const isVisible = () =>
-  typeof document === "undefined" || document.visibilityState === "visible";
+  typeof document === "undefined" ||
+  (document.visibilityState === "visible" && document.hasFocus());
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthContext();
@@ -118,7 +145,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const selectedRef = useRef<string | null>(null);
   const joinTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const inflightSendsRef = useRef(new Set<string>());
-  const markedReadRef = useRef(new Set<string>());
+  // Newest message each room was marked read up to, so a read is never re-sent.
+  const lastReadSentRef = useRef(new Map<string, Pick<ChatMessage, "_id" | "createdAt">>());
+  const removedListenersRef = useRef(new Set<RoomRemovedListener>());
   const draftsRef = useRef(new Map<string, string>());
   const roomListInflightRef = useRef(false);
 
@@ -168,36 +197,47 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // ── Read state ─────────────────────────────────────────────────────────────
 
-  /** Marks messages from others that I haven't read, only while the chat is on screen. */
+  /**
+   * Marks the open room read up to the newest message from someone else, with
+   * one `mark-room-read`, only while the chat is on screen and the window has focus.
+   */
   const markVisibleAsRead = useCallback(
     (roomId: string) => {
       if (!isVisible() || selectedRef.current !== roomId) return;
-      const current = socketRef.current;
       const room = roomStatesRef.current[roomId];
-      if (!current?.connected || !room) return;
-
-      const ids = userIdsRef.current;
-      const unread = room.messages.filter(
-        (message) =>
-          message.status === "sent" &&
-          !message._id.startsWith("local:") &&
-          !isSameUser(message.senderId, ids) &&
-          !message.readBy.some((reader) => ids.includes(reader)) &&
-          !markedReadRef.current.has(message._id)
-      );
-
-      unread.forEach((message) => {
-        markedReadRef.current.add(message._id);
-        current.emit("mark-message-read", { messageId: message._id });
-      });
+      if (!socketRef.current?.connected || !room || room.status !== "ready") return;
 
       setChatRooms((rooms) =>
         rooms.some((r) => r.roomId === roomId && r.unreadCount > 0)
           ? rooms.map((r) => (r.roomId === roomId ? { ...r, unreadCount: 0 } : r))
           : rooms
       );
+
+      const ids = userIdsRef.current;
+      const candidate = newestReadableMessage(room.messages, ids);
+      const listRoom = chatRoomsRef.current.find((r) => r.roomId === roomId);
+      const previous = lastReadSentRef.current.get(roomId);
+      if (!needsReadMark(candidate, ids, listRoom?.lastReadAt, previous)) return;
+
+      lastReadSentRef.current.set(roomId, { _id: candidate._id, createdAt: candidate.createdAt });
+      emitWithAck("mark-room-read", { roomId, upToMessageId: candidate._id }).then((ack) => {
+        if (ack.ok) {
+          const readAt = typeof ack.readAt === "string" ? ack.readAt : candidate.createdAt;
+          setChatRooms((rooms) =>
+            rooms.map((r) =>
+              r.roomId === roomId ? { ...r, lastReadAt: laterTime(r.lastReadAt, readAt) } : r
+            )
+          );
+          return;
+        }
+        // Let the next trigger (new message, focus, reconnect) try again.
+        if (lastReadSentRef.current.get(roomId)?._id === candidate._id) {
+          if (previous) lastReadSentRef.current.set(roomId, previous);
+          else lastReadSentRef.current.delete(roomId);
+        }
+      });
     },
-    [setChatRooms]
+    [emitWithAck, setChatRooms]
   );
 
   // ── Joining ────────────────────────────────────────────────────────────────
@@ -286,6 +326,75 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (selectedRef.current === roomId) joinRoom(roomId);
     },
     [joinRoom]
+  );
+
+  // ── Membership ─────────────────────────────────────────────────────────────
+
+  /** Drops a room I'm no longer in: leaves it if open, forgets it, tells the user. */
+  const dropRoom = useCallback(
+    (roomId: string, reason: RoomRemovalReason) => {
+      const listRoom = chatRoomsRef.current.find((r) => r.roomId === roomId);
+      const state = roomStatesRef.current[roomId];
+      if (!listRoom && !state) return; // already handled (REST reply and socket event)
+
+      if (selectedRef.current === roomId) {
+        leaveRoom(roomId);
+        selectedRef.current = null;
+        setSelectedRoomId(null);
+      }
+      clearJoinTimer(roomId);
+      const { [roomId]: _removed, ...rest } = roomStatesRef.current;
+      roomStatesRef.current = rest;
+      setRoomStatesState(rest);
+      setChatRooms((rooms) => rooms.filter((r) => r.roomId !== roomId));
+      draftsRef.current.delete(roomId);
+      lastReadSentRef.current.delete(roomId);
+
+      const name = listRoom?.displayName || state?.roomName || "the group";
+      if (reason === "left") toast.info(`You left ${name}`);
+      else toast.warning(`You were removed from ${name}`);
+      removedListenersRef.current.forEach((listener) => listener(roomId, reason));
+    },
+    [clearJoinTimer, leaveRoom, setChatRooms]
+  );
+
+  const onRoomRemoved = useCallback((listener: RoomRemovedListener) => {
+    removedListenersRef.current.add(listener);
+    return () => {
+      removedListenersRef.current.delete(listener);
+    };
+  }, []);
+
+  const leaveGroup = useCallback(
+    async (roomId: string): Promise<{ ok: boolean; message?: string }> => {
+      const ids = userIdsRef.current;
+      const participants =
+        chatRoomsRef.current.find((r) => r.roomId === roomId)?.participants ||
+        roomStatesRef.current[roomId]?.participants ||
+        [];
+      const me = participants.find((p) =>
+        [participantId(p), p.userId].filter(Boolean).some((id) => ids.includes(String(id)))
+      );
+      const myId = me ? participantId(me) : ids[0];
+      if (!myId) return { ok: false, message: "Couldn't leave the group. Please try again." };
+
+      try {
+        const res = await authFetch(
+          `${API_BASE_URL}/chat/rooms/${encodeURIComponent(roomId)}/participants/${encodeURIComponent(myId)}/remove`,
+          { method: "PATCH" }
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => null);
+          const message = Array.isArray(body?.message) ? body.message[0] : body?.message;
+          return { ok: false, message: message || "Couldn't leave the group. Please try again." };
+        }
+      } catch {
+        return { ok: false, message: "Couldn't leave the group. Check your connection and try again." };
+      }
+      dropRoom(roomId, "left");
+      return { ok: true };
+    },
+    [dropRoom]
   );
 
   // ── Paging ─────────────────────────────────────────────────────────────────
@@ -515,6 +624,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         participants:
           (data.room?.participants?.length ? data.room.participants : data.participants) ||
           room.participants,
+        description: data.room ? String(data.room.description || "") : room.description,
+        avatarUrl: data.room ? String(data.room.avatarUrl || "") : room.avatarUrl,
+        createdBy: data.room?.createdBy ? String(data.room.createdBy) : room.createdBy,
       }));
 
       if (data.room && !chatRoomsRef.current.some((r) => r.roomId === roomId)) {
@@ -598,6 +710,74 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (typeof data?.unreadCount === "number") setTotalUnread(data.unreadCount);
     };
 
+    // Another member read up to a message: update ticks on my copies.
+    const onMessagesRead = (data: ChatReadEvent) => {
+      const roomId = String(data?.roomId || "");
+      const userId = String(data?.userId || "");
+      const room = roomStatesRef.current[roomId];
+      if (!room || !userId || !data?.readAt) return;
+      const messages = applyMessagesRead(room.messages, userId, data.readAt);
+      if (messages !== room.messages) patchRoom(roomId, { messages });
+    };
+
+    // I read this room on another device (or this one): clear its badge.
+    const onRoomRead = (data: ChatReadEvent) => {
+      const roomId = String(data?.roomId || "");
+      if (!roomId || !data?.readAt) return;
+      const readTime = new Date(data.readAt).getTime();
+      setChatRooms((rooms) =>
+        rooms.map((room) => {
+          if (room.roomId !== roomId) return room;
+          const lastTime = new Date(room.lastMessage?.timestamp || 0).getTime();
+          // A message newer than the read position keeps the badge.
+          const covered = Number.isNaN(readTime) || Number.isNaN(lastTime) || lastTime <= readTime;
+          return {
+            ...room,
+            lastReadAt: laterTime(room.lastReadAt, data.readAt),
+            unreadCount: covered ? 0 : room.unreadCount,
+          };
+        })
+      );
+    };
+
+    const onRoomUpdated = (data: ChatRoomUpdatedEvent) => {
+      const roomId = String(data?.roomId || "");
+      if (!roomId) return;
+      setChatRooms((rooms) =>
+        rooms.map((room) => (room.roomId === roomId ? applyRoomDetails(room, data) : room))
+      );
+      if (roomStatesRef.current[roomId]) {
+        patchRoom(roomId, (room) => ({
+          roomName: data.name || room.roomName,
+          description:
+            data.description === undefined ? room.description : String(data.description || ""),
+          avatarUrl: data.avatarUrl === undefined ? room.avatarUrl : String(data.avatarUrl || ""),
+        }));
+      }
+    };
+
+    const onParticipantsChanged = (data: ChatParticipantsChangedEvent) => {
+      const roomId = String(data?.roomId || "");
+      if (!roomId) return;
+      const ids = userIdsRef.current;
+      if ((data.removed || []).some((id) => ids.includes(String(id)))) {
+        dropRoom(roomId, isSameUser(data.by, ids) ? "left" : "removed");
+        return;
+      }
+      if (!chatRoomsRef.current.some((r) => r.roomId === roomId)) {
+        // Added to a room we don't list yet.
+        if ((data.added || []).some((id) => ids.includes(String(id)))) refreshChatRooms();
+      }
+      if (!Array.isArray(data.participants)) return;
+      const participants = data.participants;
+      setChatRooms((rooms) =>
+        rooms.map((room) =>
+          room.roomId === roomId ? applyParticipants(room, participants, ids) : room
+        )
+      );
+      if (roomStatesRef.current[roomId]) patchRoom(roomId, { participants });
+    };
+
     const onServerError = (payload: any) => {
       const code = payload?.code;
       if (code === "UNAUTHENTICATED") return;
@@ -632,6 +812,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socket.on("chat-room-activity", onChatRoomActivity);
     socket.on("chat-rooms-update", onChatRoomsUpdate);
     socket.on("unread-messages-update", onUnreadMessagesUpdate);
+    socket.on("messages-read", onMessagesRead);
+    socket.on("room-read", onRoomRead);
+    socket.on("room-updated", onRoomUpdated);
+    socket.on("participants-changed", onParticipantsChanged);
     socket.on("error", onServerError);
 
     if (socket.connected) onConnect();
@@ -644,6 +828,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socket.off("chat-room-activity", onChatRoomActivity);
       socket.off("chat-rooms-update", onChatRoomsUpdate);
       socket.off("unread-messages-update", onUnreadMessagesUpdate);
+      socket.off("messages-read", onMessagesRead);
+      socket.off("room-read", onRoomRead);
+      socket.off("room-updated", onRoomUpdated);
+      socket.off("participants-changed", onParticipantsChanged);
       socket.off("error", onServerError);
     };
   }, [
@@ -651,6 +839,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     applyPage,
     backfill,
     clearJoinTimer,
+    dropRoom,
     failJoin,
     flushOutbox,
     joinRoom,
@@ -661,13 +850,17 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     setChatRooms,
   ]);
 
-  // Mark what arrived while the tab was in the background once it's visible again.
+  // Mark what arrived while the tab was hidden or the window unfocused once it's back.
   useEffect(() => {
-    const onVisibilityChange = () => {
+    const onReturn = () => {
       if (isVisible() && selectedRef.current) markVisibleAsRead(selectedRef.current);
     };
-    document.addEventListener("visibilitychange", onVisibilityChange);
-    return () => document.removeEventListener("visibilitychange", onVisibilityChange);
+    document.addEventListener("visibilitychange", onReturn);
+    window.addEventListener("focus", onReturn);
+    return () => {
+      document.removeEventListener("visibilitychange", onReturn);
+      window.removeEventListener("focus", onReturn);
+    };
   }, [markVisibleAsRead]);
 
   // A different (or no) user: start from a clean slate.
@@ -680,7 +873,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       roomStatesRef.current = {};
       selectedRef.current = null;
       inflightSendsRef.current.clear();
-      markedReadRef.current.clear();
+      lastReadSentRef.current.clear();
       draftsRef.current.clear();
       roomListInflightRef.current = false;
       setChatRoomsState([]);
@@ -714,6 +907,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     deleteFailedMessage,
     getDraft,
     setDraft,
+    leaveGroup,
+    onRoomRemoved,
   };
 
   return <ChatContext.Provider value={value}>{children}</ChatContext.Provider>;

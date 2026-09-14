@@ -8,6 +8,8 @@ import type {
   ChatParticipant,
   ChatRoomType,
   ChatRoomView,
+  ChatRoomUpdatedEvent,
+  OwnMessageTick,
   RealtimeChatRoom,
 } from "@/types/chat";
 
@@ -137,6 +139,127 @@ export function newestServerMessageId(messages: ChatMessage[]): string | undefin
 export const isSameUser = (id: string | undefined, userIds: string[]) =>
   Boolean(id) && userIds.includes(String(id));
 
+const timeOf = (iso?: string) => {
+  const time = iso ? new Date(iso).getTime() : NaN;
+  return Number.isNaN(time) ? null : time;
+};
+
+/** True when `a` comes after `b` in history order (createdAt, then _id). */
+export function isNewerMessage(
+  a: Pick<ChatMessage, "_id" | "createdAt">,
+  b: Pick<ChatMessage, "_id" | "createdAt">
+): boolean {
+  const diff = (timeOf(a.createdAt) ?? 0) - (timeOf(b.createdAt) ?? 0);
+  if (diff !== 0) return diff > 0;
+  return a._id > b._id;
+}
+
+/** The newest stored message from someone else: what `mark-room-read` should point at. */
+export function newestReadableMessage(
+  messages: ChatMessage[],
+  userIds: string[]
+): ChatMessage | undefined {
+  for (let i = messages.length - 1; i >= 0; i--) {
+    const message = messages[i];
+    if (
+      message.status === "sent" &&
+      message._id &&
+      !message._id.startsWith("local:") &&
+      !isSameUser(message.senderId, userIds)
+    ) {
+      return message;
+    }
+  }
+  return undefined;
+}
+
+/**
+ * Whether a room still needs `mark-room-read` for `candidate`: not when I'm
+ * already in its `readBy`, when my read position already covers it, or when a
+ * read for it (or something newer) was already sent.
+ */
+export function needsReadMark(
+  candidate: ChatMessage | undefined,
+  userIds: string[],
+  lastReadAt: string | undefined,
+  lastSent: Pick<ChatMessage, "_id" | "createdAt"> | undefined
+): candidate is ChatMessage {
+  if (!candidate) return false;
+  if (candidate.readBy.some((reader) => userIds.includes(reader))) return false;
+  const readTime = timeOf(lastReadAt);
+  const createdTime = timeOf(candidate.createdAt);
+  if (readTime !== null && createdTime !== null && createdTime <= readTime) return false;
+  if (lastSent && (lastSent._id === candidate._id || !isNewerMessage(candidate, lastSent))) {
+    return false;
+  }
+  return true;
+}
+
+/**
+ * `messages-read`: adds `userId` to `readBy` on messages from other senders
+ * created at or before `readAt`. Returns the same array when nothing changed.
+ */
+export function applyMessagesRead(
+  messages: ChatMessage[],
+  userId: string,
+  readAt: string
+): ChatMessage[] {
+  const readTime = timeOf(readAt);
+  if (!userId || readTime === null) return messages;
+  let changed = false;
+  const next = messages.map((message) => {
+    if (
+      message.status !== "sent" ||
+      message.senderId === userId ||
+      message.readBy.includes(userId)
+    ) {
+      return message;
+    }
+    const createdTime = timeOf(message.createdAt);
+    if (createdTime === null || createdTime > readTime) return message;
+    changed = true;
+    return { ...message, readBy: [...message.readBy, userId] };
+  });
+  return changed ? next : messages;
+}
+
+/** Later of two ISO timestamps (read positions only move forward). */
+export function laterTime(a?: string, b?: string): string | undefined {
+  const ta = timeOf(a);
+  const tb = timeOf(b);
+  if (ta === null) return tb === null ? undefined : b;
+  if (tb === null) return a;
+  return tb > ta ? b : a;
+}
+
+/** Readers of one of my messages, excluding me (and the sender). */
+export function readersOf(message: ChatMessage, userIds: string[]): string[] {
+  return Array.from(
+    new Set(
+      message.readBy.filter(
+        (reader) => reader && !userIds.includes(reader) && reader !== message.senderId
+      )
+    )
+  );
+}
+
+/**
+ * Tick for one of my messages. Direct messages count as read when the other
+ * person is in `readBy`; groups show "Read by N" instead, so they stop at "sent".
+ */
+export function ownMessageTick(
+  message: ChatMessage,
+  roomType: ChatRoomType | undefined,
+  otherIds: string[]
+): OwnMessageTick {
+  if (message.status === "pending") return "pending";
+  if (message.status === "failed") return "failed";
+  if (roomType === "one_to_one" && message.readBy.some((reader) => otherIds.includes(reader))) {
+    return "read";
+  }
+  return "sent";
+}
+
 /** hsl colour used for room initials (kept identical to the previous list styling). */
 export function roomColorFromString(str: string): string {
   let hash = 0;
@@ -180,18 +303,89 @@ export function isGroupRoomType(type?: string) {
   return Boolean(type) && type !== "one_to_one";
 }
 
+function groupAvatarInfo(name: string, avatarUrl: string): RealtimeChatRoom["avatarInfo"] {
+  return avatarUrl
+    ? { type: "image", value: avatarUrl }
+    : {
+        type: "initials",
+        value: initialsOf(name) || "CR",
+        bgColor: roomColorFromString(name),
+      };
+}
+
+const groupHasTeacherOnline = (participants: ChatParticipant[], userIds: string[]) =>
+  participants.some(
+    (p) => p.role === "teacher" && p.isOnline && !userIds.includes(participantId(p))
+  );
+
+/** `room-updated`: new name, description and picture for a group in the list. */
+export function applyRoomDetails(
+  room: RealtimeChatRoom,
+  update: ChatRoomUpdatedEvent
+): RealtimeChatRoom {
+  if (room.type === "one_to_one") return room;
+  const name = typeof update.name === "string" && update.name ? update.name : room.name;
+  const description =
+    update.description === undefined ? room.description : String(update.description || "");
+  const avatarUrl =
+    update.avatarUrl === undefined ? room.avatarUrl : String(update.avatarUrl || "");
+  const displayName = name || room.displayName;
+  return {
+    ...room,
+    name,
+    description,
+    avatarUrl,
+    displayName,
+    avatarInfo: groupAvatarInfo(displayName, avatarUrl),
+  };
+}
+
+/** `participants-changed`: the room's members after the change. */
+export function applyParticipants(
+  room: RealtimeChatRoom,
+  participants: ChatParticipant[],
+  userIds: string[]
+): RealtimeChatRoom {
+  if (room.type === "one_to_one") return room;
+  return { ...room, participants, isOnline: groupHasTeacherOnline(participants, userIds) };
+}
+
+export const ROLE_LABELS: Record<string, string> = {
+  student: "Student",
+  teacher: "Teacher",
+  parent: "Parent",
+  school_admin: "School admin",
+  school_sub_admin: "School admin",
+  admin: "Admin",
+};
+
+export const roleLabel = (role?: string) =>
+  (role && ROLE_LABELS[role]) ||
+  (role ? role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ") : "Member");
+
+export const ROOM_TYPE_LABELS: Record<ChatRoomType, string> = {
+  one_to_one: "Direct message",
+  class_group: "Class group",
+  course_group: "Subject group",
+  parent_group: "Parent group",
+  admin_parent_group: "School and parents",
+  custom_group: "Group",
+};
+
+/** Groups a member may leave on their own. */
+export const LEAVABLE_ROOM_TYPES: ChatRoomType[] = ["custom_group", "parent_group"];
+
 /** Turns a `RoomView` into the list item the sidebar renders. */
 export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): RealtimeChatRoom {
   const roomId = String(room?._id || room?.roomId || "");
   const participants: ChatParticipant[] = Array.isArray(room?.participants) ? room.participants : [];
   const type: ChatRoomType = room?.type || "custom_group";
 
+  const description = type === "one_to_one" ? "" : String(room?.description || "");
+  const avatarUrl = type === "one_to_one" ? "" : String(room?.avatarUrl || "");
+
   let displayName = room?.name || "Chat Room";
-  let avatarInfo: RealtimeChatRoom["avatarInfo"] = {
-    type: "initials",
-    value: initialsOf(displayName) || "CR",
-    bgColor: roomColorFromString(displayName),
-  };
+  let avatarInfo = groupAvatarInfo(displayName, avatarUrl);
   let isOnline = false;
 
   if (type === "one_to_one") {
@@ -208,9 +402,7 @@ export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): Rea
           };
     }
   } else {
-    isOnline = participants.some(
-      (p) => p.role === "teacher" && p.isOnline && !userIds.includes(participantId(p))
-    );
+    isOnline = groupHasTeacherOnline(participants, userIds);
   }
 
   const last = room?.lastMessage;
@@ -234,6 +426,10 @@ export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): Rea
     updatedAt: String(room?.updatedAt || lastMessage?.timestamp || ""),
     classId: room?.classId,
     courseId: room?.courseId,
+    createdBy: room?.createdBy ? idOf(room.createdBy) : undefined,
+    description,
+    avatarUrl,
+    lastReadAt: room?.lastReadAt ? String(room.lastReadAt) : undefined,
     displayName,
     avatarInfo,
     isOnline,

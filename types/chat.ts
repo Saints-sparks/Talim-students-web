@@ -14,6 +14,8 @@ export type ChatMessageType = "text" | "voice" | "image" | "file";
 export interface ChatAttachment {
   url: string;
   type: "image" | "audio" | "video" | "document" | "file";
+  /** Audio only: an MP3 of a WebM/Ogg/WAV note, play this when present. */
+  playbackUrl?: string;
   name?: string;
   mimeType?: string;
   size?: number;
@@ -39,8 +41,12 @@ export interface ChatRoomView {
   roomId?: string; // deprecated alias of _id
   type: ChatRoomType;
   name: string;
+  description?: string; // groups only
+  avatarUrl?: string | null; // groups only
+  lastReadAt?: string; // when the current user last read this room
   classId?: string;
   courseId?: string;
+  createdBy?: string;
   participants: ChatParticipant[];
   lastMessage: null | {
     _id?: string;
@@ -114,6 +120,13 @@ export interface RealtimeChatRoom {
   updatedAt: string;
   classId?: string;
   courseId?: string;
+  createdBy?: string;
+  /** Groups only. */
+  description: string;
+  /** Groups only. */
+  avatarUrl: string;
+  /** Read position of the current user (the createdAt of the newest message read). */
+  lastReadAt?: string;
   displayName: string;
   avatarInfo: {
     type: "image" | "initials";
@@ -137,4 +150,36 @@ export interface RoomState {
   roomName: string;
   roomType?: ChatRoomType;
   participants: ChatParticipant[];
+  description: string;
+  avatarUrl: string;
+  createdBy?: string;
 }
+
+/** `messages-read` (another member) and `room-read` (my other device). */
+export interface ChatReadEvent {
+  roomId: string;
+  userId?: string;
+  upToMessageId?: string;
+  readAt: string;
+}
+
+/** `room-updated`. */
+export interface ChatRoomUpdatedEvent {
+  roomId: string;
+  name?: string;
+  description?: string | null;
+  avatarUrl?: string | null;
+  updatedBy?: string;
+}
+
+/** `participants-changed`. */
+export interface ChatParticipantsChangedEvent {
+  roomId: string;
+  added?: string[];
+  removed?: string[];
+  by?: string;
+  participants?: ChatParticipant[];
+}
+
+/** Tick state of one of my own messages. */
+export type OwnMessageTick = "pending" | "failed" | "sent" | "read";
