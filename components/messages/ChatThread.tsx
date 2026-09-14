@@ -8,8 +8,15 @@ import ReplyPreview from "./ReplyPreview";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
 import { useChatContext } from "@/contexts/ChatContext";
 import { generateColorFromString } from "@/lib/colorUtils";
-import { isSameUser, participantId, participantName } from "@/lib/chat";
-import type { ChatMessage, ChatParticipant } from "@/types/chat";
+import {
+  isSameUser,
+  otherParticipant,
+  ownMessageTick,
+  participantId,
+  participantName,
+  readersOf,
+} from "@/lib/chat";
+import type { ChatMessage, ChatParticipant, ChatRoomType } from "@/types/chat";
 
 const NEAR_BOTTOM_PX = 120;
 const LOAD_OLDER_THRESHOLD_PX = 80;
@@ -22,6 +29,7 @@ export interface ReplyingMessage {
 interface ChatThreadProps {
   roomId: string;
   header: ReactNode;
+  roomType?: ChatRoomType;
   participants: ChatParticipant[];
   replyingMessage: ReplyingMessage | null;
   setReplyingMessage: (msg: any) => void;
@@ -42,6 +50,7 @@ const formatDate = (date: Date) => {
 export default function ChatThread({
   roomId,
   header,
+  roomType,
   participants,
   replyingMessage,
   setReplyingMessage,
@@ -141,12 +150,27 @@ export default function ChatThread({
     [sendMessage, setReplyingMessage]
   );
 
+  // Read state: the other person's ids (direct messages) and my newest stored message (groups).
+  const other = roomType === "one_to_one" ? otherParticipant(participants, currentUserIds) : undefined;
+  const otherIds = other ? [other._id, other.userId].filter(Boolean).map(String) : [];
+  let latestOwnSentId: string | undefined;
+  for (let i = messages.length - 1; i >= 0; i--) {
+    if (isMine(messages[i]) && messages[i].status === "sent") {
+      latestOwnSentId = messages[i]._id;
+      break;
+    }
+  }
+
   const findParticipant = (senderId: string) =>
     participants.find((p) => participantId(p) === senderId || p.userId === senderId);
 
   const toBubble = (message: ChatMessage) => {
     const participant = findParticipant(message.senderId);
     const mine = isMine(message);
+    const readers =
+      mine && roomType !== "one_to_one" && message._id === latestOwnSentId
+        ? readersOf(message, currentUserIds).length
+        : 0;
     const senderName =
       message.senderName || (participant ? participantName(participant, "") : "") || (mine ? "You" : "Unknown");
 
@@ -164,8 +188,11 @@ export default function ChatThread({
       avatar: message.senderAvatar || participant?.userAvatar || "",
       color: generateColorFromString(senderName || message.senderId || "unknown"),
       duration: message.duration,
+      attachments: message.attachments,
       status: message.status,
       error: message.error,
+      tick: mine ? ownMessageTick(message, roomType, otherIds) : undefined,
+      readByLabel: readers > 0 ? `Read by ${readers}` : undefined,
     };
   };
 

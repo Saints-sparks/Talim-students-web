@@ -1,9 +1,10 @@
+import { Check, CheckCheck, Clock } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
-import AudioMessage from "./AudioMessage";
-import VideoMessage from "./VideoMessage";
+import MessageAttachments from "./MessageAttachments";
 import MessageOptionsDropdown from "./MessageDropdown";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
+import type { ChatAttachment, OwnMessageTick } from "@/types/chat";
 
 interface MessageBubbleProps {
   msg: {
@@ -13,11 +14,15 @@ interface MessageBubbleProps {
     color: string;
     type: string;
     text?: string;
-    videoThumbnail?: string;
-    duration?: string | number;
+    duration?: number;
+    attachments?: ChatAttachment[];
     time: string;
     status?: "sent" | "pending" | "failed";
     error?: string;
+    /** Own messages only. */
+    tick?: OwnMessageTick;
+    /** Groups: "Read by N", shown under my latest message only. */
+    readByLabel?: string;
   };
   index: number;
   openSubMenu: { index: number; type: string } | null;
@@ -102,18 +107,18 @@ export default function GroupMessageBubble({
               />
             )}
 
-            {msg.type !== "voice" && msg.text && (
+            {msg.attachments && msg.attachments.length > 0 && (
+              <MessageAttachments
+                attachments={msg.attachments}
+                type={msg.type}
+                duration={msg.duration}
+                isMine={msg.senderType === "self"}
+              />
+            )}
+            {msg.text && (
               <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
                 {msg.text}
               </p>
-            )}
-            {msg.type === "voice" && <AudioMessage sender={msg.sender} />}
-            {msg.type === "video" && (
-              <VideoMessage
-                videoThumbnail={msg.videoThumbnail || ""}
-                videoDuration={String(msg.duration || "")}
-                messageText={msg.text || ""}
-              />
             )}
           </Card>
 
@@ -142,20 +147,21 @@ export default function GroupMessageBubble({
                 )}
               </span>
             ) : (
-              <span>{isPending ? "Sending…" : msg.time}</span>
+              <span>{msg.time}</span>
             )}
-            {msg.senderType === "self" && !isPending && !isFailed && (
-              <svg 
-                width="12" 
-                height="12" 
-                viewBox="0 0 16 16" 
-                className="text-blue-400"
-                fill="currentColor"
-              >
-                <path d="M13.854 3.646a.5.5 0 0 1 0 .708l-7 7a.5.5 0 0 1-.708 0l-3.5-3.5a.5.5 0 1 1 .708-.708L6.5 10.293l6.646-6.647a.5.5 0 0 1 .708 0z"/>
-              </svg>
+            {msg.senderType === "self" && msg.tick === "pending" && (
+              <Clock className="w-3 h-3" aria-label="Sending" />
+            )}
+            {msg.senderType === "self" && msg.tick === "sent" && (
+              <Check className="w-3.5 h-3.5" aria-label="Sent" />
+            )}
+            {msg.senderType === "self" && msg.tick === "read" && (
+              <CheckCheck className="w-3.5 h-3.5 text-blue-500" aria-label="Read" />
             )}
           </div>
+          {msg.senderType === "self" && msg.readByLabel && (
+            <p className="text-[11px] text-gray-400 px-1">{msg.readByLabel}</p>
+          )}
         </div>
       </div>
     </div>
