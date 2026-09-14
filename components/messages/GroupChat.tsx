@@ -66,6 +66,7 @@ const GroupChat = ({
                 description={description}
                 avatarUrl={avatarUrl}
                 participants={participants}
+                messages={joined.messages}
             />
         </>
     );

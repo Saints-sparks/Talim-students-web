@@ -6,9 +6,12 @@ import { toast } from "@/components/CustomToast";
 import { useChatContext } from "@/contexts/ChatContext";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
 import { LEAVABLE_ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/chat";
-import type { ChatParticipant, ChatRoomType } from "@/types/chat";
+import type { ChatMessage, ChatParticipant, ChatRoomType } from "@/types/chat";
 import Classmates from "./Classmates";
 import InfoModalShell from "./InfoModalShell";
+import SharedMedia from "./SharedMedia";
+
+type InfoTab = "members" | "media";
 
 interface GroupInfoModalProps {
     isOpen: boolean;
@@ -19,12 +22,14 @@ interface GroupInfoModalProps {
     description: string;
     avatarUrl: string;
     participants: ChatParticipant[];
+    /** Loaded messages of the room, for the Media tab. */
+    messages: ChatMessage[];
 }
 
 /**
  * Group details for students: picture, name, description and members.
  * Students don't manage groups; they may only leave custom and parent groups.
- * Shared media tabs arrive with the media kit.
+ * Media lists what is in the loaded messages.
  */
 export default function GroupInfoModal({
     isOpen,
@@ -35,13 +40,18 @@ export default function GroupInfoModal({
     description,
     avatarUrl,
     participants,
+    messages,
 }: GroupInfoModalProps) {
     const { currentUserIds, leaveGroup } = useChatContext();
     const [confirmLeave, setConfirmLeave] = useState(false);
     const [leaving, setLeaving] = useState(false);
+    const [tab, setTab] = useState<InfoTab>("members");
 
     useEffect(() => {
-        if (!isOpen) setConfirmLeave(false);
+        if (!isOpen) {
+            setConfirmLeave(false);
+            setTab("members");
+        }
     }, [isOpen]);
 
     const canLeave = Boolean(roomType && LEAVABLE_ROOM_TYPES.includes(roomType));
@@ -126,8 +136,32 @@ export default function GroupInfoModal({
                 <p className="mt-4 text-sm text-center text-[#9B9B9B] italic">No description</p>
             )}
 
-            <h4 className="mt-5 mb-2 text-sm font-medium text-[#030E18]">Members</h4>
-            <Classmates participants={participants} currentUserIds={currentUserIds} />
+            <div role="tablist" aria-label="Group info" className="mt-5 mb-3 flex gap-1 border-b border-[#F0F0F0]">
+                {([
+                    ["members", `Members (${participants.length})`],
+                    ["media", "Media"],
+                ] as const).map(([value, label]) => (
+                    <button
+                        key={value}
+                        type="button"
+                        role="tab"
+                        aria-selected={tab === value}
+                        onClick={() => setTab(value)}
+                        className={`-mb-px border-b-2 px-3 py-2 text-sm transition-colors ${
+                            tab === value
+                                ? "border-blue-500 font-medium text-[#030E18]"
+                                : "border-transparent text-[#7B7B7B] hover:text-[#030E18]"
+                        }`}
+                    >
+                        {label}
+                    </button>
+                ))}
+            </div>
+            {tab === "members" ? (
+                <Classmates participants={participants} currentUserIds={currentUserIds} />
+            ) : (
+                <SharedMedia messages={messages} />
+            )}
         </InfoModalShell>
     );
 }
