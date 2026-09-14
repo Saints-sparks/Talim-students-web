@@ -16,6 +16,7 @@ interface MessageBubbleProps {
     text?: string;
     duration?: number;
     attachments?: ChatAttachment[];
+    uploadProgress?: number[];
     time: string;
     status?: "sent" | "pending" | "failed";
     error?: string;
@@ -110,13 +111,17 @@ export default function GroupMessageBubble({
             {msg.attachments && msg.attachments.length > 0 && (
               <MessageAttachments
                 attachments={msg.attachments}
-                type={msg.type}
-                duration={msg.duration}
                 isMine={msg.senderType === "self"}
+                pending={isPending || isFailed}
+                progress={isPending ? msg.uploadProgress : undefined}
               />
             )}
             {msg.text && (
-              <p className="text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap">
+              <p
+                className={`text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap ${
+                  msg.attachments?.length ? "mt-1.5" : ""
+                }`}
+              >
                 {msg.text}
               </p>
             )}

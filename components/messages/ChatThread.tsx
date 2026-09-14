@@ -161,6 +161,24 @@ export default function ChatThread({
     }
   }
 
+  const handleSendFiles = useCallback(
+    (files: File[], caption: string) => {
+      if (!files.length) return;
+      nearBottomRef.current = true;
+      sendMessage(caption, { files });
+      setReplyingMessage(null);
+    },
+    [sendMessage, setReplyingMessage]
+  );
+
+  const handleSendVoice = useCallback(
+    (file: File, duration: number) => {
+      nearBottomRef.current = true;
+      sendMessage("", { voice: { file, duration } });
+    },
+    [sendMessage]
+  );
+
   const findParticipant = (senderId: string) =>
     participants.find((p) => participantId(p) === senderId || p.userId === senderId);
 
@@ -189,6 +207,7 @@ export default function ChatThread({
       color: generateColorFromString(senderName || message.senderId || "unknown"),
       duration: message.duration,
       attachments: message.attachments,
+      uploadProgress: message.uploadProgress,
       status: message.status,
       error: message.error,
       tick: mine ? ownMessageTick(message, roomType, otherIds) : undefined,
@@ -337,6 +356,8 @@ export default function ChatThread({
 
       <MessageInput
         onSendMessage={handleSendMessage}
+        onSendFiles={handleSendFiles}
+        onSendVoice={handleSendVoice}
         replyingMessage={replyingMessage}
         initialValue={draft}
         onDraftChange={setDraft}
