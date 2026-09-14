@@ -23,6 +23,8 @@ export interface AttachmentGridProps {
   progress?: Array<number | undefined>;
   /** The message isn't stored yet (local previews, no downloads). */
   pending?: boolean;
+  /** The message failed to send: no spinners or progress, shown as not sent. */
+  failed?: boolean;
   className?: string;
   /** Called with a user-facing message when a voice note can't play. */
   onPlaybackError?: (message: string) => void;
@@ -56,11 +58,14 @@ export function AttachmentGrid({
   tone = "default",
   progress,
   pending = false,
+  failed = false,
   className = "",
   onPlaybackError,
 }: AttachmentGridProps) {
   const [lightboxIndex, setLightboxIndex] = useState<number | null>(null);
   const inverted = tone === "inverted";
+  // A failed message isn't uploading any more: no progress overlays.
+  const shownProgress = failed ? undefined : progress;
 
   const items = useMemo<Indexed[]>(
     () =>
@@ -95,7 +100,7 @@ export function AttachmentGrid({
             height={size?.height}
             className={size ? "h-full w-full object-contain" : "block h-auto max-h-[360px] w-auto max-w-[280px] object-contain"}
           />
-          <ProgressOverlay value={progress?.[index]} />
+          <ProgressOverlay value={shownProgress?.[index]} />
         </button>
       );
     }
@@ -120,7 +125,7 @@ export function AttachmentGrid({
               loading="lazy"
               className="h-full w-full object-cover"
             />
-            <ProgressOverlay value={progress?.[index]} />
+            <ProgressOverlay value={shownProgress?.[index]} />
             {tile === GRID_TILES - 1 && extra > 0 && (
               <span className="absolute inset-0 flex items-center justify-center bg-black/50 text-xl font-semibold text-white">
                 +{extra}
@@ -134,7 +139,7 @@ export function AttachmentGrid({
 
   const renderOther = ({ attachment, index, kind }: Indexed) => {
     const key = `${attachment.url || attachment.name || "file"}-${index}`;
-    const itemProgress = progress?.[index];
+    const itemProgress = shownProgress?.[index];
 
     if (kind === "video" && attachment.url) {
       const size = fitWithin(attachment.width, attachment.height, MEDIA_MAX_WIDTH, MEDIA_MAX_HEIGHT);
@@ -163,6 +168,7 @@ export function AttachmentGrid({
           duration={attachment.duration}
           tone={tone}
           pending={pending || !attachment.url}
+          failed={failed}
           onError={onPlaybackError}
         />
       );

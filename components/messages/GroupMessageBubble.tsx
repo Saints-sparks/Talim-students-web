@@ -113,6 +113,7 @@ export default function GroupMessageBubble({
                 attachments={msg.attachments}
                 isMine={msg.senderType === "self"}
                 pending={isPending || isFailed}
+                failed={isFailed}
                 progress={isPending ? msg.uploadProgress : undefined}
               />
             )}

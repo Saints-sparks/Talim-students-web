@@ -9,6 +9,8 @@ interface MessageAttachmentsProps {
   isMine: boolean;
   /** Not stored yet: local previews, no download links. */
   pending?: boolean;
+  /** The send failed: no spinners or progress. */
+  failed?: boolean;
   /** Upload progress per attachment (0–1) while sending. */
   progress?: number[];
 }
@@ -24,6 +26,7 @@ export default function MessageAttachments({
   attachments,
   isMine,
   pending = false,
+  failed = false,
   progress,
 }: MessageAttachmentsProps) {
   if (!attachments.length) return null;
@@ -32,6 +35,7 @@ export default function MessageAttachments({
       attachments={attachments}
       tone={isMine ? "inverted" : "default"}
       pending={pending}
+      failed={failed}
       progress={progress}
       onPlaybackError={showPlaybackError}
     />
