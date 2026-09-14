@@ -1,5 +1,5 @@
 "use client";
-import { Suspense, useCallback, useEffect, useState } from "react";
+import { Suspense, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import Layout from "@/components/Layout";
 import ChatSidebar from "@/components/messages/ChatSidebar";
@@ -13,7 +13,7 @@ function ChatUI() {
   const searchParams = useSearchParams();
   const roomParam = searchParams.get("room");
 
-  const { chatRooms, roomStates, selectRoom, unselectRoom, retryJoin } =
+  const { chatRooms, roomStates, selectRoom, unselectRoom, retryJoin, onRoomRemoved } =
     useChatContext();
 
   // Reply previews are kept per room so they never follow you into another chat.
@@ -32,6 +32,22 @@ function ChatUI() {
 
   // Leaving the messages page leaves the room.
   useEffect(() => () => unselectRoom(), [unselectRoom]);
+
+  // Removed from (or left) the open group: back to the list. The toast comes from the store.
+  const roomParamRef = useRef(roomParam);
+  roomParamRef.current = roomParam;
+  useEffect(
+    () =>
+      onRoomRemoved((roomId) => {
+        setReplies((prev) => {
+          if (!(roomId in prev)) return prev;
+          const { [roomId]: _dropped, ...rest } = prev;
+          return rest;
+        });
+        if (roomParamRef.current === roomId) router.replace("/messages", { scroll: false });
+      }),
+    [onRoomRemoved, router]
+  );
 
   const toggleSubMenu = (index: number, type: string) => {
     if (

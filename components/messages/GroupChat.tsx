@@ -1,7 +1,9 @@
 "use client";
 
+import { useState } from "react";
 import ChatHeader from "./ChatHeader";
 import ChatThread, { ReplyingMessage } from "./ChatThread";
+import GroupInfoModal from "./GroupInfoModal";
 import { useChatContext } from "@/contexts/ChatContext";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
 
@@ -23,31 +25,49 @@ const GroupChat = ({
     onBack,
 }: GroupChatProps) => {
     const { chatRooms, currentUserIds } = useChatContext();
-    const { roomName, participants: joinedParticipants } = useRoomMessages(roomId);
+    const joined = useRoomMessages(roomId);
+    const [isInfoOpen, setIsInfoOpen] = useState(false);
 
-    // Live room data: the chat list (chat-rooms-update) first, then what the join returned.
+    // Live room data: the chat list (room-updated / participants-changed patch it) first, then what the join returned.
     const room = chatRooms.find((item) => item.roomId === roomId);
-    const participants = room?.participants?.length ? room.participants : joinedParticipants;
-    const name = room?.displayName || roomName || "Chat Room";
+    const participants = room?.participants?.length ? room.participants : joined.participants;
+    const name = room?.displayName || joined.roomName || "Chat Room";
+    const roomType = room?.type || joined.roomType;
+    const description = room ? room.description : joined.description;
+    const avatarUrl = (room ? room.avatarUrl : joined.avatarUrl) || "";
 
     return (
-        <ChatThread
-            roomId={roomId}
-            participants={participants}
-            replyingMessage={replyingMessage}
-            setReplyingMessage={setReplyingMessage}
-            openSubMenu={openSubMenu}
-            toggleSubMenu={toggleSubMenu}
-            header={
-                <ChatHeader
-                    avatar={room?.avatarInfo.type === 'image' ? room.avatarInfo.value : '/icons/chat.svg'}
-                    name={name}
-                    participants={participants}
-                    currentUserId={currentUserIds[0]}
-                    onBack={onBack}
-                />
-            }
-        />
+        <>
+            <ChatThread
+                roomId={roomId}
+                roomType={roomType}
+                participants={participants}
+                replyingMessage={replyingMessage}
+                setReplyingMessage={setReplyingMessage}
+                openSubMenu={openSubMenu}
+                toggleSubMenu={toggleSubMenu}
+                header={
+                    <ChatHeader
+                        avatar={avatarUrl}
+                        name={name}
+                        participants={participants}
+                        currentUserId={currentUserIds[0]}
+                        onBack={onBack}
+                        onOpenInfo={() => setIsInfoOpen(true)}
+                    />
+                }
+            />
+            <GroupInfoModal
+                isOpen={isInfoOpen}
+                onClose={() => setIsInfoOpen(false)}
+                roomId={roomId}
+                roomType={roomType}
+                name={name}
+                description={description}
+                avatarUrl={avatarUrl}
+                participants={participants}
+            />
+        </>
     );
 };
 

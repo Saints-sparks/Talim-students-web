@@ -1,122 +1,133 @@
 "use client";
-import { useState } from "react";
-import { Avatar, AvatarImage } from "@/components/ui/avatar";
-import { Phone, Video, MessageSquare, X, Users, Image, Video as VideoIcon, Link2, FileText } from "lucide-react";
+import { useEffect, useState } from "react";
+import { Loader2, LogOut } from "lucide-react";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { toast } from "@/components/CustomToast";
+import { useChatContext } from "@/contexts/ChatContext";
+import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
+import { LEAVABLE_ROOM_TYPES, ROOM_TYPE_LABELS } from "@/lib/chat";
+import type { ChatParticipant, ChatRoomType } from "@/types/chat";
 import Classmates from "./Classmates";
-import Images from "./Images";
-import Videos from "./Videos";
-import Links from "./Links";
-import Documents from "./Documents";
-
-const menuItems = [
-    { name: "Classmates", icon: Users },
-    { name: "Images", icon: Image },
-    { name: "Videos", icon: VideoIcon },
-    { name: "Links", icon: Link2 },
-    { name: "Documents", icon: FileText },
-];
+import InfoModalShell from "./InfoModalShell";
 
 interface GroupInfoModalProps {
     isOpen: boolean;
     onClose: () => void;
-    avatar: string;
+    roomId: string;
+    roomType?: ChatRoomType;
     name: string;
     description: string;
-    participants?: any[]; // Add participants prop
+    avatarUrl: string;
+    participants: ChatParticipant[];
 }
 
+/**
+ * Group details for students: picture, name, description and members.
+ * Students don't manage groups; they may only leave custom and parent groups.
+ * Shared media tabs arrive with the media kit.
+ */
 export default function GroupInfoModal({
     isOpen,
     onClose,
-    avatar,
+    roomId,
+    roomType,
     name,
     description,
-    participants = [],
+    avatarUrl,
+    participants,
 }: GroupInfoModalProps) {
-    const [selectedMenu, setSelectedMenu] = useState("");
+    const { currentUserIds, leaveGroup } = useChatContext();
+    const [confirmLeave, setConfirmLeave] = useState(false);
+    const [leaving, setLeaving] = useState(false);
 
-    if (!isOpen) return null;
+    useEffect(() => {
+        if (!isOpen) setConfirmLeave(false);
+    }, [isOpen]);
 
-    return (
-        <div className="fixed inset-0 flex items-center justify-center bg-black bg-opacity-30 z-50">
-            <div className="bg-white rounded-lg shadow-lg w-[650px] h-[450px] flex" data-guide="messages-group-info-modal">
-                {/* Sidebar */}
-                <div className="w-48 flex flex-col gap-2 bg-[#FDFDFD] border border-[#EEEEEE] text-[#878787] rounded-l-lg pt-6 p-3">
-                    {menuItems.map((item) => (
-                        <div
-                            key={item.name}
-                            className={`flex items-center gap-3 p-2 rounded-lg cursor-pointer transition ${selectedMenu === item.name ? "bg-gray-200 font-medium" : "hover:bg-gray-200"
-                                }`}
-                            onClick={() => setSelectedMenu(item.name)}
-                        >
-                            <item.icon strokeWidth="1px" size={18} className="text-gray-600" />
-                            <span>{item.name}</span>
-                        </div>
-                    ))}
-                </div>
+    const canLeave = Boolean(roomType && LEAVABLE_ROOM_TYPES.includes(roomType));
 
-                {/* Main Content */}
-                <div className="flex-1 pt-6 p-5 relative">
-                    {/* Close Button */}
-                    <X
-                        className="absolute top-3 right-3 cursor-pointer text-[#434343] hover:text-gray-800"
-                        size={20}
-                        onClick={onClose}
-                    />
+    const handleLeave = async () => {
+        setLeaving(true);
+        const result = await leaveGroup(roomId);
+        setLeaving(false);
+        if (result.ok) {
+            onClose();
+        } else {
+            toast.error(result.message || "Couldn't leave the group. Please try again.");
+        }
+    };
 
-                    {/* Group Info */}
-                    {selectedMenu === "" && (
-                        <div className="text-center">
-                            <Avatar className="w-16 h-16 rounded-full mx-auto">
-                                <AvatarImage src={avatar} />
-                            </Avatar>
-                            <h2 className="mt-3 text-lg text-[#030E18] font-medium">{name}</h2>
-                            <p className="text-sm text-[#7B7B7B]">Group Name</p>
-
-                            {/* Action Buttons */}
-                            <div className="flex justify-center gap-4 mt-5">
-                                <div className="flex flex-col border border-[#F0F0F0] px-8 py-2 gap-2 rounded-lg items-center cursor-pointer">
-                                    <Phone size={20} className="text-gray-600 hover:text-gray-800" />
-                                    <p className="text-sm mt-1">Voice Call</p>
-                                </div>
-                                <div className="flex flex-col border border-[#F0F0F0] px-8 py-2 gap-2 rounded-lg items-center cursor-pointer">
-                                    <Video size={20} className="text-gray-600 hover:text-gray-800" />
-                                    <p className="text-sm mt-1">Video Call</p>
-                                </div>
-                                <div className="flex flex-col border border-[#F0F0F0] px-8 py-2 gap-2 rounded-lg items-center cursor-pointer">
-                                    <MessageSquare size={20} className="text-gray-600 hover:text-gray-800" />
-                                    <p className="text-sm mt-1">Message</p>
-                                </div>
-                            </div>
-
-                            <p className="text-sm p-2 border border-[#F0F0F0] rounded-lg text-[#545454] whitespace-pre-line text-left mt-4">{description}</p>
-                        </div>
-                    )}
-
-                    {/* Content for Other Sections */}
-                    {selectedMenu !== "" && (
-                        <div className="text-center">
-                            <h2 className="text-lg text-left mb-5 font-medium">{selectedMenu}</h2>
-                            {/* <p className="text-sm text-gray-500 mt-2">No content available yet.</p> */}
-                        </div>
-                    )}
-                    {selectedMenu === "Classmates" && (
-                        <Classmates participants={participants} />
-                    )}
-                    {selectedMenu === "Images" && (
-                        <Images />
-                    )}
-                    {selectedMenu === "Videos" && (
-                        <Videos />
-                    )}
-                    {selectedMenu === "Links" && (
-                        <Links />
-                    )}
-                    {selectedMenu === "Documents" && (
-                        <Documents />
-                    )}
+    const footer = canLeave ? (
+        confirmLeave ? (
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+                <p className="text-sm text-[#545454]">Leave {name}? You'll stop getting its messages.</p>
+                <div className="flex gap-2 justify-end">
+                    <button
+                        type="button"
+                        className="rounded-lg border border-[#F0F0F0] px-3 py-1.5 text-sm text-[#545454] hover:bg-gray-50"
+                        onClick={() => setConfirmLeave(false)}
+                        disabled={leaving}
+                    >
+                        Cancel
+                    </button>
+                    <button
+                        type="button"
+                        className="flex items-center gap-1.5 rounded-lg bg-red-600 px-3 py-1.5 text-sm text-white hover:bg-red-700 disabled:opacity-70"
+                        onClick={handleLeave}
+                        disabled={leaving}
+                    >
+                        {leaving && <Loader2 className="h-3.5 w-3.5 animate-spin" />}
+                        Leave
+                    </button>
                 </div>
             </div>
-        </div>
+        ) : (
+            <button
+                type="button"
+                className="flex items-center gap-2 text-sm text-red-600 hover:text-red-700"
+                onClick={() => setConfirmLeave(true)}
+            >
+                <LogOut size={16} />
+                Leave group
+            </button>
+        )
+    ) : undefined;
+
+    return (
+        <InfoModalShell
+            isOpen={isOpen}
+            onClose={onClose}
+            title="Group info"
+            footer={footer}
+            guide="messages-group-info-modal"
+        >
+            <div className="text-center">
+                <Avatar className="w-16 h-16 rounded-full mx-auto">
+                    <AvatarImage src={avatarUrl} alt="" />
+                    <AvatarFallback
+                        className="text-white font-medium text-lg"
+                        style={{ backgroundColor: generateColorFromString(name) }}
+                    >
+                        {getUserInitials(name)}
+                    </AvatarFallback>
+                </Avatar>
+                <h3 className="mt-3 text-lg text-[#030E18] font-medium break-words">{name}</h3>
+                <p className="text-sm text-[#7B7B7B]">
+                    {roomType ? ROOM_TYPE_LABELS[roomType] : "Group"} · {participants.length}{" "}
+                    {participants.length === 1 ? "member" : "members"}
+                </p>
+            </div>
+
+            {description ? (
+                <p className="mt-4 text-sm p-3 border border-[#F0F0F0] rounded-lg text-[#545454] whitespace-pre-line break-words">
+                    {description}
+                </p>
+            ) : (
+                <p className="mt-4 text-sm text-center text-[#9B9B9B] italic">No description</p>
+            )}
+
+            <h4 className="mt-5 mb-2 text-sm font-medium text-[#030E18]">Members</h4>
+            <Classmates participants={participants} currentUserIds={currentUserIds} />
+        </InfoModalShell>
     );
 }

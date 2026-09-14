@@ -10,7 +10,6 @@ import {
     Info,
 } from "lucide-react";
 import { useState } from "react";
-import GroupInfoModal from "./GroupInfoModal";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
 
 // Utility function to process participants data (handle Mongoose documents)
@@ -43,6 +42,8 @@ interface ChatHeaderProps {
     participants?: any[]; // Real participants data
     currentUserId?: string; // Current user ID to filter out
     onBack: () => void;
+    /** Opens group info (groups) or the other person's profile (direct messages). */
+    onOpenInfo?: () => void;
 }
 
 export default function ChatHeader({
@@ -53,10 +54,10 @@ export default function ChatHeader({
     participants = [],
     currentUserId,
     onBack,
+    onOpenInfo,
 }: ChatHeaderProps) {
     const [isSearching, setIsSearching] = useState(false);
     const [searchQuery, setSearchQuery] = useState("");
-    const [isModalOpen, setIsModalOpen] = useState(false);
 
     // Process participants to get clean data
     const processedParticipants = processParticipants(participants, currentUserId);
@@ -100,10 +101,18 @@ export default function ChatHeader({
                     </Avatar>
 
                     <div
-                        className="max-w-lg cursor-pointer"
-                        onClick={() => setIsModalOpen(true)}
+                        className="max-w-lg cursor-pointer min-w-0"
+                        onClick={onOpenInfo}
+                        role={onOpenInfo ? "button" : undefined}
+                        tabIndex={onOpenInfo ? 0 : undefined}
+                        onKeyDown={(event) => {
+                            if (onOpenInfo && (event.key === "Enter" || event.key === " ")) {
+                                event.preventDefault();
+                                onOpenInfo();
+                            }
+                        }}
                     >
-                        <p className="font-medium">{name}</p>
+                        <p className="font-medium truncate">{name}</p>
                         {!isSearching && status && (
                             <p className="text-xs text-gray-500">{status}</p>
                         )}
@@ -118,19 +127,20 @@ export default function ChatHeader({
                             </p>
                         )}
                     </div>
-                    <GroupInfoModal
-                        isOpen={isModalOpen}
-                        onClose={() => setIsModalOpen(false)}
-                        avatar={avatar}
-                        name={name}
-                        description={`Welcome to the Class Group! \n
-            This is your space to collaborate, share ideas, ask questions, and stay connected with your classmates. Whether you need help with an assignment, want to share resources, or just discuss what's going on in class, feel free to engage here.`}
-                        participants={processedParticipants}
-                    />
                 </div>
 
                 {/* Action Icons */}
                 <div className="flex items-center gap-4 text-[#878787]">
+                    {onOpenInfo && (
+                        <button
+                            type="button"
+                            onClick={onOpenInfo}
+                            aria-label="Chat info"
+                            className="hover:text-gray-800"
+                        >
+                            <Info strokeWidth="1.5px" size={20} />
+                        </button>
+                    )}
                     <Phone
                         className="cursor-pointer hover:text-gray-800"
                         strokeWidth="1.5px"

@@ -242,7 +242,7 @@ export const guideConfigs: GuideConfig[] = [
         target: "messages-group-info-modal",
         title: "Group Information",
         description:
-          "When open, this modal shows classmates, shared images, videos, links, and documents for the conversation.",
+          "When open, this shows the group picture, description and members, with a search over members.",
         icon: UsersRound,
       },
     ],
