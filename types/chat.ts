@@ -102,6 +102,8 @@ export interface ChatMessage {
   createdAt: string;
   status: MessageStatus;
   error?: string;
+  /** Local only: upload progress (0–1) per attachment while sending. */
+  uploadProgress?: number[];
 }
 
 export interface RealtimeChatRoom {

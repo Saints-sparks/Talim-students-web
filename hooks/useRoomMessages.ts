@@ -1,14 +1,15 @@
 "use client";
 
 import { useCallback, useMemo } from "react";
-import { emptyRoomState, useChatContext } from "@/contexts/ChatContext";
+import { emptyRoomState, useChatContext, type OutgoingMedia } from "@/contexts/ChatContext";
 import type { RoomState } from "@/types/chat";
 
 export interface UseRoomMessagesReturn extends RoomState {
   /** True only while the first page is loading (cached messages show instantly). */
   isLoading: boolean;
   isConnected: boolean;
-  sendMessage: (text: string) => void;
+  /** Text, or files / a voice note with the text as caption. */
+  sendMessage: (text: string, media?: OutgoingMedia) => void;
   loadMoreMessages: () => void;
   retryJoin: () => void;
   retryMessage: (clientMessageId: string) => void;
@@ -37,7 +38,10 @@ export const useRoomMessages = (roomId: string | null): UseRoomMessagesReturn =>
     [roomId, roomStates]
   );
 
-  const sendMessage = useCallback((text: string) => roomId && send(roomId, text), [roomId, send]);
+  const sendMessage = useCallback(
+    (text: string, media?: OutgoingMedia) => roomId && send(roomId, text, media),
+    [roomId, send]
+  );
   const loadMoreMessages = useCallback(
     () => roomId && loadOlderMessages(roomId),
     [roomId, loadOlderMessages]

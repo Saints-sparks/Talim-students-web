@@ -15,9 +15,23 @@ import { useWebSocketContext } from "@/contexts/WebSocketContext";
 import { toast } from "@/components/CustomToast";
 import { authFetch } from "@/lib/authFetch";
 import { API_BASE_URL } from "@/lib/constants";
+import { chatService } from "@/services/chat.service";
 import type { ConnectionStatus } from "@/hooks/useWebSocket";
+import {
+  MAX_FILES_PER_MESSAGE,
+  TOO_MANY_FILES_MESSAGE,
+  fileKind,
+  messageTypeFor,
+  useAttachmentUpload,
+  validateFile,
+  type AttachmentKind,
+  type ChatUploadFn,
+  type SendableAttachment,
+  type UploadItem,
+} from "@/components/chat-kit";
 import type {
   ChatAck,
+  ChatAttachment,
   ChatMessage,
   ChatParticipantsChangedEvent,
   ChatReadEvent,
@@ -51,6 +65,28 @@ const BACKFILL_MAX_PAGES = 10;
 
 export const JOIN_FAILED_MESSAGE = "Couldn't load this chat";
 
+/** Files or a voice note sent with a message; the text becomes their caption. */
+export interface OutgoingMedia {
+  files?: File[];
+  voice?: { file: File; duration: number };
+}
+
+/** A media message waiting to upload and send. */
+interface OutboxEntry {
+  roomId: string;
+  type: ChatMessage["type"];
+  /** Voice note length, seconds. */
+  duration?: number;
+  /** Each file keeps its uploaded attachment, so a retry only uploads what failed. */
+  items: UploadItem[];
+  /** Object URLs of the pending bubble's previews, revoked when sent or deleted. */
+  previewUrls: string[];
+}
+
+/** The app's upload helper in the shape the chat kit expects. */
+const uploadChatFile: ChatUploadFn = (file, onProgress) =>
+  chatService.uploadChatAttachment(file, onProgress);
+
 /** Why a room left my list: I left it, or someone removed me. */
 export type RoomRemovalReason = "left" | "removed";
 export type RoomRemovedListener = (roomId: string, reason: RoomRemovalReason) => void;
@@ -76,7 +112,8 @@ export interface ChatContextValue {
   // Per-room message stores
   roomStates: Record<string, RoomState>;
   loadOlderMessages: (roomId: string) => void;
-  sendMessage: (roomId: string, text: string) => void;
+  /** Sends text, or files / a voice note with the text as caption. */
+  sendMessage: (roomId: string, text: string, media?: OutgoingMedia) => void;
   retryMessage: (roomId: string, clientMessageId: string) => void;
   deleteFailedMessage: (roomId: string, clientMessageId: string) => void;
 
@@ -145,6 +182,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const selectedRef = useRef<string | null>(null);
   const joinTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
   const inflightSendsRef = useRef(new Set<string>());
+  const outboxRef = useRef(new Map<string, OutboxEntry>());
+  const { upload: uploadFiles } = useAttachmentUpload(uploadChatFile);
   // Newest message each room was marked read up to, so a read is never re-sent.
   const lastReadSentRef = useRef(new Map<string, Pick<ChatMessage, "_id" | "createdAt">>());
   const removedListenersRef = useRef(new Set<RoomRemovedListener>());
@@ -349,6 +388,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChatRooms((rooms) => rooms.filter((r) => r.roomId !== roomId));
       draftsRef.current.delete(roomId);
       lastReadSentRef.current.delete(roomId);
+      outboxRef.current.forEach((entry, clientMessageId) => {
+        if (entry.roomId !== roomId || inflightSendsRef.current.has(clientMessageId)) return;
+        entry.previewUrls.forEach((url) => URL.revokeObjectURL(url));
+        outboxRef.current.delete(clientMessageId);
+      });
 
       const name = listRoom?.displayName || state?.roomName || "the group";
       if (reason === "left") toast.info(`You left ${name}`);
@@ -467,66 +511,176 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   // ── Sending ────────────────────────────────────────────────────────────────
 
+  /** Frees a media message's local previews and forgets its files. */
+  const discardOutboxEntry = useCallback((clientMessageId: string) => {
+    const entry = outboxRef.current.get(clientMessageId);
+    if (!entry) return;
+    entry.previewUrls.forEach((url) => URL.revokeObjectURL(url));
+    outboxRef.current.delete(clientMessageId);
+  }, []);
+
   const markFailed = useCallback(
     (roomId: string, clientMessageId: string, message?: string) => {
       const localId = `local:${clientMessageId}`;
       const room = roomStatesRef.current[roomId];
-      if (!room?.messages.some((m) => m._id === localId)) return;
+      if (!room?.messages.some((m) => m._id === localId)) {
+        // The bubble is gone (stored copy arrived, deleted, room dropped).
+        discardOutboxEntry(clientMessageId);
+        return;
+      }
       patchRoom(roomId, (current) => ({
         messages: current.messages.map((m) =>
           m._id === localId ? { ...m, status: "failed", error: message || "Not sent" } : m
         ),
       }));
     },
+    [discardOutboxEntry, patchRoom]
+  );
+
+  /** Upload progress (0–1) of one file on a pending bubble. */
+  const setUploadProgress = useCallback(
+    (roomId: string, clientMessageId: string, index: number, fraction: number) => {
+      const localId = `local:${clientMessageId}`;
+      const room = roomStatesRef.current[roomId];
+      const message = room?.messages.find((m) => m._id === localId);
+      if (!message || message.uploadProgress?.[index] === fraction) return;
+      patchRoom(roomId, (current) => ({
+        messages: current.messages.map((m) => {
+          if (m._id !== localId) return m;
+          const progress = [...(m.uploadProgress ?? [])];
+          progress[index] = fraction;
+          return { ...m, uploadProgress: progress };
+        }),
+      }));
+    },
     [patchRoom]
   );
 
+  /** Uploads what isn't uploaded yet, then sends one queued message. Offline: stays pending. */
   const emitSend = useCallback(
-    (roomId: string, clientMessageId: string) => {
-      const current = socketRef.current;
+    async (roomId: string, clientMessageId: string) => {
       // Offline: the bubble stays pending and is flushed on reconnect.
-      if (!current?.connected || inflightSendsRef.current.has(clientMessageId)) return;
+      if (!socketRef.current?.connected || inflightSendsRef.current.has(clientMessageId)) return;
 
       const pending = roomStatesRef.current[roomId]?.messages.find(
         (m) => m._id === `local:${clientMessageId}`
       );
       if (!pending) return;
+      const entry = outboxRef.current.get(clientMessageId);
 
       inflightSendsRef.current.add(clientMessageId);
+      let attachments: SendableAttachment[] = [];
+      if (entry?.items.length) {
+        try {
+          attachments = await uploadFiles(entry.items, {
+            onProgress: (index, fraction) =>
+              setUploadProgress(roomId, clientMessageId, index, fraction),
+          });
+        } catch (err) {
+          inflightSendsRef.current.delete(clientMessageId);
+          markFailed(
+            roomId,
+            clientMessageId,
+            err instanceof Error && err.message ? err.message : "Upload failed"
+          );
+          return;
+        }
+      }
+
+      const current = socketRef.current;
+      if (!current?.connected) {
+        // Went offline while uploading: uploaded files are kept, the send waits for reconnect.
+        inflightSendsRef.current.delete(clientMessageId);
+        return;
+      }
+
+      const payload = {
+        roomId,
+        text: pending.text,
+        type: entry ? entry.type : "text",
+        clientMessageId,
+        ...(attachments.length ? { attachments } : {}),
+        ...(entry?.type === "voice" && entry.duration !== undefined
+          ? { duration: entry.duration }
+          : {}),
+      };
+
       current
         .timeout(SEND_TIMEOUT)
-        .emit(
-          "send-chat-message",
-          { roomId, text: pending.text, type: "text", clientMessageId },
-          (err: unknown, ack: ChatAck) => {
-            inflightSendsRef.current.delete(clientMessageId);
-            if (err || !ack?.ok) {
-              markFailed(
-                roomId,
-                clientMessageId,
-                err ? "Not sent" : ack?.error?.message || "Not sent"
-              );
-              return;
-            }
-            if (ack.message) {
-              const saved = normalizeMessage({
-                ...ack.message,
-                clientMessageId: ack.message.clientMessageId || clientMessageId,
-              });
+        .emit("send-chat-message", payload, (err: unknown, ack: ChatAck) => {
+          inflightSendsRef.current.delete(clientMessageId);
+          if (err || !ack?.ok) {
+            markFailed(
+              roomId,
+              clientMessageId,
+              err ? "Not sent" : ack?.error?.message || "Not sent"
+            );
+            return;
+          }
+          if (ack.message) {
+            const saved = normalizeMessage({
+              ...ack.message,
+              clientMessageId: ack.message.clientMessageId || clientMessageId,
+            });
+            if (roomStatesRef.current[roomId]) {
               patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [saved]) }));
             }
           }
-        );
+          discardOutboxEntry(clientMessageId);
+        });
     },
-    [markFailed, patchRoom]
+    [discardOutboxEntry, markFailed, patchRoom, setUploadProgress, uploadFiles]
   );
 
   const sendMessage = useCallback(
-    (roomId: string, text: string) => {
+    (roomId: string, text: string, media: OutgoingMedia = {}) => {
       const trimmed = text.trim();
-      if (!roomId || !trimmed) return;
+      const files = media.voice ? [media.voice.file] : media.files ?? [];
+      if (!roomId || (!trimmed && files.length === 0)) return;
+      if (files.length > MAX_FILES_PER_MESSAGE) {
+        toast.error(TOO_MANY_FILES_MESSAGE);
+        return;
+      }
+      const invalid = media.voice ? null : files.map(validateFile).find(Boolean);
+      if (invalid) {
+        toast.error(invalid);
+        return;
+      }
 
       const clientMessageId = newClientMessageId();
+      const kinds: AttachmentKind[] = files.map((file) => (media.voice ? "audio" : fileKind(file)));
+      const type = messageTypeFor(kinds, Boolean(media.voice));
+      const duration = media.voice?.duration;
+      const previewUrls: string[] = [];
+
+      // The pending bubble shows local previews until the stored copy replaces it.
+      const attachments: ChatAttachment[] = files.map((file, index) => {
+        const kind = kinds[index];
+        let url = "";
+        if (kind === "image" || kind === "video" || kind === "audio") {
+          url = URL.createObjectURL(file);
+          previewUrls.push(url);
+        }
+        return {
+          url,
+          type: kind,
+          name: file.name,
+          mimeType: file.type,
+          size: file.size,
+          ...(kind === "audio" && duration !== undefined ? { duration } : {}),
+        };
+      });
+
+      if (files.length) {
+        outboxRef.current.set(clientMessageId, {
+          roomId,
+          type,
+          duration,
+          items: files.map((file, index) => ({ file, kind: kinds[index], duration })),
+          previewUrls,
+        });
+      }
+
       const me = userRef.current;
       const pending: ChatMessage = {
         _id: `local:${clientMessageId}`,
@@ -536,14 +690,16 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         senderName: `${me?.firstName || ""} ${me?.lastName || ""}`.trim(),
         senderAvatar: me?.userAvatar || "",
         text: trimmed,
-        type: "text",
-        attachments: [],
+        type,
+        attachments,
+        duration,
         readBy: [],
         createdAt: new Date().toISOString(),
         status: "pending",
+        uploadProgress: files.length ? files.map(() => 0) : undefined,
       };
       patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [pending]) }));
-      emitSend(roomId, clientMessageId);
+      void emitSend(roomId, clientMessageId);
     },
     [emitSend, patchRoom]
   );
@@ -556,26 +712,29 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           m._id === localId ? { ...m, status: "pending", error: undefined } : m
         ),
       }));
-      emitSend(roomId, clientMessageId);
+      // Files that already uploaded keep their attachment and are skipped.
+      void emitSend(roomId, clientMessageId);
     },
     [emitSend, patchRoom]
   );
 
   const deleteFailedMessage = useCallback(
     (roomId: string, clientMessageId: string) => {
+      if (inflightSendsRef.current.has(clientMessageId)) return;
       const localId = `local:${clientMessageId}`;
       patchRoom(roomId, (room) => ({
         messages: room.messages.filter((m) => m._id !== localId),
       }));
+      discardOutboxEntry(clientMessageId);
     },
-    [patchRoom]
+    [discardOutboxEntry, patchRoom]
   );
 
   const flushOutbox = useCallback(() => {
     Object.values(roomStatesRef.current).forEach((room) => {
       room.messages.forEach((message) => {
         if (message.status === "pending" && message.clientMessageId) {
-          emitSend(room.roomId, message.clientMessageId);
+          void emitSend(room.roomId, message.clientMessageId);
         }
       });
     });
@@ -874,6 +1033,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       selectedRef.current = null;
       inflightSendsRef.current.clear();
       lastReadSentRef.current.clear();
+      outboxRef.current.forEach((entry) => entry.previewUrls.forEach((url) => URL.revokeObjectURL(url)));
+      outboxRef.current.clear();
       draftsRef.current.clear();
       roomListInflightRef.current = false;
       setChatRoomsState([]);
