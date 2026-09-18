@@ -9,7 +9,6 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { useResources } from "@/hooks/useResource";
-import { Resource } from "@/services/resource.service";
 import { FileText, Image, Video, AlignLeft, Download } from "lucide-react";
 
 const getFileIcon = (fileName: string) => {

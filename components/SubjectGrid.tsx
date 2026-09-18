@@ -6,7 +6,7 @@ import { useCurriculum } from "@/hooks/useCurriculum";
 import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
 import { Course } from "@/services/curriculum.service";
-import { BookOpen, Users, Calendar, ArrowRight, Search } from "lucide-react";
+import { BookOpen, ArrowRight, Search } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import LoadingCard from "@/components/LoadingCard";
 import { useAuthContext } from "@/contexts/AuthContext";

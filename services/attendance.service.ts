@@ -1,6 +1,8 @@
 import { API_BASE_URL } from "@/lib/constants";
-import { authFetch } from "@/lib/authFetch";
+import { api } from "@/lib/authFetch";
+import type { AttendanceDashboard } from "@/types/auth";
 
+/** Attendance KPI tiles for one student over a term. */
 export interface AttendanceKPIData {
   studentId: string;
   firstName: string;
@@ -27,6 +29,7 @@ export interface AttendanceKPIData {
   };
 }
 
+/** Whether a class's register has been taken on a given day. */
 export interface ClassAttendanceStatus {
   classId: string;
   className: string;
@@ -56,96 +59,40 @@ export interface ClassAttendanceStatus {
 
 // services/attendance.service.ts
 export const attendanceService = {
-  getDashboard: async (schoolId: string, accessToken: string) => {
-    try {
-      const response = await authFetch(
-        `${API_BASE_URL}/attendance/dashboard/${schoolId}`,
-        {
-          method: "GET",
-          accessToken,
-          headers: {
-            Accept: "application/json",
-          },
-        }
-      );
+  /**
+   * The signed-in student's attendance dashboard.
+   *
+   * @param studentId - The student profile id (the route scopes to the caller).
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns Totals and the day-by-day record list.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getDashboard: (studentId: string, accessToken?: string): Promise<AttendanceDashboard> =>
+    api.get<AttendanceDashboard>(`${API_BASE_URL}/attendance/dashboard/${studentId}`, { accessToken }),
 
+  /**
+   * Attendance KPI tiles for one student.
+   *
+   * @param studentId - The student profile id.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns Rate, day counts and the term the figures cover.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getAttendanceKPIs: (studentId: string, accessToken?: string): Promise<AttendanceKPIData> =>
+    api.get<AttendanceKPIData>(`${API_BASE_URL}/attendance/student/${studentId}/kpis`, { accessToken }),
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("API Error response:", errorData);
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      const data = await response.json();
-      return data;
-    } catch (error) {
-      console.error("Network error:", error);
-      throw error;
-    }
-  },
-
-  getAttendanceKPIs: async (
-    studentId: string,
-    accessToken: string
-  ): Promise<AttendanceKPIData> => {
-    try {
-      const response = await authFetch(
-        `${API_BASE_URL}/attendance/student/${studentId}/kpis`,
-        {
-          method: "GET",
-          accessToken,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Network error:", error);
-      throw error;
-    }
-  },
-
-  getClassAttendanceStatus: async (
-    classId: string,
-    date: string,
-    accessToken: string
-  ): Promise<ClassAttendanceStatus> => {
-    try {
-      const response = await authFetch(
-        `${API_BASE_URL}/attendance/class/${classId}/status?date=${date}`,
-        {
-          method: "GET",
-          accessToken,
-          headers: {
-            Accept: "application/json",
-            "Content-Type": "application/json",
-          },
-        }
-      );
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Network error:", error);
-      throw error;
-    }
-  },
+  /**
+   * Whether the student's class register has been taken for a date.
+   *
+   * @param classId - The class the student belongs to.
+   * @param date - ISO date (`YYYY-MM-DD`) to check.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The class's marking status for that day.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getClassAttendanceStatus: (classId: string, date: string, accessToken?: string): Promise<ClassAttendanceStatus> =>
+    api.get<ClassAttendanceStatus>(
+      `${API_BASE_URL}/attendance/class/${classId}/status?date=${encodeURIComponent(date)}`,
+      { accessToken }
+    ),
 };

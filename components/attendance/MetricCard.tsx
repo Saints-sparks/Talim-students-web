@@ -1,4 +1,3 @@
-import { Book, Award, Calendar } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import type { MetricCardProps } from "@/types/dashboard";
 

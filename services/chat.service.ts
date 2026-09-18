@@ -1,17 +1,42 @@
 import { API_BASE_URL } from "@/lib/constants";
 import { refreshAccessToken } from "@/lib/authFetch";
+import { sessionStore } from "@/lib/session";
 import type { ChatAttachment } from "@/types/chat";
 
 // services/chat.service.ts
 
 const UPLOAD_FAILED = "Couldn't upload the file. Please try again.";
 
+/** The parsed outcome of one `XMLHttpRequest` upload. */
 interface XhrResult {
   status: number;
-  body: any;
+  body: UploadResponseBody | null;
 }
 
-/** One multipart POST with upload progress (fetch can't report it). */
+/** The fields the upload endpoint returns for a stored attachment. */
+interface UploadResponseBody {
+  url?: string;
+  name?: string;
+  mimeType?: string;
+  size?: number;
+  type?: ChatAttachment["type"];
+  width?: number;
+  height?: number;
+  duration?: number;
+  playbackUrl?: string;
+  message?: string | string[];
+  [key: string]: unknown;
+}
+
+/**
+ * One multipart POST with upload progress (fetch can't report it).
+ *
+ * @param url - Absolute upload URL.
+ * @param form - The multipart body.
+ * @param token - Bearer token to send, if any.
+ * @param onProgress - Called with the fraction uploaded so far.
+ * @returns The status and parsed body of the response.
+ */
 function postWithProgress(
   url: string,
   form: FormData,
@@ -30,9 +55,9 @@ function postWithProgress(
       };
     }
     xhr.onload = () => {
-      let body: any = null;
+      let body: UploadResponseBody | null = null;
       try {
-        body = xhr.responseText ? JSON.parse(xhr.responseText) : null;
+        body = xhr.responseText ? (JSON.parse(xhr.responseText) as UploadResponseBody) : null;
       } catch {
         body = null;
       }
@@ -48,6 +73,11 @@ export const chatService = {
   /**
    * Uploads one chat attachment (`POST /upload/chat-attachment`, multipart `file`).
    * Sends the bearer token and refreshes it once on 401, like `authFetch`.
+   *
+   * @param file - The file the student picked.
+   * @param onProgress - Called with the fraction uploaded so far.
+   * @returns The stored attachment's URL and metadata.
+   * @throws {Error} When the upload fails or returns no URL.
    */
   uploadChatAttachment: async (
     file: File,
@@ -59,7 +89,7 @@ export const chatService = {
       form.append("file", file, file.name);
       return form;
     };
-    const stored = typeof window !== "undefined" ? localStorage.getItem("accessToken") : null;
+    const stored = sessionStore.getToken();
 
     let result = await postWithProgress(url, makeForm(), stored, onProgress);
     if (result.status === 401) {
@@ -76,7 +106,7 @@ export const chatService = {
 
     const data = result.body;
     return {
-      url: data.url,
+      url: data.url as string,
       name: data.name || file.name,
       mimeType: data.mimeType || file.type,
       size: typeof data.size === "number" ? data.size : file.size,

@@ -9,7 +9,7 @@ import { Label } from "@/components/ui/label";
 import { ArrowLeft, Eye, EyeOff } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "@/components/CustomToast";
-import { authService } from "../services/auth.service";
+import { authService } from "@/services/auth.service";
 
 type Step = 'email' | 'otp' | 'newPassword';
 

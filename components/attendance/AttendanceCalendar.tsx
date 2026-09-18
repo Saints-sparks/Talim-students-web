@@ -34,7 +34,7 @@ const months = [
 const getMonthDays = (year: number, month: number) => {
   const start = startOfMonth(new Date(year, month));
   const end = endOfMonth(start);
-  let days = eachDayOfInterval({ start, end }).filter(
+  const days = eachDayOfInterval({ start, end }).filter(
     (day) => ![0, 6].includes(day.getDay()) // Exclude weekends
   );
 

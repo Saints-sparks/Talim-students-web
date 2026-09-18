@@ -7,8 +7,14 @@ import { notificationService } from "@/services/notification.service";
 // Fired by RealtimeAlerts for every socket `notification` event.
 export const NOTIFICATION_EVENT = "talim:notification";
 
+/**
+ *
+ */
 export type NotificationSource = "school" | "talim" | "system";
 
+/**
+ *
+ */
 export type NotificationCategory =
   | "announcement"
   | "attendance"
@@ -19,6 +25,9 @@ export type NotificationCategory =
   | "account"
   | "other";
 
+/**
+ *
+ */
 export type StudentNotification = {
   id: string;
   rawId: string;
@@ -268,6 +277,9 @@ const isSchoolAnnouncementNotification = (item: any) => {
   );
 };
 
+/**
+ *
+ */
 export const useNotifications = () => {
   const { accessToken, isAuthenticated, user } = useAuthContext();
   const [notifications, setNotifications] = useState<StudentNotification[]>([]);

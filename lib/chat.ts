@@ -22,6 +22,9 @@ export const GROUP_ROOM_TYPES: ChatRoomType[] = [
 ];
 export const CLASS_ROOM_TYPES: ChatRoomType[] = ["class_group", "course_group"];
 
+/**
+ *
+ */
 export type ChatRoomFilter = "all" | "classes" | "groups";
 
 const MESSAGE_TYPES: ChatMessageType[] = ["text", "voice", "image", "file"];
@@ -136,6 +139,9 @@ export function newestServerMessageId(messages: ChatMessage[]): string | undefin
   return undefined;
 }
 
+/**
+ *
+ */
 export const isSameUser = (id: string | undefined, userIds: string[]) =>
   Boolean(id) && userIds.includes(String(id));
 
@@ -278,11 +284,17 @@ const initialsOf = (name: string) =>
     .slice(0, 2)
     .toUpperCase();
 
+/**
+ *
+ */
 export function participantId(participant: any): string {
   const data = participant?._doc || participant || {};
   return String(data._id || data.userId || data.id || "");
 }
 
+/**
+ *
+ */
 export function participantName(participant: any, fallback = "Unknown User"): string {
   const data = participant?._doc || participant || {};
   return fullName(data) || data.name || data.email || fallback;
@@ -299,6 +311,9 @@ export function otherParticipant(
   });
 }
 
+/**
+ *
+ */
 export function isGroupRoomType(type?: string) {
   return Boolean(type) && type !== "one_to_one";
 }
@@ -359,6 +374,9 @@ export const ROLE_LABELS: Record<string, string> = {
   admin: "Admin",
 };
 
+/**
+ *
+ */
 export const roleLabel = (role?: string) =>
   (role && ROLE_LABELS[role]) ||
   (role ? role.charAt(0).toUpperCase() + role.slice(1).replace(/_/g, " ") : "Member");
@@ -439,9 +457,15 @@ export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): Rea
 const roomTime = (room: RealtimeChatRoom) =>
   new Date(room.lastMessage?.timestamp || room.updatedAt || 0).getTime() || 0;
 
+/**
+ *
+ */
 export const sortRooms = (rooms: RealtimeChatRoom[]) =>
   [...rooms].sort((a, b) => roomTime(b) - roomTime(a));
 
+/**
+ *
+ */
 export function filterRooms(rooms: RealtimeChatRoom[], filter: ChatRoomFilter, searchTerm = "") {
   let result = rooms;
   if (filter === "classes") {

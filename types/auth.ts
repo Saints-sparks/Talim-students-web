@@ -22,7 +22,21 @@ export interface User {
   schoolName?: string;
   studentId?: string; // The actual student profile ID
   admissionNumber?: string;
-  [key: string]: any;
+  /** Cloudinary URL of the student's profile photo. */
+  userAvatar?: string;
+  /** Cloudinary URL of the school's logo. */
+  schoolLogo?: string;
+  /** ISO date string, as stored on the student profile. */
+  dateOfBirth?: string;
+  /** Id of the class the student belongs to. */
+  classId?: string;
+  /** Human-readable class name, e.g. "JSS 2A". */
+  className?: string;
+  /** Human-readable grade level, e.g. "JSS 2". */
+  gradeLevel?: string;
+  /** Id of the active academic term, when the session carries one. */
+  termId?: string;
+  [key: string]: unknown;
 }
 
 export interface LoginResponse {
@@ -43,6 +57,7 @@ export interface StudentDetails {
   isActive: boolean;
   isEmailVerified: boolean;
   userAvatar?: string;
+  [key: string]: unknown;
 }
 
 export interface IntrospectResponse {
@@ -93,13 +108,21 @@ export interface AcademicResponse {
   };
 }
 
+/** One day on a student's attendance calendar. */
+export interface AttendanceRecord {
+  _id?: string;
+  date: string;
+  status?: string;
+  [key: string]: unknown;
+}
+
 export interface AttendanceDashboard {
   studentId: string;
   totalDays: number;
   presentDays: number;
   absentDays: number;
   attendancePercentage: string;
-  records: any[];
+  records: AttendanceRecord[];
 }
 
 export interface Sender {

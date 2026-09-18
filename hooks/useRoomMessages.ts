@@ -4,6 +4,9 @@ import { useCallback, useMemo } from "react";
 import { emptyRoomState, useChatContext, type OutgoingMedia } from "@/contexts/ChatContext";
 import type { RoomState } from "@/types/chat";
 
+/**
+ *
+ */
 export interface UseRoomMessagesReturn extends RoomState {
   /** True only while the first page is loading (cached messages show instantly). */
   isLoading: boolean;

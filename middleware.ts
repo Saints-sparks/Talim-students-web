@@ -4,7 +4,9 @@ import type { NextRequest } from "next/server";
 export function middleware(request: NextRequest) {
   const path = request.nextUrl.pathname;
   const token = request.cookies.get("access_token")?.value;
-  const isPublicPath = path === "/" || path === "/register" || path === "/signin" || path === "/forgot-password";
+  // T4.6: `/register` used to be whitelisted here, but no such route exists —
+  // students are created by their school, never self-registered.
+  const isPublicPath = path === "/" || path === "/signin" || path === "/forgot-password";
 
   if (!token && !isPublicPath) {
     return NextResponse.redirect(new URL("/signin", request.url));

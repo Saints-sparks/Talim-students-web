@@ -14,8 +14,14 @@ import {
   urlBase64ToUint8Array,
 } from "@/lib/webPush";
 
+/**
+ *
+ */
 export type PushPermission = "default" | "granted" | "denied";
 
+/**
+ *
+ */
 export interface UsePushNotificationsReturn {
   isSupported: boolean;
   permission: PushPermission;
@@ -26,6 +32,9 @@ export interface UsePushNotificationsReturn {
   unsubscribe: () => Promise<void>;
 }
 
+/**
+ *
+ */
 export function usePushNotifications(): UsePushNotificationsReturn {
   const { user } = useAuthContext();
   const userId = user?.userId || user?.id || null;

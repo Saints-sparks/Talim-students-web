@@ -13,7 +13,7 @@ import {
   MapPin 
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { useTimetable, TimetableSubject } from "@/hooks/useTimetable";
+import { useTimetable } from "@/hooks/useTimetable";
 import { toast } from "@/components/CustomToast";
 
 // Define a TypeScript interface for a single timetable entry.

@@ -7,8 +7,14 @@ const STORAGE_KEY_PREFIX = "talim:push-subscribed:";
 export const LEGACY_STORAGE_KEY = "talim:push-subscribed";
 export const SW_PATH = "/sw.js";
 
+/**
+ *
+ */
 export const pushFlagKey = (userId: string) => `${STORAGE_KEY_PREFIX}${userId}`;
 
+/**
+ *
+ */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
   const base64 = (base64String + padding).replace(/-/g, "+").replace(/_/g, "/");
@@ -25,6 +31,9 @@ function getAccessToken(): string | null {
   return localStorage.getItem("accessToken") || null;
 }
 
+/**
+ *
+ */
 export async function pushAuthFetch(
   url: string,
   options: RequestInit = {},
@@ -40,12 +49,18 @@ export async function pushAuthFetch(
   });
 }
 
+/**
+ *
+ */
 export const isPushSupported = () =>
   typeof window !== "undefined" &&
   "serviceWorker" in navigator &&
   "PushManager" in window &&
   "Notification" in window;
 
+/**
+ *
+ */
 export async function getCurrentSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
   const reg = await navigator.serviceWorker.getRegistration(SW_PATH);

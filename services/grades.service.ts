@@ -1,90 +1,109 @@
 import { API_BASE_URL } from "@/lib/constants";
-import { authFetch } from "@/lib/authFetch";
+import { api } from "@/lib/authFetch";
 
+/**
+ * The student grading contract (`/grade-records/student/me/*`).
+ *
+ * Every route here resolves the student from the JWT — nothing takes a student
+ * id — so a student can only ever read their own records. Three response
+ * conventions coexist upstream and are normalised here:
+ *
+ * - bare array: `courses/term/:id`, `courses/:id/published-assessments/term/:id`,
+ *   `assessments/:id`
+ * - flat page `{ data, total, page, limit, totalPages }`: `course-grades/term/:id`,
+ *   `cumulative-grades`
+ * - single object or literal `null`: `cumulative-grades/:termId`
+ *
+ * See the report in the Track 4 hardening notes for how this differs from the
+ * parents app's `/parent/results/:studentId/*` view models.
+ */
+
+/** A page of records as the student grading routes return it (flat, not `{data,meta}`). */
+export interface PaginatedGradeResponse<T> {
+  data: T[];
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+}
+
+/** One raw assessment grade record, exactly as the API stores it. */
 export interface AssessmentGradeRecord {
   _id?: string;
-  assessmentId:
-    | string
-    | { _id: string; title?: string; name?: string; type?: string };
+  assessmentId: string | { _id: string; title?: string; name?: string; type?: string };
+  courseId?: string | { _id: string; name?: string; title?: string };
+  /** The mark the teacher recorded. The API returns no percentage or grade here. */
   actualScore?: number;
-  score?: number;
   maxScore: number;
-  assessmentName?: string;
-  assessmentType?: string;
-  weightPercentage?: number;
+  recordedBy?: string;
   gradeDate?: string;
-  feedback?: string;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/** One course grade record for the student in a term. */
 export interface CourseGradeRecord {
   _id?: string;
-  courseId:
-    | string
-    | null
-    | { _id: string; name?: string; code?: string; creditHours?: number };
+  courseId: string | null | { _id: string; name?: string; title?: string; code?: string; creditHours?: number };
   studentId?: string | object;
   termId?: string | { _id: string; name?: string };
+  classId?: string | { _id: string; name?: string };
+  /** Only the assessments that have been published to the student. */
   assessmentGradeRecords?: AssessmentGradeRecord[];
-  assessments?: AssessmentGradeRecord[];
-  courseName?: string;
-  courseCode?: string;
-  creditHours?: number;
-  courseAverage?: number;
-  letterGrade?: string;
-  gradePoints?: number;
-  status?: "completed" | "in_progress" | "not_started";
-  percentage?: number;
+  /** Sum of published scores. */
   cumulativeScore?: number;
-  gradeLevel?: string;
+  /** Sum of the published assessments' maximum marks. */
   maxScore?: number;
+  percentage?: number;
+  gradeLevel?: string;
+  schoolId?: string;
   isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/** The student's overall record for one term. */
 export interface StudentCumulativeGrade {
   _id: string;
   termId: { _id: string; name: string } | string;
+  classId?: { _id: string; name?: string } | string;
+  studentId?: string;
+  courseGradeRecords?: Array<CourseGradeRecord | string>;
   totalScore: number;
   percentage: number;
   grade: string;
-  position: number;
   remarks?: string;
-  isActive: boolean;
+  /**
+   * Class rank. The API returns `null` until the school publishes the term's
+   * positions, so never render this without checking for `null` first.
+   */
+  position: number | null;
+  /** True once the school has published the term result. */
+  isPublished?: boolean;
+  isActive?: boolean;
+  createdAt?: string;
+  updatedAt?: string;
 }
 
+/** Dashboard KPI tiles for one student (`StudentDashboardKpiDto`). */
 export interface StudentKPIData {
   studentId: string;
   firstName: string;
   lastName: string;
   email: string;
   userAvatar?: string;
-  classInfo: {
-    id: string;
-    name: string;
-  };
+  classInfo: { id: string; name: string };
   subjectsEnrolled: number;
   gradeScore: number;
-  attendanceRate?: number;
-  attendancePercentage: number;
-  currentTerm?: {
-    id: string;
-    name: string;
-  };
+  attendanceRate: number;
+  currentTerm?: { id: string; name: string };
   gradeLevel?: string;
-  completedAssessments?: number;
-  classPosition?: number;
-  totalStudentsInClass?: number;
-  additionalMetrics: {
-    totalAssessments: number;
-    completedAssessments: number;
-    currentTerm: {
-      id: string;
-      name: string;
-    };
-    classRank: number;
-    totalStudentsInClass: number;
-  };
+  completedAssessments: number;
+  classPosition: number;
+  totalStudentsInClass: number;
 }
 
+/** A course in the student's class, with how much of it has been published. */
 export interface PublishedCourse {
   _id: string;
   name: string;
@@ -104,12 +123,14 @@ export interface PublishedCourse {
     kpis?: Record<string, unknown>;
   } | null;
   currentAverage?: number | null;
+  /** `null` until a course grade record exists for the term. */
   gradeLevel?: string | null;
   cumulativeScore?: number | null;
   maxScore?: number | null;
   coursePosition?: number | null;
 }
 
+/** One published assessment result, already enriched by the API. */
 export interface PublishedAssessmentResult {
   publicationId: string;
   assessment: {
@@ -130,169 +151,173 @@ export interface PublishedAssessmentResult {
   comparison?: string;
 }
 
-function extractArray<T>(json: unknown): T[] {
-  if (Array.isArray(json)) return json as T[];
-  if (json && typeof json === "object") {
-    const p = json as { data?: T[] };
-    if (Array.isArray(p.data)) return p.data;
+/**
+ * Reads the list out of whichever convention a route used — a bare array, or a
+ * flat page under `data`.
+ *
+ * @typeParam T - The element type.
+ * @param payload - The parsed response body.
+ * @returns The records, or an empty array when there are none.
+ */
+function toArray<T>(payload: unknown): T[] {
+  if (Array.isArray(payload)) return payload as T[];
+  if (payload && typeof payload === "object") {
+    const page = payload as { data?: unknown };
+    if (Array.isArray(page.data)) return page.data as T[];
   }
   return [];
 }
 
-async function apiFetch<T>(url: string, accessToken: string): Promise<T> {
-  const res = await authFetch(url, {
-    accessToken,
-    headers: {
-      Accept: "application/json",
-      "Content-Type": "application/json",
-    },
-  });
-
-  if (!res.ok) {
-    const text = await res.text().catch(() => "");
-    let msg = `HTTP ${res.status}`;
-    try {
-      const parsed = text ? JSON.parse(text) : {};
-      msg = (parsed && (parsed as any).message) || msg;
-    } catch (_) {
-      if (text) msg = text;
-    }
-    throw new Error(msg);
-  }
-
-  // Some endpoints may legitimately return an empty body (204 No Content)
-  // or an empty response. Handle that gracefully instead of calling
-  // `res.json()` which throws on empty bodies.
-  const text = await res.text().catch(() => "");
-  if (!text) return null as unknown as T;
-
-  try {
-    return JSON.parse(text) as T;
-  } catch (err) {
-    // Fallback to res.json() as last resort (preserves original behavior)
-    return (await res.json()) as T;
-  }
-}
+const BASE = `${API_BASE_URL}/grade-records/student/me`;
 
 export const gradesService = {
-  /** Dashboard KPI metrics for a student */
-  getStudentKPIs: async (
-    studentId: string,
-    accessToken: string
-  ): Promise<StudentKPIData> => {
-    const json = await apiFetch<Partial<StudentKPIData>>(
+  /**
+   * Dashboard KPI tiles for a student.
+   *
+   * @param studentId - The student profile id; the API checks the caller owns it.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The KPI payload, with numeric fields defaulted to 0.
+   * @throws {ApiError} `NOT_FOUND` when the id is not the caller's.
+   */
+  getStudentKPIs: async (studentId: string, accessToken?: string): Promise<StudentKPIData> => {
+    const json = await api.get<Partial<StudentKPIData>>(
       `${API_BASE_URL}/students/${studentId}/dashboard/kpis`,
-      accessToken
+      { accessToken }
     );
 
-    const attendancePercentage =
-      json.attendancePercentage ?? json.attendanceRate ?? 0;
-    const currentTerm = json.currentTerm ?? json.additionalMetrics?.currentTerm ?? {
-      id: "",
-      name: "Unknown Term",
-    };
-    const completedAssessments =
-      json.completedAssessments ?? json.additionalMetrics?.completedAssessments ?? 0;
-    const classPosition =
-      json.classPosition ?? json.additionalMetrics?.classRank ?? 0;
-    const totalStudentsInClass =
-      json.totalStudentsInClass ??
-      json.additionalMetrics?.totalStudentsInClass ??
-      0;
-
     return {
-      ...json,
       studentId: json.studentId ?? studentId,
       firstName: json.firstName ?? "",
       lastName: json.lastName ?? "",
       email: json.email ?? "",
+      userAvatar: json.userAvatar,
       classInfo: json.classInfo ?? { id: "", name: "" },
       subjectsEnrolled: json.subjectsEnrolled ?? 0,
       gradeScore: json.gradeScore ?? 0,
-      attendancePercentage,
-      currentTerm,
-      completedAssessments,
-      classPosition,
-      totalStudentsInClass,
-      additionalMetrics: {
-        totalAssessments: json.additionalMetrics?.totalAssessments ?? completedAssessments,
-        completedAssessments,
-        currentTerm,
-        classRank: classPosition,
-        totalStudentsInClass,
-      },
+      attendanceRate: json.attendanceRate ?? 0,
+      currentTerm: json.currentTerm,
+      gradeLevel: json.gradeLevel,
+      completedAssessments: json.completedAssessments ?? 0,
+      classPosition: json.classPosition ?? 0,
+      totalStudentsInClass: json.totalStudentsInClass ?? 0,
     };
   },
 
-  /** All course grade records for the authenticated student in a given term */
+  /**
+   * The student's course grade records for a term. The API pages this one (50
+   * per page by default) and returns a flat `{ data, total, … }` page.
+   *
+   * @param termId - The term to read.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @param params - `page` (1-based) and `limit` (max 1000).
+   * @returns The page of records.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
   getCourseGradesByTerm: async (
     termId: string,
-    accessToken: string
-  ): Promise<CourseGradeRecord[]> => {
-    const json = await apiFetch(
-      `${API_BASE_URL}/grade-records/student/me/course-grades/term/${termId}`,
-      accessToken
+    accessToken?: string,
+    params: { page?: number; limit?: number } = {}
+  ): Promise<PaginatedGradeResponse<CourseGradeRecord>> => {
+    const query = new URLSearchParams();
+    if (params.page) query.set("page", String(params.page));
+    if (params.limit) query.set("limit", String(params.limit));
+    const suffix = query.toString() ? `?${query}` : "";
+
+    const json = await api.get<PaginatedGradeResponse<CourseGradeRecord> | CourseGradeRecord[]>(
+      `${BASE}/course-grades/term/${termId}${suffix}`,
+      { accessToken }
     );
-    return extractArray<CourseGradeRecord>(json);
+    const data = toArray<CourseGradeRecord>(json);
+    const page = json && !Array.isArray(json) ? json : null;
+    return {
+      data,
+      total: page?.total ?? data.length,
+      page: page?.page ?? params.page ?? 1,
+      limit: page?.limit ?? params.limit ?? data.length,
+      totalPages: page?.totalPages ?? 1,
+    };
   },
 
-  /** All courses in the authenticated student's class with published result counts */
-  getPublishedCoursesByTerm: async (
-    termId: string,
-    accessToken: string
-  ): Promise<PublishedCourse[]> => {
-    const json = await apiFetch(
-      `${API_BASE_URL}/grade-records/student/me/courses/term/${termId}`,
-      accessToken
-    );
-    return extractArray<PublishedCourse>(json);
-  },
+  /**
+   * Every course in the student's class for a term, with its published count.
+   *
+   * @param termId - The term to read.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The courses, newest publication first.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getPublishedCoursesByTerm: async (termId: string, accessToken?: string): Promise<PublishedCourse[]> =>
+    toArray<PublishedCourse>(await api.get<PublishedCourse[]>(`${BASE}/courses/term/${termId}`, { accessToken })),
 
-  /** Published assessments for one course for the authenticated student */
+  /**
+   * The student's published results for one course in a term.
+   *
+   * @param courseId - The course to read.
+   * @param termId - The term to read.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns One entry per published assessment the student sat.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
   getPublishedAssessmentsForCourse: async (
     courseId: string,
     termId: string,
-    accessToken: string
-  ): Promise<PublishedAssessmentResult[]> => {
-    const json = await apiFetch(
-      `${API_BASE_URL}/grade-records/student/me/courses/${courseId}/published-assessments/term/${termId}`,
-      accessToken
-    );
-    return extractArray<PublishedAssessmentResult>(json);
-  },
+    accessToken?: string
+  ): Promise<PublishedAssessmentResult[]> =>
+    toArray<PublishedAssessmentResult>(
+      await api.get<PublishedAssessmentResult[]>(
+        `${BASE}/courses/${courseId}/published-assessments/term/${termId}`,
+        { accessToken }
+      )
+    ),
 
-  /** Cumulative grade record for the authenticated student for a given term */
-  getCumulativeGradeByTerm: async (
-    termId: string,
-    accessToken: string
-  ): Promise<StudentCumulativeGrade | null> => {
-    const json = await apiFetch<StudentCumulativeGrade | null>(
-      `${API_BASE_URL}/grade-records/student/me/cumulative-grades/${termId}`,
-      accessToken
-    );
-    return json;
-  },
+  /**
+   * The student's overall record for one term. The API answers `null` — not a
+   * 404 — while the school has not calculated it yet.
+   *
+   * @param termId - The term to read.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The record, or `null` when there is none yet.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getCumulativeGradeByTerm: (termId: string, accessToken?: string): Promise<StudentCumulativeGrade | null> =>
+    api.get<StudentCumulativeGrade | null>(`${BASE}/cumulative-grades/${termId}`, { accessToken }),
 
-  /** All cumulative term grade records for the authenticated student */
+  /**
+   * Every term record the student has, newest first.
+   *
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @param params - `page` (1-based) and `limit` (max 1000).
+   * @returns The page of term records.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
   getAllCumulativeGrades: async (
-    accessToken: string
+    accessToken?: string,
+    params: { page?: number; limit?: number } = {}
   ): Promise<StudentCumulativeGrade[]> => {
-    const json = await apiFetch(
-      `${API_BASE_URL}/grade-records/student/me/cumulative-grades`,
-      accessToken
+    const query = new URLSearchParams();
+    if (params.page) query.set("page", String(params.page));
+    if (params.limit) query.set("limit", String(params.limit));
+    const suffix = query.toString() ? `?${query}` : "";
+    return toArray<StudentCumulativeGrade>(
+      await api.get<PaginatedGradeResponse<StudentCumulativeGrade>>(`${BASE}/cumulative-grades${suffix}`, {
+        accessToken,
+      })
     );
-    return extractArray<StudentCumulativeGrade>(json);
   },
 
-  /** Assessment grade records for the authenticated student on one assessment */
-  getAssessmentGrades: async (
-    assessmentId: string,
-    accessToken: string
-  ): Promise<AssessmentGradeRecord[]> => {
-    const json = await apiFetch(
-      `${API_BASE_URL}/grade-records/student/me/assessments/${assessmentId}`,
-      accessToken
-    );
-    return extractArray<AssessmentGradeRecord>(json);
-  },
+  /**
+   * The student's raw records for one assessment. These are unenriched
+   * documents: no percentage, no grade letter, no assessment name — derive
+   * those from `actualScore` / `maxScore`, or use
+   * `getPublishedAssessmentsForCourse`, which the API enriches.
+   *
+   * @param assessmentId - The assessment to read.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The records, or an empty array while the result is unpublished.
+   * @throws {ApiError} `NOT_FOUND` when the id is not a valid ObjectId.
+   */
+  getAssessmentGrades: async (assessmentId: string, accessToken?: string): Promise<AssessmentGradeRecord[]> =>
+    toArray<AssessmentGradeRecord>(
+      await api.get<AssessmentGradeRecord[]>(`${BASE}/assessments/${assessmentId}`, { accessToken })
+    ),
 };

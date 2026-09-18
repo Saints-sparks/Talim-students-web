@@ -26,7 +26,10 @@ export const API_ENDPOINTS = {
   COURSES_BY_SCHOOL: `${API_BASE_URL}/subjects-courses/courses/school`,
   COURSES_BY_CLASS: `${API_BASE_URL}/subjects-courses/courses/class/:classId`,
   CURRICULUM_BASE: `${API_BASE_URL}/curriculum`,
-  CURRICULUM_BY_COURSE: `${API_BASE_URL}/curriculum/course/:courseId`,
+  // The API has no `/curriculum/course/:id` route — filtering is by query.
+  CURRICULUM_BY_COURSE_TERM: `${API_BASE_URL}/curriculum/by-course-term`,
   SUBJECTS_BY_SCHOOL: `${API_BASE_URL}/subjects-courses/by-school`,
   RESOURCES_BY_CLASS: `${API_BASE_URL}/resources/class/:classId`,
+  CLASS_BY_ID: `${API_BASE_URL}/classes/:classId`,
+  CURRENT_TERM: `${API_BASE_URL}/academic-year-term/term/current`,
 } as const;

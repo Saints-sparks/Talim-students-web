@@ -6,6 +6,8 @@ import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import RealtimeAlerts from "@/components/RealtimeAlerts";
 import { ThemeProvider } from "@/providers/theme-provider";
+import { QueryProvider } from "@/providers/query-provider";
+import OfflineBanner from "@/components/OfflineBanner";
 import "./globals.css";
 import { Inter } from "next/font/google";
 import { ToastViewport } from "@/components/CustomToast";
@@ -48,7 +50,9 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
     document.title = "Talim Students";
   }, [pathname]);
 
-  const publicRoutes = ["/", "/signin", "/register", "/forgot-password"];
+  // T4.6: `/register` was whitelisted here and in middleware.ts, but the app
+  // has no such route — students are created by their school.
+  const publicRoutes = ["/", "/signin", "/forgot-password"];
   const isPublicRoute = publicRoutes.includes(pathname);
 
   useEffect(() => {
@@ -93,20 +97,23 @@ export default function RootLayout({
       </head>
       <body className={inter.className}>
         <ThemeProvider>
-          <AuthProvider>
-            <StudentOnboardingProvider>
-              <OnboardingSyncEffect />
-              <AuthGuard>
-                <WebSocketProvider>
-                  <ChatProvider>
-                    <RealtimeAlerts />
-                    {children}
-                    <ToastViewport />
-                  </ChatProvider>
-                </WebSocketProvider>
-              </AuthGuard>
-            </StudentOnboardingProvider>
-          </AuthProvider>
+          <QueryProvider>
+            <AuthProvider>
+              <StudentOnboardingProvider>
+                <OnboardingSyncEffect />
+                <OfflineBanner />
+                <AuthGuard>
+                  <WebSocketProvider>
+                    <ChatProvider>
+                      <RealtimeAlerts />
+                      {children}
+                      <ToastViewport />
+                    </ChatProvider>
+                  </WebSocketProvider>
+                </AuthGuard>
+              </StudentOnboardingProvider>
+            </AuthProvider>
+          </QueryProvider>
         </ThemeProvider>
       </body>
     </html>

@@ -286,7 +286,7 @@ const CurriculumPage: React.FC = () => {
     };
 
     fetchOrLoad();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+     
   }, [courseId, termIdFromUrl, accessToken]);
 
   const handleBackToSubjects = () => router.push("/subjects");

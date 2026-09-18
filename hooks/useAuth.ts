@@ -8,6 +8,9 @@ import { authService } from "@/services/auth.service";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { LoginCredentials } from "@/types/auth";
 
+/**
+ *
+ */
 export const useAuth = () => {
   const router = useRouter();
   const { setAuthState, logout: contextLogout } = useAuthContext();

@@ -11,7 +11,6 @@ import {
   BookOpen,
   Calendar,
   CheckCircle2,
-  Circle,
   Clock,
   Download,
   FileText,

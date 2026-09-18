@@ -1,56 +1,37 @@
-import { useState, useEffect, useCallback } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { gradesService, PublishedCourse } from "@/services/grades.service";
+"use client";
 
-function classifyError(err: unknown): string {
-  if (!(err instanceof Error)) return "Failed to fetch published courses";
-  const m = err.message;
-  if (m.includes("fetch") || m.includes("network") || m.includes("Failed to fetch"))
-    return "Unable to connect to the server. Please check your internet connection.";
-  if (m.includes("401") || m.toLowerCase().includes("unauthorized"))
-    return "Your session has expired. Please log in again.";
-  if (m.includes("403"))
-    return "You don't have permission to access this data.";
-  if (m.includes("500") || m.toLowerCase().includes("server"))
-    return "Server error. Please try again later.";
-  return m;
-}
+import { useQuery } from "@tanstack/react-query";
+import { gradesService, type PublishedCourse } from "@/services/grades.service";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { getErrorMessage } from "@/lib/apiError";
 
+export type { PublishedCourse };
+
+/**
+ * Every course in the signed-in student's class for the current term, with how
+ * many results have been published for each. The route resolves the student
+ * from the JWT, so no id is sent.
+ *
+ * @returns The courses, the term they cover, and the query state.
+ */
 export const usePublishedGradeCourses = () => {
-  const [courses, setCourses] = useState<PublishedCourse[] | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { termId, isReady } = useStudentIdentity();
 
-  const { user, accessToken, isLoading: authLoading } = useAuthContext();
+  const query = useQuery({
+    queryKey: queryKeys.grades.courses(termId ?? "none"),
+    enabled: Boolean(isReady && termId),
+    staleTime: staleTimes.list,
+    queryFn: () => gradesService.getPublishedCoursesByTerm(termId as string),
+  });
 
-  const fetchCourses = useCallback(async () => {
-    // Auth is still initialising — stay in loading state, do not set errors
-    if (authLoading) return;
-
-    if (!accessToken || !user?.termId) {
-      // Auth finished but no valid session — stop loading without an error
-      setIsLoading(false);
-      return;
-    }
-
-    const termId = user.termId as string;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const data = await gradesService.getPublishedCoursesByTerm(termId, accessToken);
-      setCourses(data);
-    } catch (err) {
-      setError(classifyError(err));
-    } finally {
-      setIsLoading(false);
-    }
-  }, [accessToken, user?.termId, authLoading]);
-
-  useEffect(() => {
-    fetchCourses();
-  }, [fetchCourses]);
-
-  return { courses, isLoading, error, refetch: fetchCourses, termId: user?.termId };
+  return {
+    courses: query.data ?? null,
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load your subjects.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
+    termId,
+  };
 };

@@ -1,148 +1,37 @@
-import { useState, useEffect } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { studentService } from "@/services/student.service";
+"use client";
 
-export interface StudentKPIData {
-  studentId: string;
-  firstName: string;
-  lastName: string;
-  email: string;
-  classInfo: {
-    id: string;
-    name: string;
-  };
-  subjectsEnrolled: number;
-  gradeScore: number;
-  attendancePercentage: number;
-  additionalMetrics: {
-    totalAssessments: number;
-    completedAssessments: number;
-    currentTerm: {
-      id: string;
-      name: string;
-    };
-    classRank: number;
-    totalStudentsInClass: number;
-  };
-}
+import { useQuery } from "@tanstack/react-query";
+import { gradesService, type StudentKPIData } from "@/services/grades.service";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { getErrorMessage } from "@/lib/apiError";
 
-export const useStudentKPIs = (studentId?: string, termId?: string) => {
-  const [kpiData, setKpiData] = useState<StudentKPIData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+export type { StudentKPIData };
 
-  const { user, accessToken } = useAuthContext();
+/**
+ * Dashboard KPI tiles for the signed-in student. The endpoint always answers
+ * for the school's current term — it takes no term parameter.
+ *
+ * @param studentId - Override the resolved student id (tests and previews).
+ * @returns The KPI payload with its loading/error state and a refetch.
+ */
+export const useStudentKPIs = (studentId?: string) => {
+  const { studentId: resolvedId, isReady } = useStudentIdentity();
+  const targetStudentId = studentId ?? resolvedId;
 
-  useEffect(() => {
-    const fetchKPIs = async () => {
-      if (!accessToken) {
-        setError("No access token available");
-        setIsLoading(false);
-        return;
-      }
-
-      // Use provided studentId or get from user context
-      // Priority: explicit studentId > user.studentId > user.id > user.userId
-      const targetStudentId =
-        studentId || user?.studentId || user?.id || user?.userId;
-
-      if (!targetStudentId) {
-        setError("No student ID available");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const data = await studentService.getDashboardKPIs(
-          targetStudentId,
-          accessToken,
-          termId
-        );
-
-        setKpiData(data);
-      } catch (err) {
-        console.error("Error fetching student KPIs:", err);
-
-        // Provide more specific error messages
-        let errorMessage = "Failed to fetch student data";
-
-        if (err instanceof Error) {
-          if (err.message.includes("fetch")) {
-            errorMessage =
-              "Unable to connect to the server. Please check your internet connection.";
-          } else if (
-            err.message.includes("401") ||
-            err.message.includes("unauthorized")
-          ) {
-            errorMessage = "Your session has expired. Please log in again.";
-          } else if (err.message.includes("403")) {
-            errorMessage = "You don't have permission to access this data.";
-          } else if (err.message.includes("404")) {
-            errorMessage = "Student data not found. Please contact support.";
-          } else if (err.message.includes("500")) {
-            errorMessage = "Server error. Please try again later.";
-          } else {
-            errorMessage = err.message;
-          }
-        }
-
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchKPIs();
-  }, [accessToken, studentId, user?.studentId, user?.id, user?.userId, termId]);
-
-  const refetch = () => {
-    const targetStudentId =
-      studentId || user?.studentId || user?.id || user?.userId;
-    if (accessToken && targetStudentId) {
-      setIsLoading(true);
-      setError(null); // Clear previous errors
-
-      studentService
-        .getDashboardKPIs(targetStudentId, accessToken, termId)
-        .then(setKpiData)
-        .catch((err) => {
-          console.error("Error refetching student KPIs:", err);
-
-          let errorMessage = "Failed to refresh student data";
-
-          if (err instanceof Error) {
-            if (err.message.includes("fetch")) {
-              errorMessage =
-                "Unable to connect to the server. Please check your internet connection.";
-            } else if (
-              err.message.includes("401") ||
-              err.message.includes("unauthorized")
-            ) {
-              errorMessage = "Your session has expired. Please log in again.";
-            } else if (err.message.includes("403")) {
-              errorMessage = "You don't have permission to access this data.";
-            } else if (err.message.includes("404")) {
-              errorMessage = "Student data not found. Please contact support.";
-            } else if (err.message.includes("500")) {
-              errorMessage = "Server error. Please try again later.";
-            } else {
-              errorMessage = err.message;
-            }
-          }
-
-          setError(errorMessage);
-        })
-        .finally(() => setIsLoading(false));
-    }
-  };
+  const query = useQuery({
+    queryKey: queryKeys.student.kpis(targetStudentId ?? "anonymous"),
+    enabled: Boolean(isReady && targetStudentId),
+    staleTime: staleTimes.list,
+    queryFn: () => gradesService.getStudentKPIs(targetStudentId as string),
+  });
 
   return {
-    kpiData,
-    isLoading,
-    error,
-    refetch,
+    kpiData: query.data ?? null,
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load your performance summary.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
   };
 };

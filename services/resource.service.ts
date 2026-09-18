@@ -1,7 +1,8 @@
 // services/resource.service.ts
 import { API_ENDPOINTS } from "@/lib/constants";
-import { authFetch } from "@/lib/authFetch";
+import { api } from "@/lib/authFetch";
 
+/** A teaching resource uploaded for a class, with its populated relations. */
 export interface Resource {
   _id: string;
   name: string;
@@ -80,28 +81,14 @@ export interface Resource {
 }
 
 export const ResourceServices = {
-  getResourceDetails: async (classId: string, accessToken: string) => {
-    try {
-      const url = API_ENDPOINTS.RESOURCES_BY_CLASS.replace(":classId", classId);
-      const response = await authFetch(url, {
-        method: "GET",
-        accessToken,
-        headers: {
-          Accept: "application/json",
-        },
-      });
-
-      if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(
-          errorData.message || `HTTP error! status: ${response.status}`
-        );
-      }
-
-      return await response.json();
-    } catch (error) {
-      console.error("Network error:", error);
-      throw error;
-    }
-  },
+  /**
+   * Every resource uploaded to one class.
+   *
+   * @param classId - The class the signed-in student belongs to.
+   * @param accessToken - Bearer token; omit to use the stored session.
+   * @returns The class's resources.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  getResourceDetails: (classId: string, accessToken?: string): Promise<Resource[]> =>
+    api.get<Resource[]>(API_ENDPOINTS.RESOURCES_BY_CLASS.replace(":classId", classId), { accessToken }),
 };

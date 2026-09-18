@@ -25,6 +25,9 @@ const hasItems = (value: any): boolean => {
   return false;
 };
 
+/**
+ *
+ */
 export function useStudentOnboardingSync() {
   const { user, accessToken } = useAuthContext();
   const { markStepComplete } = useStudentOnboarding();

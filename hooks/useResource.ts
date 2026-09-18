@@ -1,70 +1,36 @@
 "use client";
-import { useAuthContext } from "@/contexts/AuthContext";
-import { API_ENDPOINTS } from "@/lib/constants";
-import { authFetch } from "@/lib/authFetch";
-import { Resource, ResourceServices } from "@/services/resource.service";
-import { AcademicResponse } from "@/types/auth";
-import { useEffect, useState } from "react";
-import { toast } from "@/components/CustomToast";
 
+import { useQuery } from "@tanstack/react-query";
+import { ResourceServices, type Resource } from "@/services/resource.service";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { getErrorMessage } from "@/lib/apiError";
+
+export type { Resource };
+
+/**
+ * Teaching resources uploaded to the signed-in student's class. The API
+ * narrows `classId` to the caller's own class, so a tampered id returns an
+ * empty list rather than another class's files.
+ *
+ * @returns The resources with their loading/error state and a refetch.
+ */
 export const useResources = () => {
-  const { user, accessToken, isAuthenticated } = useAuthContext();
-  const [isLoading, setIsLoading] = useState(false);
-  const [resources, setResources] = useState<Resource[]>([]); // Fetch from the interface
+  const { classId, isReady } = useStudentIdentity();
 
-  const FetchResource = async () => {
-    if (!isAuthenticated || !user?.userId || !accessToken) {
-      toast.error("User not authenticated");
-      return;
-    }
+  const query = useQuery({
+    queryKey: queryKeys.resources.byClass(classId ?? "unknown"),
+    enabled: Boolean(isReady && classId),
+    staleTime: staleTimes.reference,
+    queryFn: () => ResourceServices.getResourceDetails(classId as string),
+  });
 
-    setIsLoading(true);
-
-    try {
-      // Fetch student details
-      const studentUrl = API_ENDPOINTS.STUDENTS_BY_USER.replace(
-        ":userId",
-        user.userId
-      );
-      const studentResponse = await authFetch(studentUrl, {
-        accessToken,
-        headers: {
-          Accept: "application/json",
-          "Content-Type": "application/json",
-        },
-      });
-
-      if (!studentResponse.ok) {
-        throw new Error("Failed to fetch student data");
-      }
-
-      const studentData: AcademicResponse = await studentResponse.json();
-      const classId = studentData.data[0]?.classId;
-
-      if (!classId) {
-        throw new Error("Class ID not found");
-      }
-
-      const resourceData = await ResourceServices.getResourceDetails(
-        classId,
-        accessToken
-      );
-
-      setResources(resourceData); // this one go store am for state
-
-      return resourceData;
-    } catch (error) {
-      const errorMessage =
-        error instanceof Error ? error.message : "Failed to load resource";
-      toast.error(errorMessage);
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
+  return {
+    resources: query.data ?? [],
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load your resources.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
   };
-  useEffect(() => {
-    FetchResource();
-  }, [user, accessToken, isAuthenticated]);
-
-  return { isLoading, resources };
 };

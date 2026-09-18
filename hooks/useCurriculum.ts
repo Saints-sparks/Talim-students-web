@@ -1,225 +1,108 @@
 // hooks/useCurriculum.ts
-'use client';
+"use client";
 
-import { useState, useEffect } from 'react';
-import { useAuthContext } from '@/contexts/AuthContext';
-import { curriculumService, Course, Curriculum, Subject } from '@/services/curriculum.service';
-import { studentService } from '@/services/student.service';
-import { toast } from '@/components/CustomToast';
-import { AcademicResponse } from '@/types/auth';
+import { useQuery } from "@tanstack/react-query";
+import { classService, type ClassData } from "@/services/class.service";
+import { curriculumService, type Course, type CurriculumDetail } from "@/services/curriculum.service";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { getErrorMessage } from "@/lib/apiError";
 
-export const useCurriculum = () => {
-  const { accessToken, isAuthenticated, user } = useAuthContext();
-  const [courses, setCourses] = useState<Course[]>([]);
-  const [subjects, setSubjects] = useState<Subject[]>([]);
-  const [curricula, setCurricula] = useState<Curriculum[]>([]);
-  const [selectedCourse, setSelectedCourse] = useState<Course | null>(null);
-  const [selectedCurriculum, setSelectedCurriculum] = useState<Curriculum | null>(null);
-  const [studentClassId, setStudentClassId] = useState<string | null>(null);
-  const [isLoading, setIsLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
+export type { Course, CurriculumDetail, ClassData };
 
-  // Fetch student details to get class ID
-  const fetchStudentDetails = async () => {
-    if (!accessToken || !isAuthenticated || !user?.userId) return;
-
-    try {
-      const studentData: AcademicResponse = await studentService.getAcademicDetails(user.userId, accessToken);
-      const classId = studentData.data[0]?.classId;
-
-      if (classId) {
-        setStudentClassId(classId);
-      } else {
-        console.error('Hook: No class ID found in student data');
-      }
-    } catch (err: any) {
-      console.error('Hook: Failed to fetch student details:', err);
-      setError(err.message || 'Failed to fetch student details');
-    }
-  };
-
-  // Fetch courses by student's class ID
-  const fetchCoursesByClass = async () => {
-    if (!accessToken || !isAuthenticated || !studentClassId) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const coursesData = await curriculumService.getCoursesByClass(accessToken, studentClassId);
-      setCourses(coursesData);
-    } catch (err: any) {
-      console.error('Hook: Error fetching courses by class:', err);
-      setError(err.message || 'Failed to fetch courses');
-      toast.error(err.message || 'Failed to fetch courses');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch all courses for the school (fallback)
-  const fetchCourses = async () => {
-    if (!accessToken || !isAuthenticated) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const coursesData = await curriculumService.getCourses(accessToken);
-      setCourses(coursesData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch courses');
-      toast.error(err.message || 'Failed to fetch courses');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch all subjects for the school
-  const fetchSubjects = async () => {
-    if (!accessToken || !isAuthenticated) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const subjectsData = await curriculumService.getSubjects(accessToken);
-      setSubjects(subjectsData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch subjects');
-      toast.error(err.message || 'Failed to fetch subjects');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch curriculum for a specific course
-  const fetchCurriculumByCourse = async (courseId: string) => {
-    if (!accessToken || !isAuthenticated) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const curriculumData = await curriculumService.getCurriculumByCourse(courseId, accessToken);
-      setCurricula(curriculumData);
-      return curriculumData;
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch curriculum');
-      toast.error(err.message || 'Failed to fetch curriculum');
-      return [];
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch curriculum by ID
-  const fetchCurriculumById = async (curriculumId: string) => {
-    if (!accessToken || !isAuthenticated) return null;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const curriculumData = await curriculumService.getCurriculumById(curriculumId, accessToken);
-      setSelectedCurriculum(curriculumData);
-      return curriculumData;
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch curriculum');
-      toast.error(err.message || 'Failed to fetch curriculum');
-      return null;
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Fetch all curricula
-  const fetchAllCurricula = async () => {
-    if (!accessToken || !isAuthenticated) return;
-
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const curriculumData = await curriculumService.getAllCurricula(accessToken);
-      setCurricula(curriculumData);
-    } catch (err: any) {
-      setError(err.message || 'Failed to fetch curricula');
-      toast.error(err.message || 'Failed to fetch curricula');
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Group courses by subject
-  const getCoursesBySubject = () => {
-    const grouped: { [key: string]: Course[] } = {};
-    
-    courses.forEach(course => {
-      const subjectName = course.subjectId?.name || 'Unknown Subject';
-      if (!grouped[subjectName]) {
-        grouped[subjectName] = [];
-      }
-      grouped[subjectName].push(course);
-    });
-
-    return grouped;
-  };
-
-  // Get subject name by course
-  const getSubjectNameByCourse = (course: Course) => {
-    return course.subjectId?.name || 'Unknown Subject';
-  };
-
-  // Get teacher name by course
-  const getTeacherNameByCourse = (course: Course) => {
-    if (course.teacherId) {
-      return `${course.teacherId.firstName} ${course.teacherId.lastName}`;
-    }
-    return 'Unknown Teacher';
-  };
-
-  // Initialize data on mount
-  // Fetch student details on mount
-  useEffect(() => {
-    if (isAuthenticated && accessToken && user?.id) {
-      fetchStudentDetails();
-    }
-  }, [isAuthenticated, accessToken, user?.id]);
-
-  // Fetch courses by class when student class ID is available
-  useEffect(() => {
-    if (studentClassId) {
-      fetchCoursesByClass();
-    }
-  }, [studentClassId]);
-
-  // Fetch subjects when authenticated
-  useEffect(() => {
-    if (isAuthenticated && accessToken) {
-      fetchSubjects();
-    }
-  }, [isAuthenticated, accessToken]);
+/**
+ * Normalises a course whose relations the API may return as bare ids.
+ *
+ * @param course - A course from the class endpoint.
+ * @returns The same course with object-shaped relations.
+ */
+export function normaliseCourse(course: ClassData["courses"][number]): Course {
+  const asObject = <T extends object>(value: unknown, fallback: T): T =>
+    typeof value === "string" ? ({ _id: value, ...fallback } as T) : ((value as T) ?? undefined) ?? fallback;
 
   return {
-    courses,
-    subjects,
-    curricula,
-    selectedCourse,
-    selectedCurriculum,
-    studentClassId,
-    isLoading,
-    error,
-    fetchCourses,
-    fetchCoursesByClass,
-    fetchSubjects,
-    fetchCurriculumByCourse,
-    fetchCurriculumById,
-    fetchAllCurricula,
-    setSelectedCourse,
-    setSelectedCurriculum,
-    getCoursesBySubject,
-    getSubjectNameByCourse,
-    getTeacherNameByCourse
+    _id: course._id,
+    title: course.title,
+    description: course.description ?? "",
+    courseCode: course.courseCode ?? "",
+    subjectId: asObject(course.subjectId, { _id: "", name: "", code: "" }),
+    teacherId: asObject(course.teacherId, { _id: "", firstName: "", lastName: "", email: "" }),
+    classId: asObject(course.classId, { _id: "", name: "", level: "" }),
+    createdAt: "",
+    updatedAt: "",
+  } as Course;
+}
+
+/**
+ * The subject a course belongs to, for display.
+ *
+ * @param course - The course to label.
+ * @returns The subject's name, or a neutral placeholder.
+ */
+export function subjectNameOf(course: Pick<Course, "subjectId">): string {
+  return course.subjectId?.name || "Unknown Subject";
+}
+
+/**
+ * The teacher who takes a course, for display.
+ *
+ * @param course - The course to label.
+ * @returns The teacher's full name, or a neutral placeholder.
+ */
+export function teacherNameOf(course: Pick<Course, "teacherId">): string {
+  const teacher = course.teacherId;
+  const name = teacher ? `${teacher.firstName ?? ""} ${teacher.lastName ?? ""}`.trim() : "";
+  return name || "Unknown Teacher";
+}
+
+/**
+ * The courses taught to the signed-in student's class.
+ *
+ * @returns The class, its normalised courses, and the query state.
+ */
+export function useClassCourses() {
+  const { classId, isReady } = useStudentIdentity();
+
+  const query = useQuery({
+    queryKey: queryKeys.curriculum.coursesByClass(classId ?? "unknown"),
+    enabled: Boolean(isReady && classId),
+    staleTime: staleTimes.reference,
+    queryFn: ({ signal }) => classService.getClassById(classId as string, { signal }),
+  });
+
+  return {
+    classId,
+    classData: query.data ?? null,
+    courses: (query.data?.courses ?? []).map(normaliseCourse),
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load your class.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
   };
-};
+}
+
+/**
+ * The curriculum for one course in one term.
+ *
+ * @param courseId - The course to read, or `null` while none is selected.
+ * @param termId - The term to read.
+ * @returns The curriculum documents with their query state.
+ */
+export function useCourseCurriculum(courseId: string | null, termId: string | null) {
+  const query = useQuery({
+    queryKey: [...queryKeys.curriculum.byCourse(courseId ?? "none"), termId ?? "none"],
+    enabled: Boolean(courseId && termId),
+    staleTime: staleTimes.reference,
+    queryFn: () => curriculumService.getCurriculumByCourseAndTerm(courseId as string, termId as string),
+  });
+
+  return {
+    curricula: query.data ?? [],
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load this curriculum.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
+  };
+}

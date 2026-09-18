@@ -1,127 +1,36 @@
-import { useState, useEffect } from "react";
-import { useAuthContext } from "@/contexts/AuthContext";
-import {
-  attendanceService,
-  AttendanceKPIData,
-} from "@/services/attendance.service";
+"use client";
 
+import { useQuery } from "@tanstack/react-query";
+import { attendanceService, type AttendanceKPIData } from "@/services/attendance.service";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { getErrorMessage } from "@/lib/apiError";
+
+export type { AttendanceKPIData };
+
+/**
+ * Attendance KPI tiles for the signed-in student.
+ *
+ * @param studentId - Override the resolved student id (tests and previews).
+ * @returns The KPI payload with its loading/error state and a refetch.
+ */
 export const useAttendanceKPIs = (studentId?: string) => {
-  const [attendanceData, setAttendanceData] =
-    useState<AttendanceKPIData | null>(null);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const { studentId: resolvedId, isReady } = useStudentIdentity();
+  const targetStudentId = studentId ?? resolvedId;
 
-  const { user, accessToken } = useAuthContext();
-
-  useEffect(() => {
-    const fetchAttendanceKPIs = async () => {
-      if (!accessToken) {
-        setError("No access token available");
-        setIsLoading(false);
-        return;
-      }
-
-      // Use provided studentId or get from user context
-      const targetStudentId =
-        studentId || user?.studentId || user?.id || user?.userId;
-
-      if (!targetStudentId) {
-        setError("No student ID available");
-        setIsLoading(false);
-        return;
-      }
-
-      try {
-        setIsLoading(true);
-        setError(null);
-
-        const data = await attendanceService.getAttendanceKPIs(
-          targetStudentId,
-          accessToken
-        );
-
-        setAttendanceData(data);
-      } catch (err) {
-        console.error("Error fetching attendance KPIs:", err);
-
-        // Provide more specific error messages
-        let errorMessage = "Failed to fetch attendance data";
-
-        if (err instanceof Error) {
-          if (err.message.includes("fetch")) {
-            errorMessage =
-              "Unable to connect to the server. Please check your internet connection.";
-          } else if (
-            err.message.includes("401") ||
-            err.message.includes("unauthorized")
-          ) {
-            errorMessage = "Your session has expired. Please log in again.";
-          } else if (err.message.includes("403")) {
-            errorMessage = "You don't have permission to access this data.";
-          } else if (err.message.includes("404")) {
-            errorMessage = "Attendance data not found. Please contact support.";
-          } else if (err.message.includes("500")) {
-            errorMessage = "Server error. Please try again later.";
-          } else {
-            errorMessage = err.message;
-          }
-        }
-
-        setError(errorMessage);
-      } finally {
-        setIsLoading(false);
-      }
-    };
-
-    fetchAttendanceKPIs();
-  }, [accessToken, studentId, user?.studentId, user?.id, user?.userId]);
-
-  const refetch = () => {
-    const targetStudentId =
-      studentId || user?.studentId || user?.id || user?.userId;
-    if (accessToken && targetStudentId) {
-      setIsLoading(true);
-      setError(null);
-
-      attendanceService
-        .getAttendanceKPIs(targetStudentId, accessToken)
-        .then(setAttendanceData)
-        .catch((err) => {
-          console.error("Error refetching attendance KPIs:", err);
-
-          let errorMessage = "Failed to refresh attendance data";
-
-          if (err instanceof Error) {
-            if (err.message.includes("fetch")) {
-              errorMessage =
-                "Unable to connect to the server. Please check your internet connection.";
-            } else if (
-              err.message.includes("401") ||
-              err.message.includes("unauthorized")
-            ) {
-              errorMessage = "Your session has expired. Please log in again.";
-            } else if (err.message.includes("403")) {
-              errorMessage = "You don't have permission to access this data.";
-            } else if (err.message.includes("404")) {
-              errorMessage =
-                "Attendance data not found. Please contact support.";
-            } else if (err.message.includes("500")) {
-              errorMessage = "Server error. Please try again later.";
-            } else {
-              errorMessage = err.message;
-            }
-          }
-
-          setError(errorMessage);
-        })
-        .finally(() => setIsLoading(false));
-    }
-  };
+  const query = useQuery({
+    queryKey: queryKeys.attendance.kpis(targetStudentId ?? "anonymous"),
+    enabled: Boolean(isReady && targetStudentId),
+    staleTime: staleTimes.list,
+    queryFn: () => attendanceService.getAttendanceKPIs(targetStudentId as string),
+  });
 
   return {
-    attendanceData,
-    isLoading,
-    error,
-    refetch,
+    attendanceData: query.data ?? null,
+    isLoading: query.isPending && query.fetchStatus !== "idle",
+    error: query.error ? getErrorMessage(query.error, "We couldn't load your attendance.") : null,
+    refetch: () => {
+      void query.refetch();
+    },
   };
 };

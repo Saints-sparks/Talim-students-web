@@ -12,7 +12,6 @@ import {
   Loader2,
   Upload,
   UserRound,
-  Users,
 } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useStudentOnboarding } from "@/contexts/OnboardingContext";

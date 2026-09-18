@@ -17,6 +17,9 @@ interface StudentDetails {
   // Add other fields as needed
 }
 
+/**
+ *
+ */
 export const useStudentDetails = () => {
   const [studentDetails, setStudentDetails] = useState<StudentDetails | null>(null);
   const [loading, setLoading] = useState(true);

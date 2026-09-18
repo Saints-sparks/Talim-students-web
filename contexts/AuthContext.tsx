@@ -1,12 +1,14 @@
 // contexts/AuthContext.tsx
 "use client";
 
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { destroyCookie, parseCookies, setCookie } from "nookies";
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { unsubscribeBrowserPush } from "@/lib/webPush";
+import { sessionStore } from "@/lib/session";
+import { logger } from "@/lib/logger";
 
 interface AuthContextType {
   user: User | null;
@@ -18,7 +20,11 @@ interface AuthContextType {
   setAuthState: (user: User | null, token: string | null) => void;
 }
 
-const AuthContext = createContext<AuthContextType>({
+/**
+ * The one source of session truth for React code. Non-React code (services,
+ * the API client, the socket) reads `sessionStore`, which this provider writes.
+ */
+export const AuthContext = createContext<AuthContextType>({
   user: null,
   isAuthenticated: false,
   isLoading: true,
@@ -28,8 +34,27 @@ const AuthContext = createContext<AuthContextType>({
   setAuthState: () => {},
 });
 
+/**
+ * Reads the signed-in student from context.
+ *
+ * @returns The auth state and its actions.
+ */
 export const useAuthContext = () => useContext(AuthContext);
 
+const COOKIE_OPTIONS = {
+  maxAge: 30 * 24 * 60 * 60,
+  path: "/",
+  secure: process.env.NODE_ENV === "production",
+  sameSite: "strict" as const,
+};
+
+/**
+ * Provides the session to the app and keeps `sessionStore` in step with it.
+ *
+ * @param props - Standard children.
+ * @param props.children - The tree that needs the session.
+ * @returns The provider element.
+ */
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [accessToken, setAccessToken] = useState<string | null>(null);
@@ -37,34 +62,29 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
-  const setAuthState = (newUser: User | null, newToken: string | null) => {
+  const setAuthState = useCallback((newUser: User | null, newToken: string | null) => {
     setUser(newUser);
     setAccessToken(newToken);
     setIsAuthenticated(!!newUser && !!newToken);
-  };
+    sessionStore.set(newUser, newToken);
+  }, []);
 
-  const checkAuth = async () => {
+  const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
       let token = localStorage.getItem("accessToken");
 
       // Fallback to cookies if no token in localStorage
       if (!token) {
-        const cookies = parseCookies();
-        token = cookies.access_token;
+        token = parseCookies().access_token ?? null;
       }
 
       const persistValidatedSession = async (nextToken: string) => {
         const introspectResponse = await authService.introspect(nextToken);
-        const userData = introspectResponse.user as User;
+        const userData = introspectResponse.user as unknown as User;
 
         localStorage.setItem("accessToken", nextToken);
         localStorage.setItem("user", JSON.stringify(userData));
-        setCookie(null, "access_token", nextToken, {
-          maxAge: 30 * 24 * 60 * 60,
-          path: "/",
-          secure: process.env.NODE_ENV === "production",
-          sameSite: "strict",
-        });
+        setCookie(null, "access_token", nextToken, COOKIE_OPTIONS);
         setAuthState(userData, nextToken);
       };
 
@@ -73,7 +93,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
           await persistValidatedSession(token);
           return true;
         } catch (error) {
-          console.warn("Stored access token validation failed:", error);
+          logger.warn("auth", "Stored access token failed introspection", error);
         }
       }
 
@@ -82,7 +102,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         await persistValidatedSession(refreshResponse.access_token);
         return true;
       } catch (error) {
-        console.warn("Session refresh failed:", error);
+        logger.warn("auth", "Session refresh failed", error);
       }
 
       localStorage.removeItem("user");
@@ -93,27 +113,22 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       setAuthState(null, null);
       return false;
     } catch (error) {
-      console.error("Auth check error:", error);
+      logger.error("auth", "Auth check failed", error);
       setAuthState(null, null);
       return false;
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [setAuthState]);
 
-  const logout = () => {
-    // Stop this browser receiving the user's pushes. Captures the token first;
-    // runs in the background so sign-out is never blocked.
-    void unsubscribeBrowserPush(
-      localStorage.getItem("accessToken"),
-      user?.userId || user?.id
-    );
+  const logout = useCallback(() => {
+    // Stop this browser receiving the student's pushes. Captures the token
+    // first; runs in the background so sign-out is never blocked.
+    void unsubscribeBrowserPush(localStorage.getItem("accessToken"), user?.userId || user?.id);
 
-    // Clear cookies
     destroyCookie(null, "access_token");
     destroyCookie(null, "refresh_token");
 
-    // Clear localStorage
     localStorage.removeItem("user");
     localStorage.removeItem("accessToken");
     localStorage.removeItem("refreshToken");
@@ -121,31 +136,27 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     setAuthState(null, null);
 
-    // Trigger custom auth event for WebSocket context
+    // Trigger custom auth event for the WebSocket context
     if (typeof window !== "undefined") {
-      window.dispatchEvent(
-        new CustomEvent("auth-changed", { detail: { type: "logout" } })
-      );
+      window.dispatchEvent(new CustomEvent("auth-changed", { detail: { type: "logout" } }));
     }
 
     router.push("/");
-  };
+  }, [router, setAuthState, user?.id, user?.userId]);
 
   useEffect(() => {
-    checkAuth();
+    void checkAuth();
 
     // Sync auth state across tabs
     const handleStorageChange = (e: StorageEvent) => {
-      if (e.key === "user") {
-        checkAuth();
-      }
+      if (e.key === "user") void checkAuth();
     };
 
     const handleTokenRefresh = (event: Event) => {
-      const token = (event as CustomEvent<{ accessToken?: string }>).detail
-        ?.accessToken;
+      const token = (event as CustomEvent<{ accessToken?: string }>).detail?.accessToken;
       if (token) {
         setAccessToken(token);
+        sessionStore.setToken(token);
         setIsAuthenticated(!!localStorage.getItem("user"));
       }
     };
@@ -166,19 +177,11 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.removeEventListener("auth-token-refreshed", handleTokenRefresh);
       window.removeEventListener("auth-refresh-failed", handleRefreshFailure);
     };
-  }, [router]);
+  }, [router, checkAuth, setAuthState]);
 
   return (
     <AuthContext.Provider
-      value={{
-        user,
-        isAuthenticated,
-        isLoading,
-        accessToken,
-        checkAuth,
-        logout,
-        setAuthState,
-      }}
+      value={{ user, isAuthenticated, isLoading, accessToken, checkAuth, logout, setAuthState }}
     >
       {children}
     </AuthContext.Provider>

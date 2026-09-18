@@ -4,8 +4,14 @@ import { WEBSOCKET_URL } from "@/lib/constants";
 import { refreshAccessToken } from "@/lib/authFetch";
 import type { ChatAck } from "@/types/chat";
 
+/**
+ *
+ */
 export type ConnectionStatus = "disconnected" | "connecting" | "connected" | "error";
 
+/**
+ *
+ */
 export interface WebSocketContextType {
   /** The app's single socket, or null while signed out. */
   socket: Socket | null;
@@ -33,6 +39,9 @@ const isUnauthenticated = (value: any) =>
   value?.data?.code === "UNAUTHENTICATED" ||
   (typeof value?.message === "string" && value.message.includes("UNAUTHENTICATED"));
 
+/**
+ *
+ */
 export const useWebSocket = (): WebSocketContextType => {
   const socketRef = useRef<Socket | null>(null);
   const userIdRef = useRef<string | null>(null);
