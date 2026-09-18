@@ -18,6 +18,7 @@ import { useStudentOnboarding } from "@/contexts/OnboardingContext";
 import { useAcademicDetails } from "@/hooks/useAcademicDetails";
 import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
+import { getErrorMessage } from "@/lib/apiError";
 
 const CLOUD_NAME = "ddbs7m7nt";
 const UPLOAD_PRESET = "presetOne";
@@ -123,8 +124,8 @@ export default function StudentOnboardingPhase1() {
       if (user) {
         setAuthState({ ...user, userAvatar: cloudData.secure_url }, accessToken);
       }
-    } catch (err: any) {
-      setUploadError(err.message || "Upload failed. Please try again.");
+    } catch (err) {
+      setUploadError(getErrorMessage(err, "Upload failed. Please try again."));
     } finally {
       setUploading(false);
       e.target.value = "";

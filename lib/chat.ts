@@ -10,6 +10,9 @@ import type {
   ChatRoomView,
   ChatRoomUpdatedEvent,
   OwnMessageTick,
+  RawChatMessage,
+  RawChatRoom,
+  RawPersonRef,
   RealtimeChatRoom,
 } from "@/types/chat";
 
@@ -29,17 +32,14 @@ export type ChatRoomFilter = "all" | "classes" | "groups";
 
 const MESSAGE_TYPES: ChatMessageType[] = ["text", "voice", "image", "file"];
 
-const idOf = (value: any): string => {
+const idOf = (value: RawPersonRef): string => {
   if (!value) return "";
   if (typeof value === "string") return value;
-  if (typeof value === "object") {
-    const data = value._doc || value;
-    return String(data._id || data.userId || data.id || "");
-  }
-  return String(value);
+  const data = value._doc || value;
+  return String(data._id || data.userId || data.id || "");
 };
 
-const fullName = (person: any) =>
+const fullName = (person: { firstName?: string; lastName?: string } | null | undefined) =>
   `${person?.firstName || ""} ${person?.lastName || ""}`.trim();
 
 /** A new id for an outgoing message, reused on retry so the server never duplicates it. */
@@ -55,23 +55,24 @@ export function newClientMessageId(): string {
  * `sender._id`, attachment objects, `type`) and falls back to the old aliases
  * (`content`, `timestamp`, populated `senderId`, `chatRoomId`, `senderName`).
  */
-export function normalizeMessage(raw: any): ChatMessage {
+export function normalizeMessage(raw: RawChatMessage): ChatMessage {
   const populatedSender =
     raw?.senderId && typeof raw.senderId === "object" ? raw.senderId._doc || raw.senderId : null;
   const senderId =
     (typeof raw?.senderId === "string" ? raw.senderId : "") ||
-    idOf(raw?.sender) ||
+    idOf(raw?.sender as RawPersonRef) ||
     idOf(populatedSender);
 
   const attachments: ChatAttachment[] = Array.isArray(raw?.attachments)
     ? raw.attachments
-        .map((item: any) =>
-          typeof item === "string" ? { url: item, type: "file" as const } : item
-        )
-        .filter((item: any) => item && item.url)
+        .map((item) => (typeof item === "string" ? { url: item, type: "file" as const } : item))
+        .filter((item): item is ChatAttachment => Boolean(item && item.url))
     : [];
 
-  const type: ChatMessageType = MESSAGE_TYPES.includes(raw?.type) ? raw.type : "text";
+  const type: ChatMessageType =
+    raw?.type && (MESSAGE_TYPES as string[]).includes(raw.type) ? (raw.type as ChatMessageType) : "text";
+
+  const senderRef = typeof raw?.sender === "object" ? raw.sender : undefined;
 
   return {
     _id: String(raw?._id || (raw?.clientMessageId ? `local:${raw.clientMessageId}` : "")),
@@ -79,9 +80,8 @@ export function normalizeMessage(raw: any): ChatMessage {
     clientMessageId: raw?.clientMessageId || undefined,
     senderId,
     senderName:
-      raw?.sender?.name || raw?.senderName || fullName(populatedSender) || populatedSender?.name || "",
-    senderAvatar:
-      raw?.sender?.avatar || populatedSender?.userAvatar || populatedSender?.avatar || "",
+      senderRef?.name || raw?.senderName || fullName(populatedSender) || populatedSender?.name || "",
+    senderAvatar: senderRef?.avatar || populatedSender?.userAvatar || populatedSender?.avatar || "",
     text: String(raw?.text ?? raw?.content ?? ""),
     type,
     attachments,
@@ -287,16 +287,22 @@ const initialsOf = (name: string) =>
 /**
  *
  */
-export function participantId(participant: any): string {
-  const data = participant?._doc || participant || {};
-  return String(data._id || data.userId || data.id || "");
+export function participantId(participant: RawPersonRef): string {
+  if (typeof participant === "string") return participant;
+  const data = participant?._doc || participant;
+  return String(data?._id || data?.userId || data?.id || "");
 }
 
 /**
+ * The display name for a chat participant, whether raw or already-clean.
  *
+ * @param participant - A bare id, a raw document, or nothing.
+ * @param fallback - Shown when no name can be built.
+ * @returns The name to show.
  */
-export function participantName(participant: any, fallback = "Unknown User"): string {
-  const data = participant?._doc || participant || {};
+export function participantName(participant: RawPersonRef, fallback = "Unknown User"): string {
+  const data = (typeof participant === "object" && participant?._doc) || participant || {};
+  if (typeof data !== "object") return fallback;
   return fullName(data) || data.name || data.email || fallback;
 }
 
@@ -394,7 +400,7 @@ export const ROOM_TYPE_LABELS: Record<ChatRoomType, string> = {
 export const LEAVABLE_ROOM_TYPES: ChatRoomType[] = ["custom_group", "parent_group"];
 
 /** Turns a `RoomView` into the list item the sidebar renders. */
-export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): RealtimeChatRoom {
+export function toRealtimeRoom(room: ChatRoomView | RawChatRoom, userIds: string[]): RealtimeChatRoom {
   const roomId = String(room?._id || room?.roomId || "");
   const participants: ChatParticipant[] = Array.isArray(room?.participants) ? room.participants : [];
   const type: ChatRoomType = room?.type || "custom_group";
@@ -423,7 +429,11 @@ export function toRealtimeRoom(room: ChatRoomView | any, userIds: string[]): Rea
     isOnline = groupHasTeacherOnline(participants, userIds);
   }
 
-  const last = room?.lastMessage;
+  const last = room?.lastMessage as
+    | (ChatRoomView["lastMessage"] & { text?: string })
+    | RawChatRoom["lastMessage"]
+    | undefined
+    | null;
   const lastMessage = last
     ? {
         content: String(last.preview ?? last.content ?? last.text ?? ""),

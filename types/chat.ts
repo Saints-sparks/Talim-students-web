@@ -75,13 +75,97 @@ export interface ChatRoomActivity {
   };
 }
 
+/** The socket acknowledgement `emitWithAck` resolves with, for any event. */
+/**
+ * A room exactly as the socket or REST API sends it — a looser cousin of
+ * `ChatRoomView` for payloads that omit fields or spell `lastMessage`
+ * differently (`preview` vs `content` vs `text`), before `toRealtimeRoom`
+ * normalises it.
+ */
+export interface RawChatRoom {
+  _id?: string;
+  roomId?: string;
+  type?: ChatRoomType;
+  name?: string;
+  description?: string;
+  avatarUrl?: string | null;
+  lastReadAt?: string;
+  classId?: string;
+  courseId?: string;
+  createdBy?: RawPersonRef;
+  participants?: ChatParticipant[];
+  lastMessage?: {
+    senderId?: RawPersonRef;
+    senderName?: string;
+    type?: ChatMessageType;
+    preview?: string;
+    content?: string;
+    text?: string;
+    createdAt?: string;
+    timestamp?: string;
+  } | null;
+  unreadCount?: number;
+  updatedAt?: string;
+}
+
+/**
+ * A Mongoose document as it sometimes arrives over the socket: either already
+ * plain, or still wrapped in Mongoose's internal `_doc`. Every raw-payload
+ * helper in `lib/chat.ts` unwraps this once before reading fields.
+ */
+export interface RawDocument {
+  _doc?: RawDocument;
+  _id?: string;
+  id?: string;
+  userId?: string;
+  firstName?: string;
+  lastName?: string;
+  name?: string;
+  email?: string;
+  avatar?: string;
+  userAvatar?: string | null;
+  isOnline?: boolean;
+}
+
+/** A person reference as the API sends it: a bare id, or a populated document. */
+export type RawPersonRef = string | RawDocument | null | undefined;
+
+/** One message exactly as the socket or REST API sends it, before normalising. */
+export interface RawChatMessage {
+  _id?: string;
+  clientMessageId?: string;
+  roomId?: string;
+  chatRoomId?: string;
+  senderId?: RawPersonRef;
+  sender?: { name?: string; avatar?: string } | RawPersonRef;
+  senderName?: string;
+  attachments?: Array<string | ChatAttachment>;
+  type?: string;
+  text?: string;
+  content?: string;
+  duration?: number;
+  readBy?: RawPersonRef[];
+  createdAt?: string | number | Date;
+  timestamp?: string | number | Date;
+  status?: string;
+  error?: ChatMessage["error"];
+}
+
 export interface ChatAck {
   ok: boolean;
   error?: { code: string; message: string };
   roomId?: string;
   messageId?: string;
   clientMessageId?: string;
-  [key: string]: any;
+  /** `fetch-messages`: whether another page is available. */
+  hasMore?: boolean;
+  /** `fetch-messages`: cursor for the next page. */
+  prevCursor?: string;
+  /** `mark-read`: when the read receipt was recorded. */
+  readAt?: string;
+  /** `send-message`: the stored message, in its raw (un-normalised) shape. */
+  message?: Record<string, unknown>;
+  [key: string]: unknown;
 }
 
 export type MessageStatus = "sent" | "pending" | "failed";
