@@ -15,6 +15,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { useTimetable } from "@/hooks/useTimetable";
 import { toast } from "@/components/CustomToast";
+import { logger } from "@/lib/logger";
 
 // Define a TypeScript interface for a single timetable entry.
 interface TimetableEntry {
@@ -198,7 +199,7 @@ const Timetable: React.FC = () => {
         toast.success('Timetable exported successfully!');
       }
     } catch (error) {
-      console.error('Export error:', error);
+      logger.error('timetable', 'Exporting the timetable failed', error);
       toast.error('Failed to export timetable');
     }
   };

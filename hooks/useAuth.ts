@@ -45,7 +45,7 @@ export const useAuth = () => {
       }
 
       // Check whether this student has already completed onboarding
-      const userId = userData?.userId || (userData as any)?.id;
+      const userId = userData?.userId || (typeof userData?.id === "string" ? userData.id : undefined);
       let postLoginRoute = "/onboarding";
       if (userId) {
         try {

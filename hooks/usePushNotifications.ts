@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { getErrorMessage } from "@/lib/apiError";
 import {
   LEGACY_STORAGE_KEY,
   SW_PATH,
@@ -132,8 +133,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       setIsSubscribed(true);
 
       await syncWebPushPreference(true);
-    } catch (err: any) {
-      setError(err.message || "Failed to enable push notifications");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to enable push notifications"));
       throw err;
     } finally {
       setIsLoading(false);
@@ -160,8 +161,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       if (userId) localStorage.removeItem(pushFlagKey(userId));
       localStorage.removeItem(LEGACY_STORAGE_KEY);
       setIsSubscribed(false);
-    } catch (err: any) {
-      setError(err.message || "Failed to disable push notifications");
+    } catch (err) {
+      setError(getErrorMessage(err, "Failed to disable push notifications"));
       throw err;
     } finally {
       setIsLoading(false);

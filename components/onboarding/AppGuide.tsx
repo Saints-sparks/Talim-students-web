@@ -12,6 +12,8 @@ import {
 import { usePathname } from "next/navigation";
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { logger } from "@/lib/logger";
+import type { User } from "@/types/auth";
 import { findGuideConfig, GuideConfig, GuideStep } from "./guideSteps";
 
 type TargetRect = {
@@ -57,8 +59,9 @@ function getVisibleSteps(config: GuideConfig) {
   return visibleSteps;
 }
 
-function getUserId(user: any) {
-  return user?.userId || user?._id || user?.id || user?.studentId || "guest";
+function getUserId(user: User | null): string {
+  const candidate = user?.userId || user?._id || user?.id || user?.studentId;
+  return typeof candidate === "string" && candidate ? candidate : "guest";
 }
 
 function getStorageKey(guideId: string, userId: string) {
@@ -359,8 +362,8 @@ export default function AppGuide() {
       window.cancelAnimationFrame(frame);
       frame = window.requestAnimationFrame(() => {
         const nextRect = getTargetRect(currentStep.target);
-        if (!nextRect && process.env.NODE_ENV === "development") {
-          console.warn(`Guide target not found: ${currentStep.target}`);
+        if (!nextRect) {
+          logger.warn("onboarding", `Guide target not found: ${currentStep.target}`);
         }
         setRect(nextRect);
       });

@@ -13,6 +13,16 @@ const TITLE_PREFIX = /^\(\d+\+?\) /;
 // A busy group shouldn't bury the screen: one chat toast per room per window.
 const CHAT_TOAST_COOLDOWN = 5000;
 
+/** A realtime `notification` socket event, exactly as the server emits it. */
+interface RealtimeNotificationEvent {
+  type?: string;
+  title?: string;
+  body?: string;
+  message?: string;
+  metadata?: { url?: string };
+  data?: { url?: string };
+}
+
 /** Only same-origin paths are routed (URLs come from push payloads). */
 const toAppPath = (url: unknown): string | null => {
   if (typeof url !== "string" || !url) return null;
@@ -64,7 +74,7 @@ export default function RealtimeAlerts() {
       });
     };
 
-    const onNotification = (notification: any) => {
+    const onNotification = (notification: RealtimeNotificationEvent) => {
       window.dispatchEvent(new CustomEvent(NOTIFICATION_EVENT, { detail: notification }));
       // Chat alerts come from chat-room-activity.
       if (notification?.type === "chat_message") return;

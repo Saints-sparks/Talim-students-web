@@ -9,21 +9,25 @@ import { ResourceServices } from "@/services/resource.service";
 import { timetableService } from "@/services/timetable.service";
 import type { AcademicResponse } from "@/types/auth";
 
-const hasItems = (value: any): boolean => {
-  if (!value) return false;
-  // Paginated response: { data: [], meta: { total } }
-  if (typeof value?.meta?.total === "number") return value.meta.total > 0;
-  if (typeof value?.total === "number") return value.total > 0;
-  // Plain array
+/**
+ * Whether a response carries at least one item, across the three shapes the
+ * onboarding-sync checks use: a paginated `{data,meta}` or `{data,total}`
+ * page, a bare array, or a day-keyed timetable object.
+ *
+ * @param value - The parsed response body.
+ * @returns True when it holds anything.
+ */
+function hasItems(value: unknown): boolean {
+  if (!value || typeof value !== "object") return false;
+  const record = value as Record<string, unknown>;
+
+  const meta = record.meta as Record<string, unknown> | undefined;
+  if (typeof meta?.total === "number") return meta.total > 0;
+  if (typeof record.total === "number") return record.total > 0;
   if (Array.isArray(value)) return value.length > 0;
-  // Day-keyed timetable object: { Monday: [], Tuesday: [], ... }
-  if (typeof value === "object") {
-    return Object.values(value).some(
-      (v) => Array.isArray(v) && (v as any[]).length > 0
-    );
-  }
-  return false;
-};
+
+  return Object.values(record).some((entry) => Array.isArray(entry) && entry.length > 0);
+}
 
 /**
  *
@@ -51,7 +55,9 @@ export function useStudentOnboardingSync() {
       }),
       notificationService.getAnnouncements(accessToken, userId, 1, 1),
     ]);
-    if (notifResults.some((r) => r.status === "fulfilled" && hasItems((r as PromiseFulfilledResult<any>).value))) {
+    if (
+      notifResults.some((result) => result.status === "fulfilled" && hasItems(result.value))
+    ) {
       markStepComplete("view-notifications");
     }
 
@@ -70,10 +76,10 @@ export function useStudentOnboardingSync() {
         timetableService.getTimetableByClass(classId, accessToken),
       ]);
 
-      if (resourceResult.status === "fulfilled" && hasItems((resourceResult as PromiseFulfilledResult<any>).value)) {
+      if (resourceResult.status === "fulfilled" && hasItems(resourceResult.value)) {
         markStepComplete("download-resource");
       }
-      if (timetableResult.status === "fulfilled" && hasItems((timetableResult as PromiseFulfilledResult<any>).value)) {
+      if (timetableResult.status === "fulfilled" && hasItems(timetableResult.value)) {
         markStepComplete("view-timetable");
       }
     }

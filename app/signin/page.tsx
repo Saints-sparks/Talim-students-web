@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useRouter } from "next/navigation";
 import ModernLoader from "@/components/ModernLoader";
+import { getErrorMessage } from "@/lib/apiError";
 
 type LoginError =
   | { kind: "access_denied"; message: string }
@@ -50,8 +51,8 @@ const SignInPage: React.FC = () => {
         deviceToken: "web-token",
         platform: "web",
       });
-    } catch (err: any) {
-      const msg: string = err?.message || "";
+    } catch (err) {
+      const msg: string = getErrorMessage(err, "");
       if (
         msg.toLowerCase().includes("access denied") ||
         msg.toLowerCase().includes("registered as")

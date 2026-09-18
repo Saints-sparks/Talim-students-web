@@ -8,6 +8,8 @@ import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
+import { messageForError } from "@/lib/errorMessages";
+import { logger } from "@/lib/logger";
 import { BookOpenText, ChevronLeft, UserRound, UsersRound } from "lucide-react";
 import { useRouter } from "next/navigation";
 import React, { useState } from "react";
@@ -63,8 +65,9 @@ const Profile = () => {
       });
       if (!apiRes.ok) throw new Error("Failed to update avatar");
       // Optionally: reload or update user context
-    } catch (err: any) {
-      setErrorMsg(err.message || "Upload failed");
+    } catch (err) {
+      logger.error("profile", "Avatar upload failed", err);
+      setErrorMsg(messageForError(err, "Upload failed"));
     } finally {
       setUploading(false);
     }
