@@ -57,21 +57,35 @@ export interface NotificationListResponse {
 }
 
 /**
- * The per-student notification preference document. Only the switches this app
- * actually shows are declared; the API's `whitelist` rejects anything else.
+ * The per-student notification preference document. The field names are
+ * exactly those on `UpdateNotificationPreferenceDto`: the API runs
+ * `forbidNonWhitelisted`, so one extra key makes the whole PATCH a 400.
+ *
+ * Note these do not line up with the `NotificationCategory` enum — `results`
+ * covers the `grading` category, `announcements` covers `announcement`, and
+ * there is no switch for `academics`, `account` or `other`.
  */
 export interface NotificationPreferences {
-  emailEnabled?: boolean;
   pushEnabled?: boolean;
+  /** Browser push. Separate from `pushEnabled`, which is the phone switch. */
   webPushEnabled?: boolean;
-  inAppEnabled?: boolean;
+  emailEnabled?: boolean;
+  messagesEnabled?: boolean;
   announcementsEnabled?: boolean;
   attendanceEnabled?: boolean;
-  gradingEnabled?: boolean;
+  feesEnabled?: boolean;
+  resultsEnabled?: boolean;
+  timetableEnabled?: boolean;
   resourcesEnabled?: boolean;
-  messagesEnabled?: boolean;
-  quietHoursStart?: string | null;
-  quietHoursEnd?: string | null;
+  securityEnabled?: boolean;
+  systemEnabled?: boolean;
+  quietHoursEnabled?: boolean;
+  /** 24-hour `HH:mm`; anything else is a 400. */
+  quietHoursStart?: string;
+  /** 24-hour `HH:mm`; anything else is a 400. */
+  quietHoursEnd?: string;
+  /** IANA zone, e.g. "Africa/Lagos". */
+  timezone?: string;
 }
 
 /**
