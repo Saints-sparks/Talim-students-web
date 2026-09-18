@@ -21,15 +21,15 @@ export function ScheduleTimeline({
   const lgSlotWidth = 146;
   // Function to calculate the left position of a subject based on its start time
   const getLeftPosition = (time: string) => {
-    let [hour, minute] = time.split(":").map(Number);
-    if (hour < 8) hour += 12; // Adjust PM hours
+    const [rawHour, minute] = time.split(":").map(Number);
+    const hour = rawHour < 8 ? rawHour + 12 : rawHour; // Adjust PM hours
     const totalMinutes = (hour - 8) * 60 + minute; // Minutes from start of timeline
     return (totalMinutes / 60) * slotWidth; // Calculate the left position in pixels
   };
   // Function to calculate the left position of a subject based on its start time for lg screens
   const getLgLeftPosition = (time: string) => {
-    let [hour, minute] = time.split(":").map(Number);
-    if (hour < 8) hour += 12; // Adjust PM hours
+    const [rawHour, minute] = time.split(":").map(Number);
+    const hour = rawHour < 8 ? rawHour + 12 : rawHour; // Adjust PM hours
     const totalMinutes = (hour - 8) * 60 + minute; // Minutes from start of timeline
 
     // Return the calculated left position for lg screen
