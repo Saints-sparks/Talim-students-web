@@ -3,6 +3,7 @@ import tsParser from "@typescript-eslint/parser";
 import unusedImports from "eslint-plugin-unused-imports";
 import reactHooks from "eslint-plugin-react-hooks";
 import jsdoc from "eslint-plugin-jsdoc";
+import nextPlugin from "@next/eslint-plugin-next";
 
 export default [
   {
@@ -22,6 +23,7 @@ export default [
       "@typescript-eslint": tsPlugin,
       "unused-imports": unusedImports,
       "react-hooks": reactHooks,
+      "@next/next": nextPlugin,
       jsdoc,
     },
     rules: {
@@ -39,6 +41,8 @@ export default [
       "prefer-const": "error",
       // Diagnostics go through lib/logger.ts, which stays quiet in production.
       "no-console": "error",
+
+      ...nextPlugin.configs.recommended.rules,
 
       "react-hooks/rules-of-hooks": "error",
       "react-hooks/exhaustive-deps": "warn",
