@@ -20,6 +20,7 @@ import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { getErrorMessage } from "@/lib/apiError";
+import type { AvatarUrlPayload } from "@/types/apiPayloads";
 
 export default function StudentOnboardingPhase1() {
   const router = useRouter();
@@ -98,13 +99,14 @@ export default function StudentOnboardingPhase1() {
     try {
       const secureUrl = await uploadImageToCloudinary(file);
 
+      const avatarBody: AvatarUrlPayload = { avatarUrl: secureUrl };
       const apiRes = await authFetch(`${API_BASE_URL}/auth/profile/avatar`, {
         method: "PUT",
         accessToken,
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ avatarUrl: secureUrl }),
+        body: JSON.stringify(avatarBody),
       });
       if (!apiRes.ok) throw new Error("Failed to update profile photo");
 

@@ -2,6 +2,7 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
 import type { LoginCredentials, LoginResponse, IntrospectResponse } from "@/types/auth";
+import type { ForgotPasswordPayload, IntrospectPayload, LoginPayload, ResetPasswordPayload } from "@/types/apiPayloads";
 
 /**
  * Authentication calls. Every one of these runs before (or instead of) a
@@ -16,8 +17,10 @@ export const authService = {
    * @returns The tokens and the signed-in user.
    * @throws {ApiError} `UNAUTHENTICATED` for bad credentials.
    */
-  login: (credentials: LoginCredentials): Promise<LoginResponse> =>
-    api.post<LoginResponse>(API_ENDPOINTS.LOGIN, credentials, { skipAuth: true }),
+  login: (credentials: LoginCredentials): Promise<LoginResponse> => {
+    const body: LoginPayload = credentials;
+    return api.post<LoginResponse>(API_ENDPOINTS.LOGIN, body, { skipAuth: true });
+  },
 
   /**
    * Validates an access token and returns the student behind it.
@@ -26,8 +29,10 @@ export const authService = {
    * @returns The introspection result, including the student profile.
    * @throws {ApiError} When the token is expired or unknown.
    */
-  introspect: (token: string): Promise<IntrospectResponse> =>
-    api.post<IntrospectResponse>(API_ENDPOINTS.INTROSPECT, { token }, { skipAuth: true }),
+  introspect: (token: string): Promise<IntrospectResponse> => {
+    const body: IntrospectPayload = { token };
+    return api.post<IntrospectResponse>(API_ENDPOINTS.INTROSPECT, body, { skipAuth: true });
+  },
 
   /**
    * Exchanges the refresh cookie for a new access token.
@@ -45,8 +50,10 @@ export const authService = {
    * @returns The server's confirmation message.
    * @throws {ApiError} `VALIDATION_FAILED` when the address is malformed.
    */
-  forgotPassword: (email: string): Promise<{ message: string }> =>
-    api.post<{ message: string }>(API_ENDPOINTS.FORGOT_PASSWORD, { email }, { skipAuth: true }),
+  forgotPassword: (email: string): Promise<{ message: string }> => {
+    const body: ForgotPasswordPayload = { email };
+    return api.post<{ message: string }>(API_ENDPOINTS.FORGOT_PASSWORD, body, { skipAuth: true });
+  },
 
   /**
    * Completes a password reset with the emailed code.
@@ -57,6 +64,8 @@ export const authService = {
    * @returns The server's confirmation message.
    * @throws {ApiError} `VALIDATION_FAILED` for a bad code or weak password.
    */
-  resetPassword: (email: string, token: string, newPassword: string): Promise<{ message: string }> =>
-    api.post<{ message: string }>(API_ENDPOINTS.RESET_PASSWORD, { email, token, newPassword }, { skipAuth: true }),
+  resetPassword: (email: string, token: string, newPassword: string): Promise<{ message: string }> => {
+    const body: ResetPasswordPayload = { email, token, newPassword };
+    return api.post<{ message: string }>(API_ENDPOINTS.RESET_PASSWORD, body, { skipAuth: true });
+  },
 };

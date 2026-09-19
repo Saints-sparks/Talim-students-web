@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import type { CurriculumByCourseTermBody } from "@/types/apiPayloads";
 
 // services/curriculum.service.ts
 /** A course taught to a class, as the curriculum endpoints return it. */
@@ -152,8 +153,10 @@ export const curriculumService = {
     courseId: string,
     termId: string,
     accessToken?: string
-  ): Promise<CurriculumDetail[]> =>
-    api.post<CurriculumDetail[]>(API_ENDPOINTS.CURRICULUM_BY_COURSE_TERM, { courseId, termId }, { accessToken }),
+  ): Promise<CurriculumDetail[]> => {
+    const body: CurriculumByCourseTermBody = { courseId, termId };
+    return api.post<CurriculumDetail[]>(API_ENDPOINTS.CURRICULUM_BY_COURSE_TERM, body, { accessToken });
+  },
 
   /**
    * One curriculum document.

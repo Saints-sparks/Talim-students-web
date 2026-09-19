@@ -1,14 +1,14 @@
 // services/settings.service.ts
 import { API_BASE_URL } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import type { ChangePasswordBody, ChatPreferencesBody } from "@/types/apiPayloads";
 
-/** The body `POST /auth/change-password` declares. All three are required. */
-export interface ChangePasswordPayload {
-  currentPassword: string;
-  newPassword: string;
-  /** Must equal `newPassword`; the API rejects the request otherwise. */
-  confirmPassword: string;
-}
+/**
+ * The body `POST /auth/change-password` declares (`ChangePasswordDto`), from
+ * the generated contract. All three are required, and `confirmPassword` must
+ * equal `newPassword` or the API rejects the request.
+ */
+export type ChangePasswordPayload = ChangePasswordBody;
 
 /** What the API returns after a successful password change. */
 export interface ChangePasswordResult {
@@ -17,15 +17,11 @@ export interface ChangePasswordResult {
   message: string;
 }
 
-/** The chat preferences a student can set (`UpdateChatPreferencesDto`). */
-export interface ChatPreferences {
-  messageNotifications?: boolean;
-  allowTeacherMessages?: boolean;
-  schoolAnnouncements?: boolean;
-  readReceipts?: boolean;
-  /** Let others see when you are online. Off = you always show offline to them. */
-  showOnlineStatus?: boolean;
-}
+/**
+ * The chat preferences a student can set (`UpdateChatPreferencesDto`), from the
+ * generated contract. `showOnlineStatus` off means you always show offline to others.
+ */
+export type ChatPreferences = ChatPreferencesBody;
 
 export const settingsService = {
   /**
