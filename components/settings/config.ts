@@ -40,6 +40,11 @@ export const MESSAGE_SWITCHES = [
     description: "Let your teachers start a direct chat with you.",
   },
   { field: "readReceipts", label: "Read receipts", description: "Send read receipts when you view messages." },
+  {
+    field: "showOnlineStatus",
+    label: "Show when I'm online",
+    description: "Let your teachers and classmates see when you are online.",
+  },
 ] as const satisfies readonly MessageSwitch[];
 
 /** One choice on the Appearance section. */

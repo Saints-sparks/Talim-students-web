@@ -45,7 +45,7 @@ const GroupChat = ({
                         avatar={avatarUrl}
                         name={name}
                         participants={participants}
-                        currentUserId={currentUserIds[0]}
+                        currentUserIds={currentUserIds}
                         onBack={onBack}
                         onOpenInfo={() => setIsInfoOpen(true)}
                     />

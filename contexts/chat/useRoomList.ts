@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect } from "react";
 import type { Socket } from "socket.io-client";
-import { isSameUser } from "@/lib/chat";
+import { applyPresenceChanged, isSameUser } from "@/lib/chat";
 import type {
   ChatReadEvent,
   ChatRoomActivity,
@@ -90,6 +90,14 @@ export function useRoomList(store: ChatStore, socket: Socket | null, emitWithAck
       setChatRooms((rooms) => withRoomRead(rooms, roomId, data));
     };
 
+    // Someone I share a room with came online or went offline (first / last device).
+    const onPresenceChanged = (data: { userId?: string; isOnline?: boolean }) => {
+      const personId = String(data?.userId || "");
+      if (!personId || typeof data.isOnline !== "boolean") return;
+      const isOnline = data.isOnline;
+      setChatRooms((rooms) => applyPresenceChanged(rooms, personId, isOnline, userIdsRef.current));
+    };
+
     const onRoomUpdated = (data: ChatRoomUpdatedEvent) => {
       const roomId = String(data?.roomId || "");
       if (!roomId) return;
@@ -104,6 +112,7 @@ export function useRoomList(store: ChatStore, socket: Socket | null, emitWithAck
       "chat-rooms-update": onChatRoomsUpdate,
       "unread-messages-update": onUnreadMessagesUpdate,
       "room-read": onRoomRead,
+      "presence-changed": onPresenceChanged,
       "room-updated": onRoomUpdated,
     });
   }, [

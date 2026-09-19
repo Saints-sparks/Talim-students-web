@@ -23,6 +23,8 @@ export interface ChatPreferences {
   allowTeacherMessages?: boolean;
   schoolAnnouncements?: boolean;
   readReceipts?: boolean;
+  /** Let others see when you are online. Off = you always show offline to them. */
+  showOnlineStatus?: boolean;
 }
 
 export const settingsService = {

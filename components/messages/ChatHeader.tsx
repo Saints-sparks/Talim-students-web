@@ -1,15 +1,6 @@
 "use client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import {
-    ChevronLeft,
-    ChevronRight,
-    Phone,
-    Search,
-    Video,
-    X,
-    Info,
-} from "lucide-react";
-import { useState } from "react";
+import { ChevronLeft, Info } from "lucide-react";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
 
 /** The fields of a participant, as sent by the API or the socket. */
@@ -32,6 +23,8 @@ export type RawParticipant = ParticipantFields & { _doc?: ParticipantFields };
 /** A participant normalised for display. */
 interface HeaderParticipant {
     id?: string;
+    /** Every id this person goes by. */
+    ids: string[];
     firstName?: string;
     lastName?: string;
     name?: string;
@@ -46,10 +39,10 @@ interface HeaderParticipant {
  * documents (fields under `_doc`) and dropping the current user.
  *
  * @param participants - Participants as received.
- * @param currentUserId - The signed-in user, who is not listed.
+ * @param currentUserIds - Every id the signed-in user goes by (user id and profile id), none of whom is listed.
  * @returns The other participants, ready to display.
  */
-function processParticipants(participants: RawParticipant[], currentUserId?: string): HeaderParticipant[] {
+export function processParticipants(participants: RawParticipant[], currentUserIds: string[] = []): HeaderParticipant[] {
     return participants
         .map((p: RawParticipant): HeaderParticipant => {
             // Handle Mongoose documents - data might be in _doc property
@@ -58,6 +51,7 @@ function processParticipants(participants: RawParticipant[], currentUserId?: str
 
             return {
                 id: participantId,
+                ids: [participantData.userId, participantData._id, p.userId, p._id].filter((id): id is string => Boolean(id)),
                 firstName: participantData.firstName || p.firstName,
                 lastName: participantData.lastName || p.lastName,
                 name: participantData.name || p.name,
@@ -67,7 +61,8 @@ function processParticipants(participants: RawParticipant[], currentUserId?: str
                 isOnline: participantData.isOnline || p.isOnline || false,
             };
         })
-        .filter((p: HeaderParticipant) => p.id !== currentUserId); // Filter out current user
+        // A person can appear under their user id or their profile id; either one is me.
+        .filter((p: HeaderParticipant) => !p.ids.some((id) => currentUserIds.includes(id)));
 }
 
 interface ChatHeaderProps {
@@ -75,8 +70,10 @@ interface ChatHeaderProps {
     name: string;
     status?: string;
     subtext?: string; // For group members
-    participants?: RawParticipant[]; // Real participants data
-    currentUserId?: string; // Current user ID to filter out
+    /** Groups only: a direct chat's header already names the other person. */
+    participants?: RawParticipant[];
+    /** Every id the current user goes by, so they are not listed among the members. */
+    currentUserIds?: string[];
     onBack: () => void;
     /** Opens group info (groups) or the other person's profile (direct messages). */
     onOpenInfo?: () => void;
@@ -88,39 +85,22 @@ export default function ChatHeader({
     status,
     subtext,
     participants = [],
-    currentUserId,
+    currentUserIds = [],
     onBack,
     onOpenInfo,
 }: ChatHeaderProps) {
-    const [isSearching, setIsSearching] = useState(false);
-    const [searchQuery, setSearchQuery] = useState("");
-
-    // Process participants to get clean data
-    const processedParticipants = processParticipants(participants, currentUserId);
-
-    // Generate participants text like Teachers app
-    const getParticipantsText = () => {
-        if (!participants || participants.length === 0) return "";
-
-        const participantNames = processedParticipants
-            .map(p => `${p.firstName || ''} ${p.lastName || ''}`.trim())
-            .filter(name => name.length > 0);
-
-        const participantCount = participantNames.length;
-
-        if (participantCount <= 2) {
-            return participantNames.join(", ");
-        } else {
-            return `${participantNames.slice(0, 2).join(", ")} and ${participantCount - 2} others`;
-        }
-    };
-
-    const participantsText = getParticipantsText();
+    const participantNames = processParticipants(participants, currentUserIds)
+        .map((p) => `${p.firstName || ""} ${p.lastName || ""}`.trim())
+        .filter((fullName) => fullName.length > 0);
+    const participantsText =
+        participantNames.length <= 2
+            ? participantNames.join(", ")
+            : `${participantNames.slice(0, 2).join(", ")} and ${participantNames.length - 2} others`;
 
     return (
         <div className="flex w-full items-center rounded-tr-lg bg-white p-4" data-guide="messages-chat-header">
             <div className="flex w-full justify-between items-center gap-3">
-                {/* Avatar & Name / Search Bar */}
+                {/* Avatar & Name */}
                 <div className="flex items-center gap-3 flex-1">
                     {/* Same breakpoint as the messages page layout switch (md) */}
                     <button type="button" className="block md:hidden" onClick={onBack} aria-label="Back to chats">
@@ -149,79 +129,28 @@ export default function ChatHeader({
                         }}
                     >
                         <p className="font-medium truncate">{name}</p>
-                        {!isSearching && status && (
-                            <p className="text-xs text-gray-500">{status}</p>
-                        )}
-                        {!isSearching && participantsText && (
+                        {status && <p className="text-xs text-gray-500">{status}</p>}
+                        {participantsText && (
                             <p className="text-xs text-[#7B7B7B] max-w-[150px] sm:max-w-full truncate ">
                                 {participantsText}
                             </p>
                         )}
-                        {!isSearching && subtext && !participantsText && (
-                            <p className="text-xs text-[#7B7B7B] max-w-[150px] sm:max-w-full truncate ">
-                                {subtext}
-                            </p>
+                        {subtext && !participantsText && (
+                            <p className="text-xs text-[#7B7B7B] max-w-[150px] sm:max-w-full truncate ">{subtext}</p>
                         )}
                     </div>
                 </div>
 
-                {/* Action Icons */}
-                <div className="flex items-center gap-4 text-[#878787]">
-                    {onOpenInfo && (
-                        <button
-                            type="button"
-                            onClick={onOpenInfo}
-                            aria-label="Chat info"
-                            className="hover:text-gray-800"
-                        >
-                            <Info strokeWidth="1.5px" size={20} />
-                        </button>
-                    )}
-                    <Phone
-                        className="cursor-pointer hover:text-gray-800"
-                        strokeWidth="1.5px"
-                        size={20}
-                    />
-                    <Video
-                        className="cursor-pointer hover:text-gray-800"
-                        strokeWidth="1.5px"
-                        size={20}
-                    />
-
-                    {isSearching ? (
-                        <>
-                            <div className="relative flex text-[#878787] items-center border px-2 py-1 rounded-md w-44">
-                                <Search strokeWidth="1px" size={20} />
-                                <input
-                                    type="text"
-                                    value={searchQuery}
-                                    onChange={(e) => setSearchQuery(e.target.value)}
-                                    placeholder="Search"
-                                    className="w-full bg-transparent pl-2 text-sm focus:outline-none"
-                                />
-                                <X
-                                    className=" cursor-pointer ml-2"
-                                    size={16}
-                                    onClick={() => {
-                                        setIsSearching(false);
-                                        setSearchQuery(""); // Clear search when closing
-                                    }}
-                                />
-                            </div>
-                            <div className="flex">
-                                <ChevronLeft strokeWidth="1px" />
-                                <ChevronRight strokeWidth="1px" />
-                            </div>
-                        </>
-                    ) : (
-                        <Search
-                            className="cursor-pointer hover:text-gray-800"
-                            strokeWidth="1.5px"
-                            size={20}
-                            onClick={() => setIsSearching(true)}
-                        />
-                    )}
-                </div>
+                {onOpenInfo && (
+                    <button
+                        type="button"
+                        onClick={onOpenInfo}
+                        aria-label="Chat info"
+                        className="text-[#878787] hover:text-gray-800"
+                    >
+                        <Info strokeWidth="1.5px" size={20} />
+                    </button>
+                )}
             </div>
         </div>
     );

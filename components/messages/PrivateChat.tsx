@@ -47,8 +47,6 @@ export default function PrivateChat({
             avatar={avatar}
             name={name}
             status={other?.isOnline ? "Online" : undefined}
-            participants={participants}
-            currentUserId={currentUserIds[0]}
             onBack={onBack}
             onOpenInfo={() => setIsInfoOpen(true)}
           />

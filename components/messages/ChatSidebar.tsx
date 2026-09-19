@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Search, ChevronDown, Wifi, WifiOff, Loader2, Filter, MessageCircle, Users } from "lucide-react";
+import { Search, ChevronDown, Wifi, WifiOff, Loader2, Filter, MessageCircle, MessageSquarePlus, Users } from "lucide-react";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -13,14 +13,25 @@ import {
 import { useChat, RealtimeChatRoom } from "@/hooks/useChat";
 import { generateColorFromString } from "@/lib/colorUtils";
 import { ChatRoomFilter, filterRooms } from "@/lib/chat";
+import NewMessageModal from "./NewMessageModal";
+import { api } from "@/lib/authFetch";
+import { API_BASE_URL } from "@/lib/constants";
+import { getErrorMessage } from "@/lib/apiError";
+import { toast } from "@/components/CustomToast";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import type { ChatContact } from "@/hooks/useChatContacts";
 
 interface ChatSidebarProps {
   onSelectChat: (room: RealtimeChatRoom) => void;
+  /** Opens a room by id (a chat this student just started). */
+  onOpenRoomId: (roomId: string) => void;
   className?: string;
 }
 
-export default function ChatSidebar({ onSelectChat, className = "" }: ChatSidebarProps) {
+export default function ChatSidebar({ onSelectChat, onOpenRoomId, className = "" }: ChatSidebarProps) {
   const [searchTerm, setSearchTerm] = useState("");
+  const [isNewMessageOpen, setIsNewMessageOpen] = useState(false);
+  const { userId } = useStudentIdentity();
   const [filterType, setFilterType] = useState<ChatRoomFilter>("all");
 
   const {
@@ -31,6 +42,23 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
     refreshChatRooms,
     selectedRoomId
   } = useChat();
+
+  /** Starts (or reopens) a direct chat with a teacher, then opens it. */
+  const startDirectMessage = async (contact: ChatContact) => {
+    if (!userId) throw new Error("Not signed in");
+    try {
+      const room = await api.post<{ _id: string; reused?: boolean }>(`${API_BASE_URL}/chat/rooms`, {
+        type: "one_to_one",
+        participants: [userId, contact.userId],
+      });
+      refreshChatRooms();
+      toast.success(room.reused ? "Opened your existing chat" : "Chat started");
+      onOpenRoomId(room._id);
+    } catch (err) {
+      toast.error(getErrorMessage(err, "Couldn't start that chat. Please try again."));
+      throw err;
+    }
+  };
 
   // Search applies within the active filter
   const displayRooms = filterRooms(chatRooms, filterType, searchTerm);
@@ -82,8 +110,26 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
             <WifiOff className="w-4 h-4 text-red-500" />
           )}
         </h2>
-        {isLoading && <Loader2 className="w-4 h-4 animate-spin text-gray-500" />}
+        <div className="flex items-center gap-2">
+          {isLoading && <Loader2 className="w-4 h-4 animate-spin text-gray-500" />}
+          <button
+            type="button"
+            onClick={() => setIsNewMessageOpen(true)}
+            aria-label="Message a teacher"
+            title="Message a teacher"
+            data-guide="messages-new-message"
+            className="rounded-full p-2 text-blue-600 hover:bg-blue-50"
+          >
+            <MessageSquarePlus className="w-5 h-5" />
+          </button>
+        </div>
       </div>
+
+      <NewMessageModal
+        open={isNewMessageOpen}
+        onClose={() => setIsNewMessageOpen(false)}
+        onPick={startDirectMessage}
+      />
 
       {/* Search Section */}
       <div className="p-3 sm:p-4 space-y-3 bg-white border-b border-gray-50" data-guide="messages-search-filter">
@@ -160,7 +206,7 @@ export default function ChatSidebar({ onSelectChat, className = "" }: ChatSideba
               </p>
               {!searchTerm && filterType === 'all' && (
                 <p className="text-xs text-gray-400 mt-1">
-                  Join a class to start chatting
+                  Tap the + button to message a teacher
                 </p>
               )}
             </div>

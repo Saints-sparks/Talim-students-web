@@ -82,7 +82,7 @@ function ChatUI() {
               showSidebar ? "block" : "hidden"
             } md:block w-full md:w-auto  scrollbar-hide`}
           >
-            <ChatSidebar onSelectChat={(room) => openRoom(room.roomId)} />
+            <ChatSidebar onSelectChat={(room) => openRoom(room.roomId)} onOpenRoomId={openRoom} />
           </div>
           {/* Chat Window - Show only when a chat is open on mobile */}
           <div

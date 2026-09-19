@@ -386,6 +386,39 @@ export function applyParticipants(
   return { ...room, participants, isOnline: groupHasTeacherOnline(participants, userIds) };
 }
 
+/**
+ * A person came online or went offline: updates them in every room they are
+ * in and recomputes each room's `isOnline` (the other person for a direct
+ * chat, any teacher for a group). Returns the same array when nothing changes.
+ *
+ * @param rooms - The room list.
+ * @param personId - Who changed.
+ * @param isOnline - Their new state.
+ * @param userIds - Every id the signed-in user goes by.
+ * @returns The updated list.
+ */
+export function applyPresenceChanged(
+  rooms: RealtimeChatRoom[],
+  personId: string,
+  isOnline: boolean,
+  userIds: string[]
+): RealtimeChatRoom[] {
+  let changed = false;
+  const next = rooms.map((room) => {
+    const at = room.participants.findIndex((p) => participantId(p) === personId || p.userId === personId);
+    if (at === -1 || Boolean(room.participants[at].isOnline) === isOnline) return room;
+    changed = true;
+    const participants = room.participants.slice();
+    participants[at] = { ...participants[at], isOnline };
+    const roomOnline =
+      room.type === "one_to_one"
+        ? Boolean(otherParticipant(participants, userIds)?.isOnline)
+        : groupHasTeacherOnline(participants, userIds);
+    return { ...room, participants, isOnline: roomOnline };
+  });
+  return changed ? next : rooms;
+}
+
 export const ROLE_LABELS: Record<string, string> = {
   student: "Student",
   teacher: "Teacher",

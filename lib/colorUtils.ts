@@ -3,25 +3,26 @@
  * Used across the chat system for Google-style avatars
  */
 
-// Google Material colors with good contrast for text on white backgrounds
-const MATERIAL_COLORS = [
-  '#F44336', // Red
-  '#E91E63', // Pink
-  '#9C27B0', // Purple
-  '#673AB7', // Deep Purple
-  '#3F51B5', // Indigo
-  '#2196F3', // Blue
-  '#03A9F4', // Light Blue
-  '#00BCD4', // Cyan
-  '#009688', // Teal
-  '#4CAF50', // Green
-  '#8BC34A', // Light Green
-  '#CDDC39', // Lime
-  '#FFC107', // Amber
-  '#FF9800', // Orange
-  '#FF5722', // Deep Orange
-  '#795548', // Brown
-  '#607D8B', // Blue Grey
+// Material colors dark enough for white avatar text and for names on a white
+// bubble: every entry has at least 4.5:1 contrast against white (WCAG AA), which
+// the lighter 400/500 shades (lime, amber, light green …) did not.
+export const MATERIAL_COLORS = [
+  "#D32F2F", // Red 700
+  "#C2185B", // Pink 700
+  "#7B1FA2", // Purple 700
+  "#512DA8", // Deep Purple 700
+  "#303F9F", // Indigo 700
+  "#1976D2", // Blue 700
+  "#0277BD", // Light Blue 800
+  "#00838F", // Cyan 800
+  "#00695C", // Teal 800
+  "#2E7D32", // Green 800
+  "#33691E", // Light Green 900
+  "#827717", // Lime 900
+  "#9A5B00", // Amber, darkened
+  "#BF360C", // Deep Orange 900
+  "#6D4C41", // Brown 600
+  "#455A64", // Blue Grey 700
 ];
 
 /**

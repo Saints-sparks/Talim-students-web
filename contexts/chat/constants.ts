@@ -2,6 +2,8 @@
 export const JOIN_TIMEOUT = 10000;
 /** How long a `send-chat-message` may go unacknowledged before it is marked failed. */
 export const SEND_TIMEOUT = 10000;
+/** How long a message may wait offline before its bubble offers Retry / Delete. */
+export const OFFLINE_SEND_GRACE = 20000;
 /** Messages per page when scrolling back through history. */
 export const PAGE_SIZE = 20;
 /** Messages per page when catching up on what arrived while away. */

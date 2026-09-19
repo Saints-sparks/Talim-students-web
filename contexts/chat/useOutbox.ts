@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback } from "react";
+import { useCallback, useRef } from "react";
 import { toast } from "@/components/CustomToast";
 import {
   useAttachmentUpload,
@@ -10,7 +10,7 @@ import {
 import { chatService } from "@/services/chat.service";
 import { mergeMessages } from "@/lib/chat";
 import type { ChatAck } from "@/types/chat";
-import { SEND_TIMEOUT } from "./constants";
+import { OFFLINE_SEND_GRACE, SEND_TIMEOUT } from "./constants";
 import {
   buildOutgoing,
   buildSendPayload,
@@ -60,6 +60,9 @@ export function useOutbox(store: ChatStore) {
     [outboxRef]
   );
 
+  /** clientMessageId -> the timer that marks a still-offline message as not sent. */
+  const offlineTimersRef = useRef(new Map<string, ReturnType<typeof setTimeout>>());
+
   const markFailed = useCallback(
     (roomId: string, clientMessageId: string, message?: string) => {
       const localId = localIdOf(clientMessageId);
@@ -93,8 +96,32 @@ export function useOutbox(store: ChatStore) {
   /** Uploads what isn't uploaded yet, then sends one queued message. Offline: stays pending. */
   const emitSend = useCallback(
     async (roomId: string, clientMessageId: string) => {
-      // Offline: the bubble stays pending and is flushed on reconnect.
-      if (!socketRef.current?.connected || inflightSendsRef.current.has(clientMessageId)) return;
+      // Offline: the bubble stays pending and is flushed on reconnect — but not forever: after a
+      // grace period it shows "Not sent · Retry · Delete", so the user is never left with a bubble
+      // that can neither send nor be removed.
+      if (!socketRef.current?.connected) {
+        if (!offlineTimersRef.current.has(clientMessageId)) {
+          offlineTimersRef.current.set(
+            clientMessageId,
+            setTimeout(() => {
+              offlineTimersRef.current.delete(clientMessageId);
+              const stillPending = roomStatesRef.current[roomId]?.messages.some(
+                (m) => m._id === localIdOf(clientMessageId) && m.status === "pending"
+              );
+              if (stillPending && !socketRef.current?.connected && !inflightSendsRef.current.has(clientMessageId)) {
+                markFailed(roomId, clientMessageId, "You're offline");
+              }
+            }, OFFLINE_SEND_GRACE)
+          );
+        }
+        return;
+      }
+      if (inflightSendsRef.current.has(clientMessageId)) return;
+      const waiting = offlineTimersRef.current.get(clientMessageId);
+      if (waiting) {
+        clearTimeout(waiting);
+        offlineTimersRef.current.delete(clientMessageId);
+      }
 
       const pending = roomStatesRef.current[roomId]?.messages.find(
         (m) => m._id === localIdOf(clientMessageId)

@@ -65,6 +65,8 @@ export const queryKeys = {
     all: ["chat"] as const,
     /** The student's messaging switches (`/chat/preferences`). */
     preferences: (userId: string) => ["chat", userId, "preferences"] as const,
+    /** Teachers this student may start a direct message with (`/chat/contacts`). */
+    contacts: (userId: string) => ["chat", userId, "contacts"] as const,
   },
   academics: {
     all: ["academics"] as const,
