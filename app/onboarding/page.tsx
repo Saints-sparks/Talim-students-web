@@ -18,10 +18,8 @@ import { useStudentOnboarding } from "@/contexts/OnboardingContext";
 import { useAcademicDetails } from "@/hooks/useAcademicDetails";
 import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
+import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { getErrorMessage } from "@/lib/apiError";
-
-const CLOUD_NAME = "ddbs7m7nt";
-const UPLOAD_PRESET = "presetOne";
 
 export default function StudentOnboardingPhase1() {
   const router = useRouter();
@@ -98,16 +96,7 @@ export default function StudentOnboardingPhase1() {
     setUploadError(null);
 
     try {
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
-
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-        { method: "POST", body: formData }
-      );
-      const cloudData = await cloudRes.json();
-      if (!cloudData.secure_url) throw new Error("Image upload failed");
+      const secureUrl = await uploadImageToCloudinary(file);
 
       const apiRes = await authFetch(`${API_BASE_URL}/auth/profile/avatar`, {
         method: "PUT",
@@ -115,14 +104,14 @@ export default function StudentOnboardingPhase1() {
         headers: {
           "Content-Type": "application/json",
         },
-        body: JSON.stringify({ avatarUrl: cloudData.secure_url }),
+        body: JSON.stringify({ avatarUrl: secureUrl }),
       });
       if (!apiRes.ok) throw new Error("Failed to update profile photo");
 
-      setAvatarPreview(cloudData.secure_url);
+      setAvatarPreview(secureUrl);
       // Refresh the user in context so avatar persists everywhere
       if (user) {
-        setAuthState({ ...user, userAvatar: cloudData.secure_url }, accessToken);
+        setAuthState({ ...user, userAvatar: secureUrl }, accessToken);
       }
     } catch (err) {
       setUploadError(getErrorMessage(err, "Upload failed. Please try again."));

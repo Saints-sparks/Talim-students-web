@@ -8,6 +8,7 @@ import { Button } from "@/components/ui/button";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { API_BASE_URL } from "@/lib/constants";
 import { authFetch } from "@/lib/authFetch";
+import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { messageForError } from "@/lib/errorMessages";
 import { logger } from "@/lib/logger";
 import { BookOpenText, ChevronLeft, UserRound, UsersRound } from "lucide-react";
@@ -24,8 +25,6 @@ const Profile = () => {
   const [selectedTab, setSelectedTab] = useState("Personal Information");
   const router = useRouter();
   const { user, isLoading, accessToken } = useAuthContext();
-  const CLOUD_NAME = "ddbs7m7nt";
-  const UPLOAD_PRESET = "presetOne";
   const [uploading, setUploading] = useState(false);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const fileInputRef = React.useRef<HTMLInputElement>(null);
@@ -41,20 +40,9 @@ const Profile = () => {
     setErrorMsg(null);
     try {
       // Upload to Cloudinary
-      const formData = new FormData();
-      formData.append("file", file);
-      formData.append("upload_preset", UPLOAD_PRESET);
-      const cloudRes = await fetch(
-        `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`,
-        {
-          method: "POST",
-          body: formData,
-        }
-      );
-      const cloudData = await cloudRes.json();
-      if (!cloudData.secure_url) throw new Error("Cloudinary upload failed");
+      const secureUrl = await uploadImageToCloudinary(file);
       // Send to backend
-      const avatarUrl = cloudData.secure_url;
+      const avatarUrl = secureUrl;
       const apiRes = await authFetch(`${API_BASE_URL}/auth/profile/avatar`, {
         method: "PUT",
         accessToken,
