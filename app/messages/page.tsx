@@ -18,10 +18,6 @@ function ChatUI() {
 
   // Reply previews are kept per room so they never follow you into another chat.
   const [replies, setReplies] = useState<Record<string, ReplyingMessage | null>>({});
-  const [openSubMenu, setOpenSubMenu] = useState<{
-    index: number;
-    type: string;
-  } | null>(null);
 
   // `/messages?room=<id>` is the source of truth for the open chat: deep links,
   // toast clicks and push clicks all land here. Selecting joins the room.
@@ -48,18 +44,6 @@ function ChatUI() {
       }),
     [onRoomRemoved, router]
   );
-
-  const toggleSubMenu = (index: number, type: string) => {
-    if (
-      openSubMenu &&
-      openSubMenu.index === index &&
-      openSubMenu.type === type
-    ) {
-      setOpenSubMenu(null);
-    } else {
-      setOpenSubMenu({ index, type });
-    }
-  };
 
   const openRoom = useCallback(
     (roomId: string) => {
@@ -112,8 +96,6 @@ function ChatUI() {
                     roomId={activeRoomId}
                     replyingMessage={replyingMessage}
                     setReplyingMessage={setReplyingMessage}
-                    openSubMenu={openSubMenu}
-                    toggleSubMenu={toggleSubMenu}
                     onBack={onBack}
                   />
                 ) : (
@@ -122,8 +104,6 @@ function ChatUI() {
                     roomId={activeRoomId}
                     replyingMessage={replyingMessage}
                     setReplyingMessage={setReplyingMessage}
-                    openSubMenu={openSubMenu}
-                    toggleSubMenu={toggleSubMenu}
                     onBack={onBack}
                   />
                 )}

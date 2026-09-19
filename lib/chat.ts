@@ -50,6 +50,19 @@ export function newClientMessageId(): string {
   return `${Date.now().toString(36)}-${Math.random().toString(36).slice(2, 12)}`;
 }
 
+/** The server's `replyTo` snapshot, or undefined when absent or malformed. */
+function normalizeReplyTo(raw: RawChatMessage["replyTo"]): ChatMessage["replyTo"] {
+  const messageId = raw?.messageId ? String(raw.messageId) : "";
+  if (!raw || !messageId) return undefined;
+  return {
+    messageId,
+    senderId: idOf(raw.senderId) || undefined,
+    senderName: raw.senderName || "Unknown",
+    preview: raw.preview || "",
+    type: raw.type,
+  };
+}
+
 /**
  * Reads the canonical message fields (`text`, `createdAt`, `senderId` string or
  * `sender._id`, attachment objects, `type`) and falls back to the old aliases
@@ -90,6 +103,8 @@ export function normalizeMessage(raw: RawChatMessage): ChatMessage {
     createdAt: new Date(raw?.createdAt || raw?.timestamp || Date.now()).toISOString(),
     status: raw?.status === "pending" || raw?.status === "failed" ? raw.status : "sent",
     error: raw?.error,
+    replyTo: normalizeReplyTo(raw?.replyTo),
+    isDeleted: raw?.isDeleted === true ? true : undefined,
   };
 }
 
@@ -436,6 +451,7 @@ export function toRealtimeRoom(room: ChatRoomView | RawChatRoom, userIds: string
     | null;
   const lastMessage = last
     ? {
+        _id: (last as { _id?: string })._id ? String((last as { _id?: string })._id) : undefined,
         content: String(last.preview ?? last.content ?? last.text ?? ""),
         senderId: idOf(last.senderId),
         senderName: last.senderName || "",
@@ -491,4 +507,33 @@ export function filterRooms(rooms: RealtimeChatRoom[], filter: ChatRoomFilter, s
       room.displayName.toLowerCase().includes(term) ||
       room.participants.some((p) => fullName(p).toLowerCase().includes(term))
   );
+}
+
+/**
+ * Marks a message deleted the way the server stores it: blank text and
+ * attachments. Returns the same array when it isn't loaded or is already deleted.
+ */
+export function applyMessageDeleted(messages: ChatMessage[], messageId: string): ChatMessage[] {
+  const at = messages.findIndex((m) => m._id === messageId);
+  if (at === -1 || messages[at].isDeleted) return messages;
+  const next = messages.slice();
+  next[at] = { ...messages[at], text: "", attachments: [], isDeleted: true, uploadProgress: undefined };
+  return next;
+}
+
+/** Preview shown for a room whose last message was deleted. */
+export const DELETED_PREVIEW = "This message was deleted";
+
+/** A message was deleted: when it is its room's last, the list previews it as deleted. */
+export function applyMessageDeletedToRooms(
+  rooms: RealtimeChatRoom[],
+  roomId: string,
+  messageId: string
+): RealtimeChatRoom[] {
+  const at = rooms.findIndex((r) => r.roomId === roomId);
+  const last = at === -1 ? undefined : rooms[at].lastMessage;
+  if (!last || last._id !== messageId || last.content === DELETED_PREVIEW) return rooms;
+  const next = rooms.slice();
+  next[at] = { ...rooms[at], lastMessage: { ...last, content: DELETED_PREVIEW } };
+  return next;
 }

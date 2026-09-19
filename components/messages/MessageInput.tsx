@@ -1,12 +1,11 @@
 "use client";
 
 import { useRef, useState } from "react";
-import { Input } from "@/components/ui/input";
 import { Mic, Paperclip, SendHorizontal, X } from "lucide-react";
-import type { ReplyTarget } from "@/types/chat";
 import {
   ATTACHMENT_ACCEPT,
   ComposerAttachments,
+  ComposerTextarea,
   addToSelection,
   formatDuration,
   useVoiceRecorder,
@@ -18,7 +17,6 @@ interface MessageInputProps {
   /** Sends the picked files with the typed text as their caption. */
   onSendFiles?: (files: File[], caption: string) => void;
   onSendVoice?: (file: File, durationSeconds: number) => void;
-  replyingMessage?: ReplyTarget | null;
   disabled?: boolean;
   /** Draft restored when the room is reopened. */
   initialValue?: string;
@@ -68,13 +66,6 @@ export default function MessageInput({
     if (hasText && onSendMessage) {
       onSendMessage(message.trim());
       updateMessage("");
-    }
-  };
-
-  const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) {
-      e.preventDefault();
-      handleSendMessage();
     }
   };
 
@@ -165,12 +156,14 @@ export default function MessageInput({
             </button>
 
             <div className="flex-1 relative">
-              <Input
+              <ComposerTextarea
+                aria-label="Message"
                 placeholder={hasFiles ? "Add a caption..." : "Type a message..."}
-                className="w-full px-4 py-3 border border-gray-200 rounded-2xl focus:border-blue-500 focus:ring-1 focus:ring-blue-500 focus-visible:ring-1 focus-visible:ring-blue-500 resize-none"
+                className="block w-full px-4 py-3 text-sm leading-6 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
                 value={message}
-                onChange={(e) => updateMessage(e.target.value)}
-                onKeyDown={handleKeyDown}
+                onValueChange={updateMessage}
+                // Enter sends with a mouse; on a touch screen it is a new line and Send sends.
+                onSubmit={handleSendMessage}
                 disabled={disabled}
               />
             </div>

@@ -1,14 +1,15 @@
-import { Check, CheckCheck, Clock } from "lucide-react";
+import { Ban, Check, CheckCheck, Clock } from "lucide-react";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Card } from "@/components/ui/card";
 import MessageAttachments from "./MessageAttachments";
-import MessageOptionsDropdown from "./MessageDropdown";
+import BubbleMenu from "./BubbleMenu";
+import { Linkified, QuotedMessage, type ChatReplyTo, type ReplyDraft } from "@/components/chat-kit";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
-import type { ReplyTarget } from "@/types/chat";
 import type { ChatAttachment, OwnMessageTick } from "@/types/chat";
 
 interface MessageBubbleProps {
   msg: {
+    _id: string;
     senderType: string;
     avatar: string;
     sender: string;
@@ -25,21 +26,27 @@ interface MessageBubbleProps {
     tick?: OwnMessageTick;
     /** Groups: "Read by N", shown under my latest message only. */
     readByLabel?: string;
+    replyTo?: ChatReplyTo;
+    isDeleted?: boolean;
   };
-  index: number;
-  openSubMenu: { index: number; type: string } | null;
-  toggleSubMenu: (index: number, type: string) => void;
-  setReplyingMessage: (msg: ReplyTarget | null) => void;
+  /** Groups label each sender; a direct chat only has one other person. */
+  showSenderName?: boolean;
+  /** Start a reply to this message. */
+  onReply?: (reply: ReplyDraft) => void;
+  /** Present when this user may delete this message. */
+  onDeleteMessage?: () => Promise<void>;
+  /** Scroll to a quoted message; omitted for one that isn't loaded. */
+  onJump?: (messageId: string) => void;
   onRetry?: () => void;
   onDelete?: () => void;
 }
 
 export default function GroupMessageBubble({
   msg,
-  index,
-  openSubMenu,
-  toggleSubMenu,
-  setReplyingMessage,
+  showSenderName = true,
+  onReply,
+  onDeleteMessage,
+  onJump,
   onRetry,
   onDelete,
 }: MessageBubbleProps) {
@@ -78,7 +85,7 @@ export default function GroupMessageBubble({
           msg.senderType === "self" ? "items-end" : "items-start"
         }`}>
           {/* Sender Name - only show for group messages from others */}
-          {msg.sender !== "me" && msg.senderType !== "self" && (
+          {showSenderName && msg.sender !== "me" && msg.senderType !== "self" && (
             <div className="mb-1 px-1">
               <p 
                 className="text-xs font-semibold"
@@ -91,7 +98,7 @@ export default function GroupMessageBubble({
 
           {/* Message Bubble */}
           <Card
-            className={`px-3 py-2 sm:px-4 sm:py-3 border-none shadow-sm relative ${
+            className={`px-3 py-2 sm:px-4 sm:py-3 border-none shadow-sm relative group ${
               isPending ? "opacity-70" : ""
             } ${
               msg.senderType === "self"
@@ -99,33 +106,47 @@ export default function GroupMessageBubble({
                 : "bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-bl-md"
             }`}
           >
-            {!isPending && !isFailed && (
-              <MessageOptionsDropdown
-                index={index}
+            {!isPending && !isFailed && !msg.isDeleted && (
+              <BubbleMenu
                 msg={msg}
-                openSubMenu={openSubMenu}
-                toggleSubMenu={toggleSubMenu}
-                setReplyingMessage={setReplyingMessage}
+                isMine={msg.senderType === "self"}
+                onReply={onReply}
+                onDeleteMessage={onDeleteMessage}
               />
             )}
 
-            {msg.attachments && msg.attachments.length > 0 && (
-              <MessageAttachments
-                attachments={msg.attachments}
-                isMine={msg.senderType === "self"}
-                pending={isPending || isFailed}
-                failed={isFailed}
-                progress={isPending ? msg.uploadProgress : undefined}
-              />
-            )}
-            {msg.text && (
-              <p
-                className={`text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap ${
-                  msg.attachments?.length ? "mt-1.5" : ""
-                }`}
-              >
-                {msg.text}
+            {msg.isDeleted ? (
+              <p className="flex items-center gap-1.5 text-sm italic opacity-80">
+                <Ban className="w-3.5 h-3.5" aria-hidden /> This message was deleted
               </p>
+            ) : (
+              <>
+                {msg.replyTo && (
+                  <QuotedMessage
+                    replyTo={msg.replyTo}
+                    tone={msg.senderType === "self" ? "inverted" : "default"}
+                    onJump={onJump}
+                  />
+                )}
+                {msg.attachments && msg.attachments.length > 0 && (
+                  <MessageAttachments
+                    attachments={msg.attachments}
+                    isMine={msg.senderType === "self"}
+                    pending={isPending || isFailed}
+                    failed={isFailed}
+                    progress={isPending ? msg.uploadProgress : undefined}
+                  />
+                )}
+                {msg.text && (
+                  <p
+                    className={`text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap ${
+                      msg.attachments?.length ? "mt-1.5" : ""
+                    }`}
+                  >
+                    <Linkified text={msg.text} tone={msg.senderType === "self" ? "inverted" : "default"} />
+                  </p>
+                )}
+              </>
             )}
           </Card>
 

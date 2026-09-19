@@ -1,3 +1,4 @@
+import type { ChatReplyTo } from "@/components/chat-kit";
 // types/chat.ts
 // Shapes from the backend chat contract (talimBE-V2/docs/chat-realtime-contract.md).
 
@@ -149,6 +150,14 @@ export interface RawChatMessage {
   timestamp?: string | number | Date;
   status?: string;
   error?: ChatMessage["error"];
+  replyTo?: {
+    messageId?: string;
+    senderId?: RawPersonRef;
+    senderName?: string;
+    preview?: string;
+    type?: string;
+  } | null;
+  isDeleted?: boolean;
 }
 
 export interface ChatAck {
@@ -188,6 +197,10 @@ export interface ChatMessage {
   error?: string;
   /** Local only: upload progress (0–1) per attachment while sending. */
   uploadProgress?: number[];
+  /** The message this one replies to (a server-side snapshot). */
+  replyTo?: ChatReplyTo;
+  /** Deleted: `text` and `attachments` are blank; shown as a placeholder. */
+  isDeleted?: boolean;
 }
 
 export interface RealtimeChatRoom {
@@ -196,6 +209,7 @@ export interface RealtimeChatRoom {
   type: ChatRoomType;
   participants: ChatParticipant[];
   lastMessage?: {
+    _id?: string;
     content: string;
     senderId: string;
     senderName: string;

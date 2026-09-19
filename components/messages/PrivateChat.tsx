@@ -6,15 +6,12 @@ import ContactInfoModal from "./ContactInfoModal";
 import ChatThread, { ReplyingMessage } from "./ChatThread";
 import { useChatContext } from "@/contexts/ChatContext";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
-import type { ReplyTarget } from "@/types/chat";
 import { otherParticipant, participantName } from "@/lib/chat";
 
 interface PrivateChatProps {
   roomId: string;
   replyingMessage: ReplyingMessage | null;
-  setReplyingMessage: (msg: ReplyTarget | null) => void;
-  openSubMenu: { index: number; type: string } | null;
-  toggleSubMenu: (index: number, type: string) => void;
+    setReplyingMessage: (msg: ReplyingMessage | null) => void;
   onBack: () => void;
 }
 
@@ -22,8 +19,6 @@ export default function PrivateChat({
   roomId,
   replyingMessage,
   setReplyingMessage,
-  openSubMenu,
-  toggleSubMenu,
   onBack,
 }: PrivateChatProps) {
   const { chatRooms, currentUserIds } = useChatContext();
@@ -47,8 +42,6 @@ export default function PrivateChat({
         participants={participants}
         replyingMessage={replyingMessage}
         setReplyingMessage={setReplyingMessage}
-        openSubMenu={openSubMenu}
-        toggleSubMenu={toggleSubMenu}
         header={
           <ChatHeader
             avatar={avatar}

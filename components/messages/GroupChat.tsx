@@ -5,15 +5,12 @@ import ChatHeader from "./ChatHeader";
 import ChatThread, { ReplyingMessage } from "./ChatThread";
 import GroupInfoModal from "./GroupInfoModal";
 import { useChatContext } from "@/contexts/ChatContext";
-import type { ReplyTarget } from "@/types/chat";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
 
 interface GroupChatProps {
     roomId: string;
     replyingMessage: ReplyingMessage | null;
-    setReplyingMessage: (msg: ReplyTarget | null) => void;
-    openSubMenu: { index: number; type: string } | null;
-    toggleSubMenu: (index: number, type: string) => void;
+    setReplyingMessage: (msg: ReplyingMessage | null) => void;
     onBack: () => void;
 }
 
@@ -21,8 +18,6 @@ const GroupChat = ({
     roomId,
     replyingMessage,
     setReplyingMessage,
-    openSubMenu,
-    toggleSubMenu,
     onBack,
 }: GroupChatProps) => {
     const { chatRooms, currentUserIds } = useChatContext();
@@ -45,8 +40,6 @@ const GroupChat = ({
                 participants={participants}
                 replyingMessage={replyingMessage}
                 setReplyingMessage={setReplyingMessage}
-                openSubMenu={openSubMenu}
-                toggleSubMenu={toggleSubMenu}
                 header={
                     <ChatHeader
                         avatar={avatarUrl}

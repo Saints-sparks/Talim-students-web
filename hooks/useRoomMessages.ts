@@ -17,6 +17,8 @@ export interface UseRoomMessagesReturn extends RoomState {
   retryJoin: () => void;
   retryMessage: (clientMessageId: string) => void;
   deleteFailedMessage: (clientMessageId: string) => void;
+  /** Deletes a stored message. Rejects with the server's message. */
+  deleteMessage: (messageId: string) => Promise<void>;
   draft: string;
   setDraft: (text: string) => void;
 }
@@ -32,6 +34,7 @@ export const useRoomMessages = (roomId: string | null): UseRoomMessagesReturn =>
     retryJoin: rejoin,
     retryMessage: resend,
     deleteFailedMessage: removeFailed,
+    deleteStoredMessage,
     getDraft,
     setDraft: storeDraft,
   } = chat;
@@ -58,6 +61,10 @@ export const useRoomMessages = (roomId: string | null): UseRoomMessagesReturn =>
     (clientMessageId: string) => roomId && removeFailed(roomId, clientMessageId),
     [roomId, removeFailed]
   );
+  const deleteMessage = useCallback(
+    (messageId: string) => (roomId ? deleteStoredMessage(roomId, messageId) : Promise.resolve()),
+    [roomId, deleteStoredMessage]
+  );
   const setDraft = useCallback(
     (text: string) => roomId && storeDraft(roomId, text),
     [roomId, storeDraft]
@@ -72,6 +79,7 @@ export const useRoomMessages = (roomId: string | null): UseRoomMessagesReturn =>
     retryJoin,
     retryMessage,
     deleteFailedMessage,
+    deleteMessage,
     draft: roomId ? getDraft(roomId) : "",
     setDraft,
   };

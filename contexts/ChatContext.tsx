@@ -26,6 +26,7 @@ import {
   validateFile,
   type AttachmentKind,
   type ChatUploadFn,
+  type ReplyDraft,
   type SendableAttachment,
   type UploadItem,
 } from "@/components/chat-kit";
@@ -47,6 +48,8 @@ import type {
   RawChatRoom,
 } from "@/types/chat";
 import {
+  applyMessageDeleted,
+  applyMessageDeletedToRooms,
   applyMessagesRead,
   applyParticipants,
   applyRoomDetails,
@@ -75,6 +78,8 @@ export const JOIN_FAILED_MESSAGE = "Couldn't load this chat";
 export interface OutgoingMedia {
   files?: File[];
   voice?: { file: File; duration: number };
+  /** The message being replied to. */
+  replyTo?: ReplyDraft;
 }
 
 /** A media message waiting to upload and send. */
@@ -122,6 +127,8 @@ export interface ChatContextValue {
   sendMessage: (roomId: string, text: string, media?: OutgoingMedia) => void;
   retryMessage: (roomId: string, clientMessageId: string) => void;
   deleteFailedMessage: (roomId: string, clientMessageId: string) => void;
+  /** Deletes a stored message (mine, or any if I can manage the room). Rejects with the server's message. */
+  deleteStoredMessage: (roomId: string, messageId: string) => Promise<void>;
 
   // Drafts survive switching rooms
   getDraft: (roomId: string) => string;
@@ -417,6 +424,33 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
+  const deleteStoredMessage = useCallback(
+    async (roomId: string, messageId: string) => {
+      let res: Response;
+      try {
+        res = await authFetch(`${API_BASE_URL}/chat/messages/${encodeURIComponent(messageId)}`, {
+          method: "DELETE",
+        });
+      } catch {
+        throw new Error("Couldn't delete the message. Check your connection and try again.");
+      }
+      if (!res.ok) {
+        const body = await res.json().catch(() => null);
+        const message = Array.isArray(body?.message) ? body.message[0] : body?.message;
+        throw new Error(message || "Couldn't delete the message");
+      }
+      // The server also sends `message-deleted`; applying it here updates the
+      // deleter's screen at once, and applying twice is a no-op.
+      const room = roomStatesRef.current[roomId];
+      if (room) {
+        const messages = applyMessageDeleted(room.messages, messageId);
+        if (messages !== room.messages) patchRoom(roomId, { messages });
+      }
+      setChatRooms((rooms) => applyMessageDeletedToRooms(rooms, roomId, messageId));
+    },
+    [patchRoom, setChatRooms]
+  );
+
   const leaveGroup = useCallback(
     async (roomId: string): Promise<{ ok: boolean; message?: string }> => {
       const ids = userIdsRef.current;
@@ -608,6 +642,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         type: entry ? entry.type : "text",
         clientMessageId,
         ...(attachments.length ? { attachments } : {}),
+        ...(pending.replyTo ? { replyToId: pending.replyTo.messageId } : {}),
         ...(entry?.type === "voice" && entry.duration !== undefined
           ? { duration: entry.duration }
           : {}),
@@ -708,6 +743,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         createdAt: new Date().toISOString(),
         status: "pending",
         uploadProgress: files.length ? files.map(() => 0) : undefined,
+        replyTo: media.replyTo
+          ? { messageId: media.replyTo.messageId, senderName: media.replyTo.senderName, preview: media.replyTo.preview }
+          : undefined,
       };
       patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [pending]) }));
       void emitSend(roomId, clientMessageId);
@@ -841,6 +879,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
               ? {
                   ...room,
                   lastMessage: {
+                    _id: lastMessage._id,
                     content: lastMessage.preview || "",
                     senderId: lastMessage.senderId,
                     senderName: lastMessage.senderName,
@@ -890,6 +929,19 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!room || !userId || !data?.readAt) return;
       const messages = applyMessagesRead(room.messages, userId, data.readAt);
       if (messages !== room.messages) patchRoom(roomId, { messages });
+    };
+
+    // A message in one of my rooms was deleted.
+    const onMessageDeleted = (data: { roomId?: string; messageId?: string }) => {
+      const roomId = String(data?.roomId || "");
+      const messageId = String(data?.messageId || "");
+      if (!roomId || !messageId) return;
+      const room = roomStatesRef.current[roomId];
+      if (room) {
+        const messages = applyMessageDeleted(room.messages, messageId);
+        if (messages !== room.messages) patchRoom(roomId, { messages });
+      }
+      setChatRooms((rooms) => applyMessageDeletedToRooms(rooms, roomId, messageId));
     };
 
     // I read this room on another device (or this one): clear its badge.
@@ -986,6 +1038,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     socket.on("unread-messages-update", onUnreadMessagesUpdate);
     socket.on("messages-read", onMessagesRead);
     socket.on("room-read", onRoomRead);
+    socket.on("message-deleted", onMessageDeleted);
     socket.on("room-updated", onRoomUpdated);
     socket.on("participants-changed", onParticipantsChanged);
     socket.on("error", onServerError);
@@ -1002,6 +1055,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       socket.off("unread-messages-update", onUnreadMessagesUpdate);
       socket.off("messages-read", onMessagesRead);
       socket.off("room-read", onRoomRead);
+      socket.off("message-deleted", onMessageDeleted);
       socket.off("room-updated", onRoomUpdated);
       socket.off("participants-changed", onParticipantsChanged);
       socket.off("error", onServerError);
@@ -1079,6 +1133,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     sendMessage,
     retryMessage,
     deleteFailedMessage,
+    deleteStoredMessage,
     getDraft,
     setDraft,
     leaveGroup,
