@@ -4,6 +4,8 @@
  * Copied file-for-file into the other Talim web apps (see README.md).
  * No app imports here: only the platform (MediaRecorder, File).
  */
+import { linkify } from "./linkify";
+
 
 /** The attachment families the chat API knows. */
 export type AttachmentKind = "image" | "video" | "audio" | "document" | "file";
@@ -252,16 +254,10 @@ export function fitWithin(
 
 /** URLs in a piece of text (http/https and `www.`), without duplicates. */
 export function extractLinks(text: string | null | undefined): string[] {
-  if (!text) return [];
-  const found = text.match(/\b(?:https?:\/\/|www\.)[^\s<>"']+/gi) ?? [];
-  const seen = new Set<string>();
   const links: string[] = [];
-  for (const raw of found) {
-    const trimmed = raw.replace(/[),.;:!?\]]+$/, "");
-    const url = /^www\./i.test(trimmed) ? `https://${trimmed}` : trimmed;
-    if (!seen.has(url)) {
-      seen.add(url);
-      links.push(url);
+  for (const segment of linkify(text)) {
+    if (segment.type === "link" && !links.includes(segment.href)) {
+      links.push(segment.href);
     }
   }
   return links;

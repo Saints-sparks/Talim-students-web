@@ -4,7 +4,7 @@ import { ReactNode, useCallback, useEffect, useLayoutEffect, useRef } from "reac
 import { Loader2, MessageCircle, WifiOff } from "lucide-react";
 import MessageInput from "./MessageInput";
 import GroupMessageBubble from "./GroupMessageBubble";
-import ReplyPreview from "./ReplyPreview";
+import { ReplyBar, type ReplyDraft } from "@/components/chat-kit";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
 import { useChatContext } from "@/contexts/ChatContext";
 import { generateColorFromString } from "@/lib/colorUtils";
@@ -16,13 +16,12 @@ import {
   participantName,
   readersOf,
 } from "@/lib/chat";
-import type { ReplyTarget } from "@/types/chat";
 import type { ChatMessage, ChatParticipant, ChatRoomType } from "@/types/chat";
 
 const NEAR_BOTTOM_PX = 120;
 const LOAD_OLDER_THRESHOLD_PX = 80;
 
-export type ReplyingMessage = ReplyTarget;
+export type ReplyingMessage = ReplyDraft;
 
 interface ChatThreadProps {
   roomId: string;
@@ -30,9 +29,7 @@ interface ChatThreadProps {
   roomType?: ChatRoomType;
   participants: ChatParticipant[];
   replyingMessage: ReplyingMessage | null;
-  setReplyingMessage: (msg: ReplyTarget | null) => void;
-  openSubMenu: { index: number; type: string } | null;
-  toggleSubMenu: (index: number, type: string) => void;
+  setReplyingMessage: (msg: ReplyingMessage | null) => void;
 }
 
 const formatDate = (date: Date) => {
@@ -52,8 +49,6 @@ export default function ChatThread({
   participants,
   replyingMessage,
   setReplyingMessage,
-  openSubMenu,
-  toggleSubMenu,
 }: ChatThreadProps) {
   const { currentUserIds } = useChatContext();
   const {
@@ -72,6 +67,7 @@ export default function ChatThread({
     deleteFailedMessage,
     draft,
     setDraft,
+    deleteMessage,
   } = useRoomMessages(roomId);
 
   const messagesEndRef = useRef<HTMLDivElement>(null);
@@ -142,10 +138,10 @@ export default function ChatThread({
     (content: string) => {
       if (!content.trim()) return;
       nearBottomRef.current = true;
-      sendMessage(content);
+      sendMessage(content, { replyTo: replyingMessage ?? undefined });
       setReplyingMessage(null);
     },
-    [sendMessage, setReplyingMessage]
+    [sendMessage, replyingMessage, setReplyingMessage]
   );
 
   // Read state: the other person's ids (direct messages) and my newest stored message (groups).
@@ -163,18 +159,19 @@ export default function ChatThread({
     (files: File[], caption: string) => {
       if (!files.length) return;
       nearBottomRef.current = true;
-      sendMessage(caption, { files });
+      sendMessage(caption, { files, replyTo: replyingMessage ?? undefined });
       setReplyingMessage(null);
     },
-    [sendMessage, setReplyingMessage]
+    [sendMessage, replyingMessage, setReplyingMessage]
   );
 
   const handleSendVoice = useCallback(
     (file: File, duration: number) => {
       nearBottomRef.current = true;
-      sendMessage("", { voice: { file, duration } });
+      sendMessage("", { voice: { file, duration }, replyTo: replyingMessage ?? undefined });
+      setReplyingMessage(null);
     },
-    [sendMessage]
+    [sendMessage, replyingMessage, setReplyingMessage]
   );
 
   const findParticipant = (senderId: string) =>
@@ -205,12 +202,31 @@ export default function ChatThread({
       color: generateColorFromString(senderName || message.senderId || "unknown"),
       duration: message.duration,
       attachments: message.attachments,
+      replyTo: message.replyTo,
+      isDeleted: message.isDeleted,
       uploadProgress: message.uploadProgress,
       status: message.status,
       error: message.error,
       tick: mine ? ownMessageTick(message, roomType, otherIds) : undefined,
       readByLabel: readers > 0 ? `Read by ${readers}` : undefined,
     };
+  };
+
+  const loadedIds = new Set(messages.map((m) => m._id));
+
+  /** Delete is offered for my own messages, and in a group for others' (the server decides who may). */
+  const deleteHandlerFor = (message: ChatMessage) => {
+    if (message.status !== "sent" || message.isDeleted) return undefined;
+    if (!isMine(message) && roomType === "one_to_one") return undefined;
+    return () => deleteMessage(message._id);
+  };
+
+  const jump = (messageId: string) => {
+    const el = document.getElementById(`msg-${messageId}`);
+    if (!el) return;
+    el.scrollIntoView({ behavior: "smooth", block: "center" });
+    el.classList.add("bg-blue-50");
+    window.setTimeout(() => el.classList.remove("bg-blue-50"), 1200);
   };
 
   const groupedByDate = messages.reduce<Array<{ date: string; items: ChatMessage[] }>>(
@@ -319,14 +335,18 @@ export default function ChatThread({
                   </div>
                 </div>
                 <div className="space-y-2">
-                  {items.map((message, index) => (
-                    <GroupMessageBubble
+                  {items.map((message) => (
+                    <div
                       key={message.clientMessageId || message._id}
+                      id={`msg-${message._id}`}
+                      className="transition-colors duration-500"
+                    >
+                    <GroupMessageBubble
                       msg={toBubble(message)}
-                      index={index}
-                      openSubMenu={openSubMenu}
-                      toggleSubMenu={toggleSubMenu}
-                      setReplyingMessage={setReplyingMessage}
+                      showSenderName={roomType !== "one_to_one"}
+                      onReply={setReplyingMessage}
+                      onDeleteMessage={deleteHandlerFor(message)}
+                      onJump={message.replyTo && loadedIds.has(message.replyTo.messageId) ? jump : undefined}
                       onRetry={
                         message.clientMessageId
                           ? () => retryMessage(message.clientMessageId as string)
@@ -338,6 +358,7 @@ export default function ChatThread({
                           : undefined
                       }
                     />
+                    </div>
                   ))}
                 </div>
               </div>
@@ -349,14 +370,13 @@ export default function ChatThread({
       </div>
 
       {replyingMessage && (
-        <ReplyPreview replyingMessage={replyingMessage} onCancel={() => setReplyingMessage(null)} />
+        <ReplyBar reply={replyingMessage} onCancel={() => setReplyingMessage(null)} className="mx-2 sm:mx-4" />
       )}
 
       <MessageInput
         onSendMessage={handleSendMessage}
         onSendFiles={handleSendFiles}
         onSendVoice={handleSendVoice}
-        replyingMessage={replyingMessage}
         initialValue={draft}
         onDraftChange={setDraft}
       />
