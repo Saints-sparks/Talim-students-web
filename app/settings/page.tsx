@@ -4,14 +4,12 @@ import React, { useState } from "react";
 import { Bell, Info, MessageSquare, Palette, Shield, User } from "lucide-react";
 import Layout from "@/components/Layout";
 import ChangePasswordModal from "@/components/settings/ChangePasswordModal";
-import {
-  AboutSection,
-  AccountSection,
-  AppearanceSection,
-  MessagesSection,
-  NotificationsSection,
-  SecuritySection,
-} from "@/components/settings/sections";
+import { AboutSection } from "@/components/settings/AboutSection";
+import { AccountSection } from "@/components/settings/AccountSection";
+import { AppearanceSection } from "@/components/settings/AppearanceSection";
+import { MessagesSection } from "@/components/settings/MessagesSection";
+import { NotificationsSection } from "@/components/settings/NotificationsSection";
+import { SecuritySection } from "@/components/settings/SecuritySection";
 
 type Section = "account" | "notifications" | "messages" | "security" | "appearance" | "about";
 
