@@ -121,7 +121,7 @@ export const guideConfigs: GuideConfig[] = [
         target: "timetable-filters",
         title: "Filter the Week",
         description:
-          "Switch between all days, morning sessions, and afternoon sessions to focus the schedule.",
+          "Switch between the full day, morning sessions, and afternoon sessions to focus the schedule.",
         icon: Filter,
       },
       {
