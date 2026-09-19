@@ -5,12 +5,13 @@ import ChatHeader from "./ChatHeader";
 import ChatThread, { ReplyingMessage } from "./ChatThread";
 import GroupInfoModal from "./GroupInfoModal";
 import { useChatContext } from "@/contexts/ChatContext";
+import type { ReplyTarget } from "@/types/chat";
 import { useRoomMessages } from "@/hooks/useRoomMessages";
 
 interface GroupChatProps {
     roomId: string;
     replyingMessage: ReplyingMessage | null;
-    setReplyingMessage: (msg: any) => void;
+    setReplyingMessage: (msg: ReplyTarget | null) => void;
     openSubMenu: { index: number; type: string } | null;
     toggleSubMenu: (index: number, type: string) => void;
     onBack: () => void;

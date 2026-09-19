@@ -16,15 +16,13 @@ import {
   participantName,
   readersOf,
 } from "@/lib/chat";
+import type { ReplyTarget } from "@/types/chat";
 import type { ChatMessage, ChatParticipant, ChatRoomType } from "@/types/chat";
 
 const NEAR_BOTTOM_PX = 120;
 const LOAD_OLDER_THRESHOLD_PX = 80;
 
-export interface ReplyingMessage {
-  sender: string;
-  text: string;
-}
+export type ReplyingMessage = ReplyTarget;
 
 interface ChatThreadProps {
   roomId: string;
@@ -32,7 +30,7 @@ interface ChatThreadProps {
   roomType?: ChatRoomType;
   participants: ChatParticipant[];
   replyingMessage: ReplyingMessage | null;
-  setReplyingMessage: (msg: any) => void;
+  setReplyingMessage: (msg: ReplyTarget | null) => void;
   openSubMenu: { index: number; type: string } | null;
   toggleSubMenu: (index: number, type: string) => void;
 }

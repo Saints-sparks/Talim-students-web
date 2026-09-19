@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import MessageAttachments from "./MessageAttachments";
 import MessageOptionsDropdown from "./MessageDropdown";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
+import type { ReplyTarget } from "@/types/chat";
 import type { ChatAttachment, OwnMessageTick } from "@/types/chat";
 
 interface MessageBubbleProps {
@@ -28,7 +29,7 @@ interface MessageBubbleProps {
   index: number;
   openSubMenu: { index: number; type: string } | null;
   toggleSubMenu: (index: number, type: string) => void;
-  setReplyingMessage: (msg: any) => void;
+  setReplyingMessage: (msg: ReplyTarget | null) => void;
   onRetry?: () => void;
   onDelete?: () => void;
 }

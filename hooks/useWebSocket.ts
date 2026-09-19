@@ -33,7 +33,15 @@ export interface WebSocketContextType {
 
 const ACK_TIMEOUT = 10000;
 
-const isUnauthenticated = (value: any) =>
+/** The shapes an `UNAUTHENTICATED` rejection arrives in, depending on the transport path. */
+interface SocketRejection {
+  error?: { code?: string };
+  code?: string;
+  data?: { code?: string };
+  message?: unknown;
+}
+
+const isUnauthenticated = (value: SocketRejection | null | undefined) =>
   value?.error?.code === "UNAUTHENTICATED" ||
   value?.code === "UNAUTHENTICATED" ||
   value?.data?.code === "UNAUTHENTICATED" ||

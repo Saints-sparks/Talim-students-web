@@ -1,11 +1,9 @@
 // ReplyPreview.tsx
+import type { ReplyTarget } from "@/types/chat";
 import React from "react";
 
 interface ReplyPreviewProps {
-  replyingMessage: {
-    sender: string;
-    text: string;
-  };
+  replyingMessage: ReplyTarget;
   onCancel: () => void;
 }
 

@@ -3,6 +3,7 @@
 import { useRef, useState } from "react";
 import { Input } from "@/components/ui/input";
 import { Mic, Paperclip, SendHorizontal, X } from "lucide-react";
+import type { ReplyTarget } from "@/types/chat";
 import {
   ATTACHMENT_ACCEPT,
   ComposerAttachments,
@@ -17,7 +18,7 @@ interface MessageInputProps {
   /** Sends the picked files with the typed text as their caption. */
   onSendFiles?: (files: File[], caption: string) => void;
   onSendVoice?: (file: File, durationSeconds: number) => void;
-  replyingMessage?: { sender: string; text: string } | null;
+  replyingMessage?: ReplyTarget | null;
   disabled?: boolean;
   /** Draft restored when the room is reopened. */
   initialValue?: string;

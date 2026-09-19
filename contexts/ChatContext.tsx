@@ -39,6 +39,12 @@ import type {
   ChatRoomUpdatedEvent,
   RealtimeChatRoom,
   RoomState,
+  ChatMessagesPage,
+  ChatRoomJoined,
+  ChatRoomsUpdate,
+  ChatServerError,
+  RawChatMessage,
+  RawChatRoom,
 } from "@/types/chat";
 import {
   applyMessagesRead,
@@ -446,7 +452,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   // ── Paging ─────────────────────────────────────────────────────────────────
 
   const applyPage = useCallback(
-    (page: any) => {
+    (page: ChatMessagesPage) => {
       const roomId = String(page?.roomId || "");
       if (!roomId || roomId !== selectedRef.current) return;
       const incoming: ChatMessage[] = (page.messages || []).map(normalizeMessage);
@@ -767,7 +773,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       refreshChatRooms();
     };
 
-    const onChatRoomJoined = (data: any) => {
+    const onChatRoomJoined = (data: ChatRoomJoined) => {
       const roomId = String(data?.roomId || "");
       if (!roomId || roomId !== selectedRef.current) return;
       clearJoinTimer(roomId);
@@ -793,9 +799,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         createdBy: data.room?.createdBy ? String(data.room.createdBy) : room.createdBy,
       }));
 
-      if (data.room && !chatRoomsRef.current.some((r) => r.roomId === roomId)) {
+      const joinedRoom = data.room;
+      if (joinedRoom && !chatRoomsRef.current.some((r) => r.roomId === roomId)) {
         setChatRooms((rooms) =>
-          sortRooms([...rooms, toRealtimeRoom(data.room, userIdsRef.current)])
+          sortRooms([...rooms, toRealtimeRoom(joinedRoom, userIdsRef.current)])
         );
       }
 
@@ -806,9 +813,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       markVisibleAsRead(roomId);
     };
 
-    const onMessagesUpdate = (data: any) => applyPage(data);
+    const onMessagesUpdate = (data: ChatMessagesPage) => applyPage(data);
 
-    const onChatMessage = (raw: any) => {
+    const onChatMessage = (raw: RawChatMessage) => {
       const message = normalizeMessage(raw);
       if (!message.roomId || message.roomId !== selectedRef.current) return;
       patchRoom(message.roomId, (room) => ({
@@ -849,7 +856,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       );
     };
 
-    const onChatRoomsUpdate = (data: any) => {
+    const onChatRoomsUpdate = (data: ChatRoomsUpdate | null | undefined) => {
       roomListInflightRef.current = false;
       if (!data || !Array.isArray(data.rooms)) {
         setError("Invalid chat rooms data received");
@@ -857,9 +864,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return;
       }
       const open = isVisible() ? selectedRef.current : null;
+      const rooms = data.rooms;
       setChatRooms(() =>
         sortRooms(
-          data.rooms.map((room: any) => {
+          rooms.map((room: RawChatRoom) => {
             const item = toRealtimeRoom(room, userIdsRef.current);
             // The open chat is being marked read right now.
             return item.roomId === open ? { ...item, unreadCount: 0 } : item;
@@ -942,7 +950,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (roomStatesRef.current[roomId]) patchRoom(roomId, { participants });
     };
 
-    const onServerError = (payload: any) => {
+    const onServerError = (payload: ChatServerError | null | undefined) => {
       const code = payload?.code;
       if (code === "UNAUTHENTICATED") return;
       const roomId = payload?.roomId ? String(payload.roomId) : "";

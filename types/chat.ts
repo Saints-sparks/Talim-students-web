@@ -269,3 +269,40 @@ export interface ChatParticipantsChangedEvent {
 
 /** Tick state of one of my own messages. */
 export type OwnMessageTick = "pending" | "failed" | "sent" | "read";
+
+/** What "Reply" hands upward: who said it and what they said (a voice note has no text). */
+export interface ReplyTarget {
+  sender: string;
+  text?: string;
+}
+
+/** A page of messages, from `chat-room-joined`, `messages-update` or a paged fetch. */
+export interface ChatMessagesPage {
+  roomId?: string;
+  messages?: RawChatMessage[];
+  hasMore?: boolean;
+  nextCursor?: string;
+  prevCursor?: string;
+  direction?: "before" | "after";
+}
+
+/** `chat-room-joined`: the first page of a room plus the room's own details. */
+export interface ChatRoomJoined extends ChatMessagesPage {
+  room?: RawChatRoom;
+  roomName?: string;
+  roomType?: ChatRoomType;
+  participants?: ChatParticipant[];
+}
+
+/** `chat-rooms-update`: the signed-in user's rooms. */
+export interface ChatRoomsUpdate {
+  rooms?: RawChatRoom[];
+}
+
+/** An `error` event from the socket; `UNAUTHENTICATED` is handled by the token refresh. */
+export interface ChatServerError {
+  code?: string;
+  message?: string;
+  roomId?: string;
+  clientMessageId?: string;
+}

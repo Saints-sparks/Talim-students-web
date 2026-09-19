@@ -12,10 +12,46 @@ import {
 import { useState } from "react";
 import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
 
-// Utility function to process participants data (handle Mongoose documents)
-function processParticipants(participants: any[], currentUserId?: string) {
+/** The fields of a participant, as sent by the API or the socket. */
+interface ParticipantFields {
+    userId?: string;
+    _id?: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    email?: string;
+    userAvatar?: string | null;
+    avatar?: string | null;
+    role?: string;
+    isOnline?: boolean;
+}
+
+/** A participant as received: sometimes a Mongoose document with the fields under `_doc`. */
+export type RawParticipant = ParticipantFields & { _doc?: ParticipantFields };
+
+/** A participant normalised for display. */
+interface HeaderParticipant {
+    id?: string;
+    firstName?: string;
+    lastName?: string;
+    name?: string;
+    email?: string;
+    avatar?: string | null;
+    role?: string;
+    isOnline: boolean;
+}
+
+/**
+ * Normalises the room's participants for the header, handling Mongoose
+ * documents (fields under `_doc`) and dropping the current user.
+ *
+ * @param participants - Participants as received.
+ * @param currentUserId - The signed-in user, who is not listed.
+ * @returns The other participants, ready to display.
+ */
+function processParticipants(participants: RawParticipant[], currentUserId?: string): HeaderParticipant[] {
     return participants
-        .map((p: any) => {
+        .map((p: RawParticipant): HeaderParticipant => {
             // Handle Mongoose documents - data might be in _doc property
             const participantData = p._doc || p;
             const participantId = participantData.userId || participantData._id || p.userId || p._id;
@@ -31,7 +67,7 @@ function processParticipants(participants: any[], currentUserId?: string) {
                 isOnline: participantData.isOnline || p.isOnline || false,
             };
         })
-        .filter((p: any) => p.id !== currentUserId); // Filter out current user
+        .filter((p: HeaderParticipant) => p.id !== currentUserId); // Filter out current user
 }
 
 interface ChatHeaderProps {
@@ -39,7 +75,7 @@ interface ChatHeaderProps {
     name: string;
     status?: string;
     subtext?: string; // For group members
-    participants?: any[]; // Real participants data
+    participants?: RawParticipant[]; // Real participants data
     currentUserId?: string; // Current user ID to filter out
     onBack: () => void;
     /** Opens group info (groups) or the other person's profile (direct messages). */

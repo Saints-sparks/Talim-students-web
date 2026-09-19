@@ -7,14 +7,15 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import type { ReplyTarget } from "@/types/chat";
 import { Button } from "@/components/ui/button";
 
 interface MessageOptionsDropdownProps {
   index: number;
-  msg: any;
+  msg: ReplyTarget;
   openSubMenu: { index: number; type: string } | null;
   toggleSubMenu: (index: number, type: string) => void;
-  setReplyingMessage: (msg: any) => void;
+  setReplyingMessage: (msg: ReplyTarget | null) => void;
 }
 
 export default function MessageOptionsDropdown({
