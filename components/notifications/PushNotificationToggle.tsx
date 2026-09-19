@@ -10,32 +10,31 @@ export function PushNotificationToggle() {
     return (
       <div className="flex items-center justify-between py-3">
         <div>
-          <p className="text-sm font-medium text-gray-900">Browser Notifications</p>
-          <p className="text-xs text-gray-400 mt-0.5">Not supported in this browser</p>
+          <p className="text-sm font-medium text-gray-900 dark:text-slate-200">Browser Notifications</p>
+          <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">Not supported in this browser</p>
         </div>
-        <span className="text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">Unavailable</span>
+        <span className="text-xs text-gray-500 bg-gray-100 dark:bg-slate-700 dark:text-slate-300 px-2 py-1 rounded">Unavailable</span>
       </div>
     );
   }
 
   if (permission === "denied") {
     return (
-      <div className="flex items-center justify-between py-3">
-        <div>
-          <p className="text-sm font-medium text-gray-900">Browser Notifications</p>
-          <p className="text-xs text-gray-400 mt-0.5">
-            Blocked by browser —{" "}
-            <a
-              href="https://support.google.com/chrome/answer/3220216"
-              target="_blank"
-              rel="noopener noreferrer"
-              className="text-blue-500 underline"
-            >
-              how to enable
-            </a>
-          </p>
+      <div className="py-3" role="status">
+        <div className="flex items-center justify-between gap-4">
+          <p className="text-sm font-medium text-gray-900 dark:text-slate-200">Browser Notifications</p>
+          <span className="flex-shrink-0 rounded bg-gray-100 px-2 py-1 text-xs text-gray-600 dark:bg-slate-700 dark:text-slate-300">
+            Off in this browser
+          </span>
         </div>
-        <span className="text-xs text-red-500 bg-red-50 px-2 py-1 rounded">Blocked</span>
+        <p className="mt-1 text-xs text-gray-600 dark:text-slate-400">
+          Your browser is set not to show Talim alerts, so you will not see pop-up notifications while Talim is closed
+          or in the background. Notifications inside Talim keep working as usual.
+        </p>
+        <p className="mt-1 text-xs text-gray-600 dark:text-slate-400">
+          To turn them back on, open this site&apos;s settings from your browser&apos;s address bar (usually the icon
+          beside the web address), set Notifications to Allow, and reload the page.
+        </p>
       </div>
     );
   }
@@ -55,13 +54,13 @@ export function PushNotificationToggle() {
   return (
     <div className="flex items-center justify-between py-3">
       <div className="flex-1 min-w-0 pr-4">
-        <p className="text-sm font-medium text-gray-900">Browser Notifications</p>
-        <p className="text-xs text-gray-500 mt-0.5">
+        <p className="text-sm font-medium text-gray-900 dark:text-slate-200">Browser Notifications</p>
+        <p className="text-xs text-gray-500 dark:text-slate-400 mt-0.5">
           {isSubscribed
             ? "Receiving grade results, assessment reminders, and school announcements in this browser."
             : "Get notified about grades, assessments, and announcements even when the tab is closed."}
         </p>
-        {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+        {error && <p className="text-xs text-red-500 dark:text-red-300 mt-1" role="alert">{error}</p>}
       </div>
 
       <button
@@ -70,7 +69,7 @@ export function PushNotificationToggle() {
         disabled={isLoading}
         aria-label={isSubscribed ? "Disable browser notifications" : "Enable browser notifications"}
         className={`relative inline-flex h-6 w-11 flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed ${
-          isSubscribed ? "bg-blue-600" : "bg-gray-200"
+          isSubscribed ? "bg-blue-600" : "bg-gray-200 dark:bg-slate-600"
         }`}
       >
         <span

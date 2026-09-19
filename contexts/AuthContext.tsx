@@ -7,6 +7,7 @@ import { destroyCookie, parseCookies, setCookie } from "nookies";
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
 import { unsubscribeBrowserPush } from "@/lib/webPush";
+import { startWebPushSync } from "@/lib/webPushSync";
 import { sessionStore } from "@/lib/session";
 import { logger } from "@/lib/logger";
 
@@ -47,6 +48,21 @@ const COOKIE_OPTIONS = {
   secure: process.env.NODE_ENV === "production",
   sameSite: "strict" as const,
 };
+
+/**
+ * The user id left in storage by the session that just ended, for cleanup
+ * that runs after the in-memory session is gone.
+ *
+ * @returns The stored user's id, or `null`.
+ */
+function storedUserId(): string | null {
+  try {
+    const stored = JSON.parse(localStorage.getItem("user") || "null") as { userId?: string; id?: string } | null;
+    return stored?.userId || stored?.id || null;
+  } catch {
+    return null;
+  }
+}
 
 /**
  * Provides the session to the app and keeps `sessionStore` in step with it.
@@ -144,6 +160,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     router.push("/");
   }, [router, setAuthState, user?.id, user?.userId]);
 
+  // Keep the backend's push subscription in step with the browser (heals a
+  // lost row, follows a rotated endpoint, clears a revoked permission).
+  const syncUserId = user?.userId || user?.id || null;
+  useEffect(() => {
+    if (!syncUserId) return undefined;
+    return startWebPushSync(syncUserId);
+  }, [syncUserId]);
+
   useEffect(() => {
     void checkAuth();
 
@@ -163,8 +187,9 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
     const handleRefreshFailure = () => {
       // Session expired: no token left for the server call, but the browser
-      // subscription is still removed so nobody else gets these pushes.
-      void unsubscribeBrowserPush(null);
+      // subscription and this user's flag are still removed so nobody else
+      // gets these pushes.
+      void unsubscribeBrowserPush(null, storedUserId());
       setAuthState(null, null);
       router.push("/signin");
     };
