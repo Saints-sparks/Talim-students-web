@@ -27,6 +27,12 @@ Rules for the kit:
 | `useVoiceRecorder.ts` | `useVoiceRecorder`, `VOICE_*_ERROR` messages |
 | `ComposerAttachments.tsx` | `ComposerAttachments` |
 | `useAttachmentUpload.ts` | `useAttachmentUpload(uploadFn)`, `uploadAttachments(items, uploadFn, options)`, `toSendableAttachment` |
+| `linkify.ts` | `linkify(text)` → `{type:'text'|'link', text, href?}[]`; pure, the mobile app carries a copy |
+| `Linkified.tsx` | `Linkified` — message text with tappable links (`rel="noopener noreferrer"`) |
+| `clipboard.ts` | `copyText(text)` → `Promise<boolean>` (Clipboard API, textarea fallback) |
+| `ReplyQuote.tsx` | `ReplyBar` (above the composer), `QuotedMessage` (inside the bubble); types `ChatReplyTo`, `ReplyDraft` |
+| `ComposerTextarea.tsx` | `ComposerTextarea` (auto-growing message box), `shouldSubmitOnEnter`, `primaryPointerIsTouch` |
+| `MessageMenu.tsx` | `MessageMenu` — Reply / Copy text / Download / Delete for one message |
 | `index.ts` | everything above |
 | `__tests__/` | jest tests (copy only into apps that run jest) |
 
@@ -83,3 +89,31 @@ const { upload, isUploading, progress } = useAttachmentUpload(uploadFn);
   `@next/next/no-img-element` warnings for these tags; the kit carries no
   rule-specific disable comments because the apps' lint setups differ (a disable
   for a rule an app doesn't load is itself a lint error).
+
+### Text, replies, composer and message menu
+
+```tsx
+<Linkified text={message.text} tone={isMe ? "inverted" : "default"} />   // inside a whitespace-pre-wrap <p>
+
+{message.replyTo && <QuotedMessage replyTo={message.replyTo} tone=... onJump={loaded ? scrollTo : undefined} />}
+{reply && <ReplyBar reply={{ messageId, senderName, preview }} onCancel={() => setReply(null)} />}
+
+<ComposerTextarea value={text} onValueChange={setText} onSubmit={send} placeholder="Type a message" />
+// Enter sends with a mouse; on a touch screen Enter is a new line and the Send button sends.
+
+<MessageMenu
+  messageId={message._id}
+  text={message.text}
+  attachments={message.attachments}
+  onReply={() => setReply(...)}
+  onDelete={mine || canModerate ? () => deleteMessage(message._id) : undefined}  // omit = no Delete item
+  onNotify={toast}
+  className="absolute right-1 top-1"
+/>
+// The bubble (or a wrapper) needs the Tailwind `group` class: on devices with hover the trigger
+// appears on hover; on touch it is always visible. Render it only on stored messages — not on
+// pending/failed/deleted ones. It renders nothing when no action applies.
+```
+
+Sending a reply: put `replyToId` (the quoted message's `_id`) in the `send-chat-message`
+payload and clear the reply once the bubble exists. The server returns the quote as `message.replyTo`.
