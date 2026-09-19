@@ -284,12 +284,6 @@ export interface ChatParticipantsChangedEvent {
 /** Tick state of one of my own messages. */
 export type OwnMessageTick = "pending" | "failed" | "sent" | "read";
 
-/** What "Reply" hands upward: who said it and what they said (a voice note has no text). */
-export interface ReplyTarget {
-  sender: string;
-  text?: string;
-}
-
 /** A page of messages, from `chat-room-joined`, `messages-update` or a paged fetch. */
 export interface ChatMessagesPage {
   roomId?: string;
