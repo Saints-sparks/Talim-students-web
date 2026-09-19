@@ -7,7 +7,7 @@ import nextPlugin from "@next/eslint-plugin-next";
 
 export default [
   {
-    ignores: ["node_modules/", ".next/", "coverage/", "public/", "*.config.*", "next-env.d.ts"],
+    ignores: ["node_modules/", ".next/", "coverage/", "public/", "*.config.*", "next-env.d.ts", "types/api.d.ts"],
   },
   {
     files: ["**/*.ts", "**/*.tsx"],
