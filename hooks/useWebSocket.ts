@@ -92,10 +92,8 @@ export const useWebSocket = (): WebSocketContextType => {
 
       // The server authenticates the socket with the access token. The callback runs
       // on every connect and reconnect, so a refreshed token is always used.
-      // `query.userId` is the legacy fallback the server still accepts; harmless to keep.
       const next = io(WEBSOCKET_URL, {
         auth: (cb) => cb({ token: localStorage.getItem("accessToken") }),
-        query: { userId },
         transports: ["websocket", "polling"],
         // Our own manager per signed-in user, never a cached one from a previous session.
         forceNew: true,
