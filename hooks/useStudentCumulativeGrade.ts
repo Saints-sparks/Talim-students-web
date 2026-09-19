@@ -15,7 +15,8 @@ export type { StudentCumulativeGrade };
  * the term yet, and nulls `position` until positions are published, so both
  * are normal states rather than failures.
  *
- * @returns The record (or `null`) with its query state.
+ * @returns The record (or `null`) with its query state. `errorCause` is the
+ * thrown value, for branching on `error.code`.
  */
 export const useStudentCumulativeGrade = () => {
   const { termId, isReady } = useStudentIdentity();
@@ -33,10 +34,12 @@ export const useStudentCumulativeGrade = () => {
   return {
     cumulativeGrade: query.data ?? null,
     isLoading: query.isPending && query.fetchStatus !== "idle",
+    isFetching: query.isFetching,
     error:
       query.error && !isMissing
         ? getErrorMessage(query.error, "We couldn't load your term result.")
         : null,
+    errorCause: query.error && !isMissing ? query.error : null,
     refetch: () => {
       void query.refetch();
     },

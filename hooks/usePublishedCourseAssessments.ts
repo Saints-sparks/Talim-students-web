@@ -14,7 +14,8 @@ export type { PublishedAssessmentResult };
  *
  * @param courseId - The course to read, or `null` while none is selected.
  * @param termId - The term to read.
- * @returns The results with their query state.
+ * @returns The results with their query state. `errorCause` is the thrown
+ * value, for branching on `error.code`.
  */
 export const usePublishedCourseAssessments = (courseId: string | null, termId?: string | null) => {
   const query = useQuery({
@@ -27,7 +28,9 @@ export const usePublishedCourseAssessments = (courseId: string | null, termId?: 
   return {
     assessments: query.data ?? [],
     isLoading: query.isPending && query.fetchStatus !== "idle",
+    isFetching: query.isFetching,
     error: query.error ? getErrorMessage(query.error, "We couldn't load these results.") : null,
+    errorCause: query.error ?? null,
     refetch: () => {
       void query.refetch();
     },

@@ -13,7 +13,8 @@ export type { PublishedCourse };
  * many results have been published for each. The route resolves the student
  * from the JWT, so no id is sent.
  *
- * @returns The courses, the term they cover, and the query state.
+ * @returns The courses, the term they cover, and the query state. `errorCause`
+ * is the thrown value, for branching on `error.code`.
  */
 export const usePublishedGradeCourses = () => {
   const { termId, isReady } = useStudentIdentity();
@@ -28,7 +29,9 @@ export const usePublishedGradeCourses = () => {
   return {
     courses: query.data ?? null,
     isLoading: query.isPending && query.fetchStatus !== "idle",
+    isFetching: query.isFetching,
     error: query.error ? getErrorMessage(query.error, "We couldn't load your subjects.") : null,
+    errorCause: query.error ?? null,
     refetch: () => {
       void query.refetch();
     },
