@@ -16,23 +16,13 @@ import { toast } from "@/components/CustomToast";
 import { authFetch } from "@/lib/authFetch";
 import { API_BASE_URL } from "@/lib/constants";
 import { chatService } from "@/services/chat.service";
-import type { ConnectionStatus } from "@/hooks/useWebSocket";
 import {
-  MAX_FILES_PER_MESSAGE,
-  TOO_MANY_FILES_MESSAGE,
-  fileKind,
-  messageTypeFor,
   useAttachmentUpload,
-  validateFile,
-  type AttachmentKind,
   type ChatUploadFn,
-  type ReplyDraft,
   type SendableAttachment,
-  type UploadItem,
 } from "@/components/chat-kit";
 import type {
   ChatAck,
-  ChatAttachment,
   ChatMessage,
   ChatParticipantsChangedEvent,
   ChatReadEvent,
@@ -45,140 +35,84 @@ import type {
   ChatRoomsUpdate,
   ChatServerError,
   RawChatMessage,
-  RawChatRoom,
 } from "@/types/chat";
 import {
   applyMessageDeleted,
   applyMessageDeletedToRooms,
   applyMessagesRead,
-  applyParticipants,
-  applyRoomDetails,
   isSameUser,
-  laterTime,
   mergeMessages,
   needsReadMark,
-  newClientMessageId,
   newestReadableMessage,
   newestServerMessageId,
   normalizeMessage,
   participantId,
-  sortRooms,
-  toRealtimeRoom,
 } from "@/lib/chat";
+import {
+  BACKFILL_MAX_PAGES,
+  BACKFILL_PAGE_SIZE,
+  JOIN_TIMEOUT,
+  PAGE_SIZE,
+  SEND_TIMEOUT,
+} from "@/contexts/chat/constants";
+import {
+  buildRoomList,
+  clearUnread,
+  totalUnreadOf,
+  userIdsOf,
+  withActivity,
+  withJoinedRoom,
+  withParticipants,
+  withReadAt,
+  withRoomDetails,
+  withRoomRead,
+} from "@/contexts/chat/listReducers";
+import {
+  buildOutgoing,
+  buildSendPayload,
+  discardAllEntries,
+  discardEntry,
+  discardRoomEntries,
+  storedFromAck,
+} from "@/contexts/chat/outbox";
+import {
+  emptyRoomState,
+  failMessage,
+  isVisible,
+  joinFailurePatch,
+  joinedPatch,
+  leavePatch,
+  localIdOf,
+  pagePatch,
+  participantsPatch,
+  retryingMessage,
+  roomUpdatePatch,
+  withUploadProgress,
+  withoutMessage,
+} from "@/contexts/chat/roomReducers";
+import type {
+  ChatContextValue,
+  OutboxEntry,
+  OutgoingMedia,
+  RoomRemovalReason,
+  RoomRemovedListener,
+} from "@/contexts/chat/types";
+import { JOIN_FAILED_MESSAGE } from "@/contexts/chat/constants";
 
-const JOIN_TIMEOUT = 10000;
-const SEND_TIMEOUT = 10000;
-const PAGE_SIZE = 20;
-const BACKFILL_PAGE_SIZE = 100;
-const BACKFILL_MAX_PAGES = 10;
-
-export const JOIN_FAILED_MESSAGE = "Couldn't load this chat";
-
-/** Files or a voice note sent with a message; the text becomes their caption. */
-export interface OutgoingMedia {
-  files?: File[];
-  voice?: { file: File; duration: number };
-  /** The message being replied to. */
-  replyTo?: ReplyDraft;
-}
-
-/** A media message waiting to upload and send. */
-interface OutboxEntry {
-  roomId: string;
-  type: ChatMessage["type"];
-  /** Voice note length, seconds. */
-  duration?: number;
-  /** Each file keeps its uploaded attachment, so a retry only uploads what failed. */
-  items: UploadItem[];
-  /** Object URLs of the pending bubble's previews, revoked when sent or deleted. */
-  previewUrls: string[];
-}
+export { JOIN_FAILED_MESSAGE, emptyRoomState };
+export type { ChatContextValue, OutgoingMedia, RoomRemovalReason, RoomRemovedListener };
 
 /** The app's upload helper in the shape the chat kit expects. */
 const uploadChatFile: ChatUploadFn = (file, onProgress) =>
   chatService.uploadChatAttachment(file, onProgress);
 
-/** Why a room left my list: I left it, or someone removed me. */
-export type RoomRemovalReason = "left" | "removed";
-export type RoomRemovedListener = (roomId: string, reason: RoomRemovalReason) => void;
-
-export interface ChatContextValue {
-  // Chat list
-  chatRooms: RealtimeChatRoom[];
-  isLoading: boolean;
-  isConnected: boolean;
-  connectionStatus: ConnectionStatus;
-  error: string | null;
-  /** Total unread messages across all rooms, as reported by the server. */
-  totalUnread: number;
-  refreshChatRooms: () => void;
-  currentUserIds: string[];
-
-  // Room selection — a room is joined only while it is open on screen
-  selectedRoomId: string | null;
-  selectRoom: (roomId: string) => void;
-  unselectRoom: () => void;
-  retryJoin: (roomId: string) => void;
-
-  // Per-room message stores
-  roomStates: Record<string, RoomState>;
-  loadOlderMessages: (roomId: string) => void;
-  /** Sends text, or files / a voice note with the text as caption. */
-  sendMessage: (roomId: string, text: string, media?: OutgoingMedia) => void;
-  retryMessage: (roomId: string, clientMessageId: string) => void;
-  deleteFailedMessage: (roomId: string, clientMessageId: string) => void;
-  /** Deletes a stored message (mine, or any if I can manage the room). Rejects with the server's message. */
-  deleteStoredMessage: (roomId: string, messageId: string) => Promise<void>;
-
-  // Drafts survive switching rooms
-  getDraft: (roomId: string) => string;
-  setDraft: (roomId: string, text: string) => void;
-
-  // Membership
-  /** Leaves a group (removes me). Resolves with the server's message on failure. */
-  leaveGroup: (roomId: string) => Promise<{ ok: boolean; message?: string }>;
-  /** Called when a room is dropped because I left or was removed (e.g. to navigate away). */
-  onRoomRemoved: (listener: RoomRemovedListener) => () => void;
-}
-
 const ChatContext = createContext<ChatContextValue | null>(null);
-
-const emptyRoomState = (roomId: string): RoomState => ({
-  roomId,
-  messages: [],
-  status: "idle",
-  error: null,
-  hasMore: false,
-  nextCursor: undefined,
-  isLoadingMore: false,
-  loadMoreError: null,
-  roomName: "",
-  roomType: undefined,
-  participants: [],
-  description: "",
-  avatarUrl: "",
-});
-
-/** The chat is actually being looked at: tab visible and window focused. */
-const isVisible = () =>
-  typeof document === "undefined" ||
-  (document.visibilityState === "visible" && document.hasFocus());
 
 export function ChatProvider({ children }: { children: ReactNode }) {
   const { user } = useAuthContext();
   const { socket, isConnected, connectionStatus, emitWithAck } = useWebSocketContext();
 
-  const currentUserIds = useMemo(
-    () =>
-      Array.from(
-        new Set(
-          [user?.userId, user?.id, typeof user?._id === "string" ? user._id : undefined]
-            .filter(Boolean)
-            .map(String)
-        )
-      ),
-    [user]
-  );
+  const currentUserIds = useMemo(() => userIdsOf(user), [user]);
   const primaryUserId = currentUserIds[0] || null;
 
   const [chatRooms, setChatRoomsState] = useState<RealtimeChatRoom[]>([]);
@@ -261,11 +195,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const room = roomStatesRef.current[roomId];
       if (!socketRef.current?.connected || !room || room.status !== "ready") return;
 
-      setChatRooms((rooms) =>
-        rooms.some((r) => r.roomId === roomId && r.unreadCount > 0)
-          ? rooms.map((r) => (r.roomId === roomId ? { ...r, unreadCount: 0 } : r))
-          : rooms
-      );
+      setChatRooms((rooms) => clearUnread(rooms, roomId));
 
       const ids = userIdsRef.current;
       const candidate = newestReadableMessage(room.messages, ids);
@@ -277,11 +207,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       emitWithAck("mark-room-read", { roomId, upToMessageId: candidate._id }).then((ack) => {
         if (ack.ok) {
           const readAt = typeof ack.readAt === "string" ? ack.readAt : candidate.createdAt;
-          setChatRooms((rooms) =>
-            rooms.map((r) =>
-              r.roomId === roomId ? { ...r, lastReadAt: laterTime(r.lastReadAt, readAt) } : r
-            )
-          );
+          setChatRooms((rooms) => withReadAt(rooms, roomId, readAt));
           return;
         }
         // Let the next trigger (new message, focus, reconnect) try again.
@@ -302,13 +228,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (failure?.code === "UNAUTHENTICATED") return;
       if (selectedRef.current !== roomId) return;
       clearJoinTimer(roomId);
-      patchRoom(roomId, {
-        status: "error",
-        error:
-          failure?.code === "NOT_FOUND"
-            ? "This chat isn't available to you."
-            : JOIN_FAILED_MESSAGE,
-      });
+      patchRoom(roomId, joinFailurePatch(failure?.code));
     },
     [clearJoinTimer, patchRoom]
   );
@@ -345,10 +265,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (socketRef.current?.connected) {
         socketRef.current.emit("leave-chat-room", { roomId });
       }
-      patchRoom(roomId, (room) => ({
-        status: room.status === "ready" ? "ready" : "idle",
-        isLoadingMore: false,
-      }));
+      patchRoom(roomId, leavePatch);
     },
     [clearJoinTimer, patchRoom]
   );
@@ -403,11 +320,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       setChatRooms((rooms) => rooms.filter((r) => r.roomId !== roomId));
       draftsRef.current.delete(roomId);
       lastReadSentRef.current.delete(roomId);
-      outboxRef.current.forEach((entry, clientMessageId) => {
-        if (entry.roomId !== roomId || inflightSendsRef.current.has(clientMessageId)) return;
-        entry.previewUrls.forEach((url) => URL.revokeObjectURL(url));
-        outboxRef.current.delete(clientMessageId);
-      });
+      discardRoomEntries(outboxRef.current, roomId, inflightSendsRef.current);
 
       const name = listRoom?.displayName || state?.roomName || "the group";
       if (reason === "left") toast.info(`You left ${name}`);
@@ -491,17 +404,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!roomId || roomId !== selectedRef.current) return;
       const incoming: ChatMessage[] = (page.messages || []).map(normalizeMessage);
 
-      patchRoom(roomId, (room) => ({
-        messages: mergeMessages(room.messages, incoming),
-        ...(page.direction === "after"
-          ? {}
-          : {
-              hasMore: Boolean(page.hasMore),
-              nextCursor: page.nextCursor ?? (page.hasMore ? room.nextCursor : undefined),
-              isLoadingMore: false,
-              loadMoreError: null,
-            }),
-      }));
+      patchRoom(roomId, (room) => pagePatch(room, page, incoming));
       markVisibleAsRead(roomId);
     },
     [markVisibleAsRead, patchRoom]
@@ -555,15 +458,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   /** Frees a media message's local previews and forgets its files. */
   const discardOutboxEntry = useCallback((clientMessageId: string) => {
-    const entry = outboxRef.current.get(clientMessageId);
-    if (!entry) return;
-    entry.previewUrls.forEach((url) => URL.revokeObjectURL(url));
-    outboxRef.current.delete(clientMessageId);
+    discardEntry(outboxRef.current, clientMessageId);
   }, []);
 
   const markFailed = useCallback(
     (roomId: string, clientMessageId: string, message?: string) => {
-      const localId = `local:${clientMessageId}`;
+      const localId = localIdOf(clientMessageId);
       const room = roomStatesRef.current[roomId];
       if (!room?.messages.some((m) => m._id === localId)) {
         // The bubble is gone (stored copy arrived, deleted, room dropped).
@@ -571,9 +471,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return;
       }
       patchRoom(roomId, (current) => ({
-        messages: current.messages.map((m) =>
-          m._id === localId ? { ...m, status: "failed", error: message || "Not sent" } : m
-        ),
+        messages: failMessage(current.messages, localId, message),
       }));
     },
     [discardOutboxEntry, patchRoom]
@@ -582,17 +480,12 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   /** Upload progress (0–1) of one file on a pending bubble. */
   const setUploadProgress = useCallback(
     (roomId: string, clientMessageId: string, index: number, fraction: number) => {
-      const localId = `local:${clientMessageId}`;
+      const localId = localIdOf(clientMessageId);
       const room = roomStatesRef.current[roomId];
       const message = room?.messages.find((m) => m._id === localId);
       if (!message || message.uploadProgress?.[index] === fraction) return;
       patchRoom(roomId, (current) => ({
-        messages: current.messages.map((m) => {
-          if (m._id !== localId) return m;
-          const progress = [...(m.uploadProgress ?? [])];
-          progress[index] = fraction;
-          return { ...m, uploadProgress: progress };
-        }),
+        messages: withUploadProgress(current.messages, localId, index, fraction),
       }));
     },
     [patchRoom]
@@ -605,7 +498,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       if (!socketRef.current?.connected || inflightSendsRef.current.has(clientMessageId)) return;
 
       const pending = roomStatesRef.current[roomId]?.messages.find(
-        (m) => m._id === `local:${clientMessageId}`
+        (m) => m._id === localIdOf(clientMessageId)
       );
       if (!pending) return;
       const entry = outboxRef.current.get(clientMessageId);
@@ -636,17 +529,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
         return;
       }
 
-      const payload = {
-        roomId,
-        text: pending.text,
-        type: entry ? entry.type : "text",
-        clientMessageId,
-        ...(attachments.length ? { attachments } : {}),
-        ...(pending.replyTo ? { replyToId: pending.replyTo.messageId } : {}),
-        ...(entry?.type === "voice" && entry.duration !== undefined
-          ? { duration: entry.duration }
-          : {}),
-      };
+      const payload = buildSendPayload(roomId, clientMessageId, pending, entry, attachments);
 
       current
         .timeout(SEND_TIMEOUT)
@@ -661,13 +544,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
             return;
           }
           if (ack.message) {
-            const saved = normalizeMessage({
-              ...ack.message,
-              clientMessageId:
-                typeof ack.message.clientMessageId === "string" && ack.message.clientMessageId
-                  ? ack.message.clientMessageId
-                  : clientMessageId,
-            });
+            const saved = storedFromAck(ack.message, clientMessageId);
             if (roomStatesRef.current[roomId]) {
               patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [saved]) }));
             }
@@ -680,73 +557,20 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const sendMessage = useCallback(
     (roomId: string, text: string, media: OutgoingMedia = {}) => {
-      const trimmed = text.trim();
-      const files = media.voice ? [media.voice.file] : media.files ?? [];
-      if (!roomId || (!trimmed && files.length === 0)) return;
-      if (files.length > MAX_FILES_PER_MESSAGE) {
-        toast.error(TOO_MANY_FILES_MESSAGE);
-        return;
-      }
-      const invalid = media.voice ? null : files.map(validateFile).find(Boolean);
-      if (invalid) {
-        toast.error(invalid);
-        return;
-      }
-
-      const clientMessageId = newClientMessageId();
-      const kinds: AttachmentKind[] = files.map((file) => (media.voice ? "audio" : fileKind(file)));
-      const type = messageTypeFor(kinds, Boolean(media.voice));
-      const duration = media.voice?.duration;
-      const previewUrls: string[] = [];
-
-      // The pending bubble shows local previews until the stored copy replaces it.
-      const attachments: ChatAttachment[] = files.map((file, index) => {
-        const kind = kinds[index];
-        let url = "";
-        if (kind === "image" || kind === "video" || kind === "audio") {
-          url = URL.createObjectURL(file);
-          previewUrls.push(url);
-        }
-        return {
-          url,
-          type: kind,
-          name: file.name,
-          mimeType: file.type,
-          size: file.size,
-          ...(kind === "audio" && duration !== undefined ? { duration } : {}),
-        };
-      });
-
-      if (files.length) {
-        outboxRef.current.set(clientMessageId, {
-          roomId,
-          type,
-          duration,
-          items: files.map((file, index) => ({ file, kind: kinds[index], duration })),
-          previewUrls,
-        });
-      }
-
       const me = userRef.current;
-      const pending: ChatMessage = {
-        _id: `local:${clientMessageId}`,
-        roomId,
-        clientMessageId,
-        senderId: userIdsRef.current[0] || "",
-        senderName: `${me?.firstName || ""} ${me?.lastName || ""}`.trim(),
-        senderAvatar: me?.userAvatar || "",
-        text: trimmed,
-        type,
-        attachments,
-        duration,
-        readBy: [],
-        createdAt: new Date().toISOString(),
-        status: "pending",
-        uploadProgress: files.length ? files.map(() => 0) : undefined,
-        replyTo: media.replyTo
-          ? { messageId: media.replyTo.messageId, senderName: media.replyTo.senderName, preview: media.replyTo.preview }
-          : undefined,
-      };
+      const outgoing = buildOutgoing(roomId, text, media, {
+        userId: userIdsRef.current[0] || "",
+        firstName: me?.firstName,
+        lastName: me?.lastName,
+        avatar: me?.userAvatar,
+      });
+      if (!outgoing) return;
+      if ("error" in outgoing) {
+        toast.error(outgoing.error);
+        return;
+      }
+      const { clientMessageId, pending, entry } = outgoing;
+      if (entry) outboxRef.current.set(clientMessageId, entry);
       patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [pending]) }));
       void emitSend(roomId, clientMessageId);
     },
@@ -755,11 +579,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
 
   const retryMessage = useCallback(
     (roomId: string, clientMessageId: string) => {
-      const localId = `local:${clientMessageId}`;
+      const localId = localIdOf(clientMessageId);
       patchRoom(roomId, (room) => ({
-        messages: room.messages.map((m) =>
-          m._id === localId ? { ...m, status: "pending", error: undefined } : m
-        ),
+        messages: retryingMessage(room.messages, localId),
       }));
       // Files that already uploaded keep their attachment and are skipped.
       void emitSend(roomId, clientMessageId);
@@ -770,9 +592,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
   const deleteFailedMessage = useCallback(
     (roomId: string, clientMessageId: string) => {
       if (inflightSendsRef.current.has(clientMessageId)) return;
-      const localId = `local:${clientMessageId}`;
+      const localId = localIdOf(clientMessageId);
       patchRoom(roomId, (room) => ({
-        messages: room.messages.filter((m) => m._id !== localId),
+        messages: withoutMessage(room.messages, localId),
       }));
       discardOutboxEntry(clientMessageId);
     },
@@ -821,27 +643,11 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const newestKnown = newestServerMessageId(before.messages);
       const isFirstLoad = !newestKnown;
 
-      patchRoom(roomId, (room) => ({
-        status: "ready",
-        error: null,
-        messages: mergeMessages(room.messages, incoming),
-        hasMore: isFirstLoad ? Boolean(data.hasMore) : room.hasMore,
-        nextCursor: isFirstLoad ? data.nextCursor : room.nextCursor ?? data.nextCursor,
-        roomName: data.roomName || data.room?.name || room.roomName,
-        roomType: data.roomType || data.room?.type || room.roomType,
-        participants:
-          (data.room?.participants?.length ? data.room.participants : data.participants) ||
-          room.participants,
-        description: data.room ? String(data.room.description || "") : room.description,
-        avatarUrl: data.room ? String(data.room.avatarUrl || "") : room.avatarUrl,
-        createdBy: data.room?.createdBy ? String(data.room.createdBy) : room.createdBy,
-      }));
+      patchRoom(roomId, (room) => joinedPatch(room, data, incoming, isFirstLoad));
 
       const joinedRoom = data.room;
       if (joinedRoom && !chatRoomsRef.current.some((r) => r.roomId === roomId)) {
-        setChatRooms((rooms) =>
-          sortRooms([...rooms, toRealtimeRoom(joinedRoom, userIdsRef.current)])
-        );
+        setChatRooms((rooms) => withJoinedRoom(rooms, joinedRoom, userIdsRef.current));
       }
 
       // Messages that arrived while we were away and aren't in this first page.
@@ -873,25 +679,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       const mine = isSameUser(lastMessage.senderId, userIdsRef.current);
       const isOpen = selectedRef.current === roomId && isVisible();
       setChatRooms((rooms) =>
-        sortRooms(
-          rooms.map((room) =>
-            room.roomId === roomId
-              ? {
-                  ...room,
-                  lastMessage: {
-                    _id: lastMessage._id,
-                    content: lastMessage.preview || "",
-                    senderId: lastMessage.senderId,
-                    senderName: lastMessage.senderName,
-                    timestamp: lastMessage.createdAt,
-                    type: lastMessage.type,
-                  },
-                  updatedAt: lastMessage.createdAt || room.updatedAt,
-                  unreadCount: mine || isOpen ? room.unreadCount : room.unreadCount + 1,
-                }
-              : room
-          )
-        )
+        withActivity(rooms, { roomId, lastMessage }, mine, isOpen)
       );
     };
 
@@ -904,15 +692,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       const open = isVisible() ? selectedRef.current : null;
       const rooms = data.rooms;
-      setChatRooms(() =>
-        sortRooms(
-          rooms.map((room: RawChatRoom) => {
-            const item = toRealtimeRoom(room, userIdsRef.current);
-            // The open chat is being marked read right now.
-            return item.roomId === open ? { ...item, unreadCount: 0 } : item;
-          })
-        )
-      );
+      setChatRooms(() => buildRoomList(rooms, userIdsRef.current, open));
       setIsLoading(false);
       setError(null);
     };
@@ -948,35 +728,15 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     const onRoomRead = (data: ChatReadEvent) => {
       const roomId = String(data?.roomId || "");
       if (!roomId || !data?.readAt) return;
-      const readTime = new Date(data.readAt).getTime();
-      setChatRooms((rooms) =>
-        rooms.map((room) => {
-          if (room.roomId !== roomId) return room;
-          const lastTime = new Date(room.lastMessage?.timestamp || 0).getTime();
-          // A message newer than the read position keeps the badge.
-          const covered = Number.isNaN(readTime) || Number.isNaN(lastTime) || lastTime <= readTime;
-          return {
-            ...room,
-            lastReadAt: laterTime(room.lastReadAt, data.readAt),
-            unreadCount: covered ? 0 : room.unreadCount,
-          };
-        })
-      );
+      setChatRooms((rooms) => withRoomRead(rooms, roomId, data));
     };
 
     const onRoomUpdated = (data: ChatRoomUpdatedEvent) => {
       const roomId = String(data?.roomId || "");
       if (!roomId) return;
-      setChatRooms((rooms) =>
-        rooms.map((room) => (room.roomId === roomId ? applyRoomDetails(room, data) : room))
-      );
+      setChatRooms((rooms) => withRoomDetails(rooms, roomId, data));
       if (roomStatesRef.current[roomId]) {
-        patchRoom(roomId, (room) => ({
-          roomName: data.name || room.roomName,
-          description:
-            data.description === undefined ? room.description : String(data.description || ""),
-          avatarUrl: data.avatarUrl === undefined ? room.avatarUrl : String(data.avatarUrl || ""),
-        }));
+        patchRoom(roomId, (room) => roomUpdatePatch(room, data));
       }
     };
 
@@ -994,12 +754,8 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       }
       if (!Array.isArray(data.participants)) return;
       const participants = data.participants;
-      setChatRooms((rooms) =>
-        rooms.map((room) =>
-          room.roomId === roomId ? applyParticipants(room, participants, ids) : room
-        )
-      );
-      if (roomStatesRef.current[roomId]) patchRoom(roomId, { participants });
+      setChatRooms((rooms) => withParticipants(rooms, roomId, participants, ids));
+      if (roomStatesRef.current[roomId]) patchRoom(roomId, participantsPatch(participants));
     };
 
     const onServerError = (payload: ChatServerError | null | undefined) => {
@@ -1100,8 +856,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
       selectedRef.current = null;
       inflightSendsRef.current.clear();
       lastReadSentRef.current.clear();
-      outboxRef.current.forEach((entry) => entry.previewUrls.forEach((url) => URL.revokeObjectURL(url)));
-      outboxRef.current.clear();
+      discardAllEntries(outboxRef.current);
       draftsRef.current.clear();
       roomListInflightRef.current = false;
       setChatRoomsState([]);
@@ -1113,7 +868,7 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     };
   }, [primaryUserId]);
 
-  const unreadFromRooms = chatRooms.reduce((sum, room) => sum + (room.unreadCount || 0), 0);
+  const unreadFromRooms = totalUnreadOf(chatRooms);
 
   const value: ChatContextValue = {
     chatRooms,
@@ -1151,4 +906,3 @@ export function useChatContext(): ChatContextValue {
   return context;
 }
 
-export { emptyRoomState };
