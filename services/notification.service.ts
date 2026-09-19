@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import type { MarkAnnouncementReadBody, NotificationPreferencesBody } from "@/types/apiPayloads";
 
 /** Filters the notification list endpoint accepts. */
 export type NotificationQuery = {
@@ -65,28 +66,28 @@ export interface NotificationListResponse {
  * covers the `grading` category, `announcements` covers `announcement`, and
  * there is no switch for `academics`, `account` or `other`.
  */
-export interface NotificationPreferences {
-  pushEnabled?: boolean;
-  /** Browser push. Separate from `pushEnabled`, which is the phone switch. */
-  webPushEnabled?: boolean;
-  emailEnabled?: boolean;
-  messagesEnabled?: boolean;
-  announcementsEnabled?: boolean;
-  attendanceEnabled?: boolean;
-  feesEnabled?: boolean;
-  resultsEnabled?: boolean;
-  timetableEnabled?: boolean;
-  resourcesEnabled?: boolean;
-  securityEnabled?: boolean;
-  systemEnabled?: boolean;
-  quietHoursEnabled?: boolean;
-  /** 24-hour `HH:mm`; anything else is a 400. */
-  quietHoursStart?: string;
-  /** 24-hour `HH:mm`; anything else is a 400. */
-  quietHoursEnd?: string;
-  /** IANA zone, e.g. "Africa/Lagos". */
-  timezone?: string;
-}
+export type NotificationPreferences = Pick<
+  NotificationPreferencesBody,
+  // `webPushEnabled` is browser push, separate from `pushEnabled` (the phone switch).
+  // `quietHoursStart`/`End` are 24-hour `HH:mm`, and `timezone` an IANA zone
+  // such as "Africa/Lagos"; anything malformed is a 400.
+  | "pushEnabled"
+  | "webPushEnabled"
+  | "emailEnabled"
+  | "messagesEnabled"
+  | "announcementsEnabled"
+  | "attendanceEnabled"
+  | "feesEnabled"
+  | "resultsEnabled"
+  | "timetableEnabled"
+  | "resourcesEnabled"
+  | "securityEnabled"
+  | "systemEnabled"
+  | "quietHoursEnabled"
+  | "quietHoursStart"
+  | "quietHoursEnd"
+  | "timezone"
+>;
 
 /**
  * Serialises a filter object into a query string, dropping empty values.
@@ -137,13 +138,13 @@ export const notificationService = {
    * Marks one notification read for the signed-in student.
    *
    * @param accessToken - Bearer token; omit to use the stored session.
-   * @param notificationId - The notification to mark.
-   * @param userId - The reader's user-account id.
+   * @param notificationId - The notification to mark. The reader is always the
+   *   authenticated user, and the endpoint declares no body, so none is sent.
    * @returns Nothing useful; the server answers 200 or 204.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  markNotificationAsRead: (accessToken: string | undefined, notificationId: string, userId: string) =>
-    api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, { userId }, { accessToken }),
+  markNotificationAsRead: (accessToken: string | undefined, notificationId: string) =>
+    api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, undefined, { accessToken }),
 
   /**
    * Marks one announcement read for the signed-in student.
@@ -154,12 +155,10 @@ export const notificationService = {
    * @returns Nothing useful; the server answers 200 or 204.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  markAnnouncementAsRead: (accessToken: string | undefined, announcementId: string, userId: string) =>
-    api.put<unknown>(
-      `${API_ENDPOINTS.NOTIFICATIONS}/announcements/${announcementId}/read`,
-      { userId },
-      { accessToken }
-    ),
+  markAnnouncementAsRead: (accessToken: string | undefined, announcementId: string, userId: string) => {
+    const body: MarkAnnouncementReadBody = { userId };
+    return api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/announcements/${announcementId}/read`, body, { accessToken });
+  },
 
   /**
    * The signed-in student's notification preferences.

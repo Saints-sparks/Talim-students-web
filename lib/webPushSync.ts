@@ -16,6 +16,7 @@
  */
 import { API_BASE_URL } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import type { WebPushSubscribePayload, WebPushUnsubscribePayload } from "@/types/apiPayloads";
 import {
   CONFIG_URL,
   PENDING_URL,
@@ -123,7 +124,8 @@ async function subscribeBrowser(): Promise<{ subscription: PushSubscription; vap
  */
 async function registerSubscription(subscription: PushSubscription): Promise<string> {
   const { endpoint, keys } = subscription.toJSON() as { endpoint: string; keys: { p256dh: string; auth: string } };
-  await api.post(SUBSCRIBE_URL, { endpoint, keys, userAgent: navigator.userAgent });
+  const body: WebPushSubscribePayload = { endpoint, keys, userAgent: navigator.userAgent };
+  await api.post(SUBSCRIBE_URL, body);
   return endpoint;
 }
 
@@ -133,9 +135,10 @@ async function registerSubscription(subscription: PushSubscription): Promise<str
  * @param endpoint - The push endpoint.
  */
 async function forgetServerSubscription(endpoint: string): Promise<void> {
+  const body: WebPushUnsubscribePayload = { endpoint };
   await api.delete(SUBSCRIBE_URL, {
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ endpoint }),
+    body: JSON.stringify(body),
   });
 }
 

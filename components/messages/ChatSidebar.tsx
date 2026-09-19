@@ -20,6 +20,7 @@ import { getErrorMessage } from "@/lib/apiError";
 import { toast } from "@/components/CustomToast";
 import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import type { ChatContact } from "@/hooks/useChatContacts";
+import type { CreateChatRoomBody } from "@/types/apiPayloads";
 
 interface ChatSidebarProps {
   onSelectChat: (room: RealtimeChatRoom) => void;
@@ -47,10 +48,8 @@ export default function ChatSidebar({ onSelectChat, onOpenRoomId, className = ""
   const startDirectMessage = async (contact: ChatContact) => {
     if (!userId) throw new Error("Not signed in");
     try {
-      const room = await api.post<{ _id: string; reused?: boolean }>(`${API_BASE_URL}/chat/rooms`, {
-        type: "one_to_one",
-        participants: [userId, contact.userId],
-      });
+      const body: CreateChatRoomBody = { type: "one_to_one", participants: [userId, contact.userId] };
+      const room = await api.post<{ _id: string; reused?: boolean }>(`${API_BASE_URL}/chat/rooms`, body);
       refreshChatRooms();
       toast.success(room.reused ? "Opened your existing chat" : "Chat started");
       onOpenRoomId(room._id);

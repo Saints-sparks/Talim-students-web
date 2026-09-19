@@ -2,6 +2,7 @@
 // Browser push helpers shared by the settings toggle and sign-out.
 import { API_BASE_URL } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import type { NotificationPreferencesBody, WebPushUnsubscribePayload } from "@/types/apiPayloads";
 
 // Per-user so the next person on a shared browser never inherits the flag.
 const STORAGE_KEY_PREFIX = "talim:push-subscribed:";
@@ -129,7 +130,8 @@ export function forgetLocalFlags(userId?: string | null): void {
  */
 export async function syncWebPushPreference(enabled: boolean): Promise<void> {
   try {
-    await api.patch(`${API_BASE_URL}/notifications/preferences`, { webPushEnabled: enabled });
+    const body: Pick<NotificationPreferencesBody, "webPushEnabled"> = { webPushEnabled: enabled };
+    await api.patch(`${API_BASE_URL}/notifications/preferences`, body);
   } catch {
     // Non-fatal — subscription state is already persisted by the browser
   }
@@ -162,14 +164,15 @@ export async function unsubscribeBrowserPush(
       // The session is already cleared by now, so the token captured before
       // sign-out is passed explicitly instead of being read from the store.
       ...(accessToken
-        ? [...endpoints].map((endpoint) =>
-            api.delete(`${API_BASE_URL}/notifications/web-push/subscribe`, {
+        ? [...endpoints].map((endpoint) => {
+            const body: WebPushUnsubscribePayload = { endpoint };
+            return api.delete(`${API_BASE_URL}/notifications/web-push/subscribe`, {
               accessToken,
               retryOnUnauthorized: false,
               headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({ endpoint }),
-            }),
-          )
+              body: JSON.stringify(body),
+            });
+          })
         : []),
       subscription ? subscription.unsubscribe() : Promise.resolve(),
     ]);

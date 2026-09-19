@@ -104,7 +104,7 @@ export const useNotifications = () => {
         targets.map((target) =>
           target.endpoint === "announcement"
             ? notificationService.markAnnouncementAsRead(undefined, target.rawId, id)
-            : notificationService.markNotificationAsRead(undefined, target.rawId, id)
+            : notificationService.markNotificationAsRead(undefined, target.rawId)
         )
       );
     },
