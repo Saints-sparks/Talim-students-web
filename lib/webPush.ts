@@ -1,6 +1,7 @@
 // lib/webPush.ts
 // Browser push helpers shared by the settings toggle and sign-out.
 import { API_BASE_URL } from "@/lib/constants";
+import { api } from "@/lib/authFetch";
 
 // Per-user so the next person on a shared browser never inherits the flag.
 const STORAGE_KEY_PREFIX = "talim:push-subscribed:";
@@ -8,12 +9,18 @@ export const LEGACY_STORAGE_KEY = "talim:push-subscribed";
 export const SW_PATH = "/sw.js";
 
 /**
+ * The per-user localStorage key recording that this browser is subscribed.
  *
+ * @param userId - The signed-in user.
+ * @returns The storage key.
  */
 export const pushFlagKey = (userId: string) => `${STORAGE_KEY_PREFIX}${userId}`;
 
 /**
+ * Decodes a URL-safe base64 VAPID key into the bytes `pushManager.subscribe` expects.
  *
+ * @param base64String - The public key from the server.
+ * @returns The decoded key.
  */
 export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   const padding = "=".repeat((4 - (base64String.length % 4)) % 4);
@@ -26,31 +33,10 @@ export function urlBase64ToUint8Array(base64String: string): Uint8Array {
   return output;
 }
 
-function getAccessToken(): string | null {
-  if (typeof window === "undefined") return null;
-  return localStorage.getItem("accessToken") || null;
-}
-
 /**
+ * Whether this browser can do web push at all (service worker, PushManager, Notification).
  *
- */
-export async function pushAuthFetch(
-  url: string,
-  options: RequestInit = {},
-  token: string | null = getAccessToken(),
-): Promise<Response> {
-  return fetch(url, {
-    ...options,
-    headers: {
-      "Content-Type": "application/json",
-      ...(token ? { Authorization: `Bearer ${token}` } : {}),
-      ...(options.headers || {}),
-    },
-  });
-}
-
-/**
- *
+ * @returns True when push is available.
  */
 export const isPushSupported = () =>
   typeof window !== "undefined" &&
@@ -59,7 +45,9 @@ export const isPushSupported = () =>
   "Notification" in window;
 
 /**
+ * The browser's current push subscription for our service worker, if any.
  *
+ * @returns The subscription, or `null` when there is none or push is unsupported.
  */
 export async function getCurrentSubscription(): Promise<PushSubscription | null> {
   if (!isPushSupported()) return null;
@@ -73,10 +61,7 @@ export async function getCurrentSubscription(): Promise<PushSubscription | null>
  */
 export async function syncWebPushPreference(enabled: boolean): Promise<void> {
   try {
-    await pushAuthFetch(`${API_BASE_URL}/notifications/preferences`, {
-      method: "PATCH",
-      body: JSON.stringify({ webPushEnabled: enabled }),
-    });
+    await api.patch(`${API_BASE_URL}/notifications/preferences`, { webPushEnabled: enabled });
   } catch {
     // Non-fatal — subscription state is already persisted by the browser
   }
@@ -99,12 +84,15 @@ export async function unsubscribeBrowserPush(
 
     const endpoint = subscription.endpoint;
     await Promise.allSettled([
+      // The session is already cleared by now, so the token captured before
+      // sign-out is passed explicitly instead of being read from the store.
       accessToken
-        ? pushAuthFetch(
-            `${API_BASE_URL}/notifications/web-push/subscribe`,
-            { method: "DELETE", body: JSON.stringify({ endpoint }) },
+        ? api.delete(`${API_BASE_URL}/notifications/web-push/subscribe`, {
             accessToken,
-          )
+            retryOnUnauthorized: false,
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ endpoint }),
+          })
         : Promise.resolve(),
       subscription.unsubscribe(),
     ]);

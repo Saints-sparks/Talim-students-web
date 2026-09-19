@@ -4,12 +4,12 @@ import { useCallback, useEffect, useState } from "react";
 import { API_BASE_URL } from "@/lib/constants";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { getErrorMessage } from "@/lib/apiError";
+import { api } from "@/lib/authFetch";
 import {
   LEGACY_STORAGE_KEY,
   SW_PATH,
   getCurrentSubscription,
   isPushSupported,
-  pushAuthFetch,
   pushFlagKey,
   syncWebPushPreference,
   urlBase64ToUint8Array,
@@ -69,9 +69,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
   }, [userId]);
 
   const getVapidKey = useCallback(async (): Promise<string> => {
-    const res = await fetch(`${API_BASE_URL}/notifications/web-push/vapid-public-key`);
-    if (!res.ok) throw new Error("Unable to load push configuration from server");
-    const { publicKey } = await res.json();
+    // Public endpoint: a 401 here must not trigger a token refresh.
+    const { publicKey } = await api.get<{ publicKey: string }>(
+      `${API_BASE_URL}/notifications/web-push/vapid-public-key`,
+      { skipAuth: true },
+    );
     return publicKey;
   }, []);
 
@@ -115,19 +117,11 @@ export function usePushNotifications(): UsePushNotificationsReturn {
         keys: { p256dh: string; auth: string };
       };
 
-      const res = await pushAuthFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
-        method: "POST",
-        body: JSON.stringify({
-          endpoint: subJson.endpoint,
-          keys: subJson.keys,
-          userAgent: navigator.userAgent,
-        }),
+      await api.post(`${API_BASE_URL}/notifications/web-push/subscribe`, {
+        endpoint: subJson.endpoint,
+        keys: subJson.keys,
+        userAgent: navigator.userAgent,
       });
-
-      if (!res.ok) {
-        const body = await res.json().catch(() => ({}));
-        throw new Error(body?.message || "Failed to save push subscription on server");
-      }
 
       if (userId) localStorage.setItem(pushFlagKey(userId), "true");
       setIsSubscribed(true);
@@ -151,8 +145,8 @@ export function usePushNotifications(): UsePushNotificationsReturn {
       const subscription = await getCurrentSubscription();
 
       if (subscription) {
-        await pushAuthFetch(`${API_BASE_URL}/notifications/web-push/subscribe`, {
-          method: "DELETE",
+        await api.delete(`${API_BASE_URL}/notifications/web-push/subscribe`, {
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ endpoint: subscription.endpoint }),
         });
         await subscription.unsubscribe();
