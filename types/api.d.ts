@@ -1624,7 +1624,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh access token
-         * @description Reads the httpOnly refresh token cookie, rotates it, and returns a new access token.
+         * @description Browsers: reads the httpOnly `refreshToken` cookie, rotates it, and returns `{ access_token }` (the new refresh token is set as the cookie; it is never in the body). Native apps: send no cookie and `{ refreshToken }` in the body; the response is `{ access_token, refresh_token }` with the rotated token. When the request carries the cookie the body is ignored.
          */
         post: operations["AuthenticationController_refreshToken"];
         delete?: never;
@@ -1642,7 +1642,10 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Logout user and invalidate tokens */
+        /**
+         * Logout user and invalidate tokens
+         * @description Revokes the refresh token from the cookie (browsers) or, when there is no cookie, from the optional `{ refreshToken }` body (native apps), then ends the user’s sessions and blacklists the access token.
+         */
         post: operations["AuthenticationController_logout"];
         delete?: never;
         options?: never;
@@ -1718,7 +1721,7 @@ export interface paths {
         put?: never;
         /**
          * Change the signed-in user’s password (all roles)
-         * @description Also completes the forced change for accounts created with a temporary password. Signs out other sessions and returns a fresh access token; the refresh cookie is replaced.
+         * @description Also completes the forced change for accounts created with a temporary password. Signs out other sessions and returns a fresh access token; the refresh cookie is replaced. Native apps send `platform` (`ios` or `android`) and also get the replacement `refresh_token` in the body.
          */
         post: operations["AuthenticationController_changePassword"];
         delete?: never;
@@ -1794,7 +1797,7 @@ export interface paths {
         get?: never;
         /**
          * Update user avatar
-         * @description Upload an image file (jpg, jpeg, png, gif) or pass a direct Cloudinary URL.
+         * @description Send JSON `{ "avatarUrl": "<hosted image URL>" }` (what every Talim client does: the image is uploaded to Cloudinary first), or upload an image file (jpg, jpeg, png, gif) as multipart under the `avatar` field. An empty `avatarUrl` removes the photo.
          */
         put: operations["AuthenticationController_updateAvatar"];
         post?: never;
@@ -6357,7 +6360,49 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
-        UpdateCourseDto: Record<string, never>;
+        CreateCourseDto: {
+            /** @example Algebra 101 */
+            title: string;
+            /** @example Introduction to algebra */
+            description: string;
+            /** @example MTH-S11B */
+            courseCode: string;
+            /**
+             * @description Id of a subject in the caller's school
+             * @example 507f1f77bcf86cd799439017
+             */
+            subjectId: string;
+            /**
+             * @description A Teacher profile id, or the teacher's User id, in the caller's school
+             * @example 507f1f77bcf86cd799439011
+             */
+            teacherId: string;
+            /**
+             * @description Id of a class in the caller's school
+             * @example 507f191e810c19729de860ea
+             */
+            classId: string;
+            /** @deprecated */
+            schoolId?: string;
+        };
+        UpdateCourseDto: {
+            /** @example Algebra 101 */
+            title?: string;
+            /** @example Introduction to algebra */
+            description?: string;
+            /** @example MTH-S11B */
+            courseCode?: string;
+            /**
+             * @description A Teacher profile id, or the teacher's User id, in the caller's school
+             * @example 507f1f77bcf86cd799439011
+             */
+            teacherId?: string;
+            /**
+             * @description Id of a class in the caller's school
+             * @example 507f191e810c19729de860ea
+             */
+            classId?: string;
+        };
         UpdateSubjectDto: {
             /** @example Mathematics */
             name?: string;
@@ -6475,8 +6520,16 @@ export interface components {
             isCurrent?: boolean;
         };
         CreateTimetableDto: {
-            classId: Record<string, never>;
-            courseId: Record<string, never>;
+            /**
+             * @description Id of the class this period belongs to
+             * @example 64d3c23f2a45b5c5678fghij
+             */
+            classId: string;
+            /**
+             * @description Id of the course taught in this period
+             * @example 64d3c23f2a45b5c5678abcde
+             */
+            courseId: string;
             /** @enum {string} */
             day: "Monday" | "Tuesday" | "Wednesday" | "Thursday" | "Friday";
             startTime: string;
@@ -6935,6 +6988,12 @@ export interface components {
         AccessTokenResponseDto: {
             /** @description Send as `Authorization: Bearer <access_token>`. */
             access_token: string;
+            /**
+             * @description Native apps only: the refresh token to keep in secure storage and post to
+             *     `/auth/refresh`. Each refresh rotates it, so store the new one every time.
+             *     Never present for browser clients.
+             */
+            refresh_token?: string;
         };
         User: Record<string, never>;
         UpdateProfileDto: {
@@ -6953,6 +7012,10 @@ export interface components {
              * @example https://res.cloudinary.com/talim/image/upload/avatar.png
              */
             userAvatar?: string;
+        };
+        RefreshTokenDto: {
+            /** @description Native apps only: the `refresh_token` from the last login or refresh response. Ignored when the request carries the refresh cookie. */
+            refreshToken?: string;
         };
         ForgotPasswordDto: {
             /** @example admin@school.edu */
@@ -6988,13 +7051,26 @@ export interface components {
             newPassword: string;
             /** @description Must match newPassword */
             confirmPassword: string;
+            /**
+             * @description Native apps send `ios` or `android` to receive the replacement `refresh_token` in the response body (every session is revoked by a password change). Browsers omit it and keep the refresh cookie.
+             * @example ios
+             */
+            platform?: string;
+        };
+        UpdateAvatarDto: {
+            /** @description Hosted image URL, or an empty string to remove the avatar */
+            avatarUrl?: string;
         };
         UpdateTeacherStatusDto: {
             /** @example false */
             isActive: boolean;
         };
-        ObjectId: Record<string, never>;
         CreateTeacherDto: {
+            /**
+             * @description Staff number. Left out, the school's next staff number is generated.
+             * @example TCH-0007
+             */
+            staffNumber?: string;
             /**
              * @description Highest academic qualification
              * @example Graduate
@@ -7056,9 +7132,6 @@ export interface components {
              *     ]
              */
             assignedCourses?: string[];
-            userId: components["schemas"]["ObjectId"];
-            schoolId?: components["schemas"]["ObjectId"];
-            staffNumber?: string;
         };
         TeacherProfileDto: {
             /** @enum {string} */
@@ -7812,6 +7885,7 @@ export interface components {
             /** @description Date of birth (ISO string) */
             dateOfBirth?: string;
         };
+        ObjectId: Record<string, never>;
         CreateParentDto: {
             /** @description Parent user ID */
             userId: components["schemas"]["ObjectId"];
@@ -8130,11 +8204,11 @@ export interface components {
         };
         CreateGroupChatDto: {
             /**
-             * @description Type of group chat room (class_group, course_group, parent_group, or admin_parent_group)
+             * @description Type of group chat room (class_group, course_group, parent_group, admin_parent_group or custom_group)
              * @example admin_parent_group
              * @enum {string}
              */
-            type: "class_group" | "course_group" | "parent_group" | "admin_parent_group";
+            type: "class_group" | "course_group" | "parent_group" | "admin_parent_group" | "custom_group";
             /** @description Class ID for class group chat (required if type is class_group) */
             classId?: string;
             /** @description Course ID for course group chat (required if type is course_group) */
@@ -9675,25 +9749,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": {
-                    /** @example Algebra 101 */
-                    title?: string;
-                    /** @example Introduction to algebra */
-                    description?: string;
-                    /** @example MTH-S11B */
-                    courseCode?: string;
-                    /** @example Mathematics */
-                    subjectName?: string;
-                    /** @example 507f1f77bcf86cd799439011 */
-                    teacherId?: string;
-                    /** @example 507f191e810c19729de860ea */
-                    classId?: string;
-                    /**
-                     * @example Academic
-                     * @enum {string}
-                     */
-                    teacherRole?: "Academic" | "NonAcademic";
-                };
+                "application/json": components["schemas"]["CreateCourseDto"];
             };
         };
         responses: {
@@ -10502,7 +10558,7 @@ export interface operations {
                 course?: string;
                 /** @description Filter by term ID */
                 term?: string;
-                /** @description Filter by teacher ID */
+                /** @description Filter by the teacher's User id (the same id `POST /curriculum` takes as `teacherId`, not the Teacher profile id). 404 when that user is not a teacher of the caller's school. */
                 teacherId?: string;
             };
             header?: never;
@@ -10690,9 +10746,9 @@ export interface operations {
     AssessmentController_getAssessmentsBySchool: {
         parameters: {
             query?: {
-                /** @description Page number */
+                /** @description Page number (1-based). */
                 page?: number;
-                /** @description Items per page */
+                /** @description Items per page; values above 500 are capped. */
                 limit?: number;
             };
             header?: never;
@@ -12400,7 +12456,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Login successful */
+            /** @description Login successful. The refresh token is set as the httpOnly `refreshToken` cookie; a native app (`platform` of `ios` or `android`) also gets it as `refresh_token` in the body. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12470,7 +12526,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenDto"];
+            };
+        };
         responses: {
             /** @description Token refreshed successfully */
             200: {
@@ -12481,7 +12541,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessTokenResponseDto"];
                 };
             };
-            /** @description Invalid or expired refresh token */
+            /** @description UNAUTHENTICATED or TOKEN_EXPIRED: no, invalid, expired, revoked or already rotated refresh token */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -12499,7 +12559,11 @@ export interface operations {
             path?: never;
             cookie?: never;
         };
-        requestBody?: never;
+        requestBody?: {
+            content: {
+                "application/json": components["schemas"]["RefreshTokenDto"];
+            };
+        };
         responses: {
             201: {
                 headers: {
@@ -12602,7 +12666,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Password changed; body carries the new access_token */
+            /** @description Password changed; body carries the new access_token (and refresh_token for native apps) */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -12699,11 +12763,8 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "multipart/form-data": {
-                    /** Format: binary */
-                    avatar?: string;
-                    avatarUrl?: string;
-                };
+                "application/json": components["schemas"]["UpdateAvatarDto"];
+                "multipart/form-data": components["schemas"]["UpdateAvatarDto"];
             };
         };
         responses: {
@@ -12871,11 +12932,14 @@ export interface operations {
             };
         };
         responses: {
+            /** @description Login successful. Same shape as `POST /auth/login`: a native app (`platform` of `ios` or `android`) also gets `refresh_token` in the body. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["AccessTokenResponseDto"];
+                };
             };
             /** @description Invalid or revoked biometric credential */
             401: {
@@ -13805,9 +13869,9 @@ export interface operations {
     StudentController_getStudentsBySchool: {
         parameters: {
             query?: {
-                /** @description Page number (1-based) */
+                /** @description Page number (1-based). */
                 page?: number;
-                /** @description Number of items per page */
+                /** @description Items per page; values above 500 are capped. */
                 limit?: number;
             };
             header?: never;
@@ -13840,9 +13904,9 @@ export interface operations {
     StudentController_getStudentsByClassId: {
         parameters: {
             query?: {
-                /** @description Page number (1-based) */
+                /** @description Page number (1-based). */
                 page?: number;
-                /** @description Number of items per page */
+                /** @description Items per page; values above 500 are capped. */
                 limit?: number;
             };
             header?: never;
@@ -13910,9 +13974,11 @@ export interface operations {
     };
     StudentController_getStudentsByParentId: {
         parameters: {
-            query: {
-                page: number;
-                limit: number;
+            query?: {
+                /** @description Page number (1-based). */
+                page?: number;
+                /** @description Items per page; values above 500 are capped. */
+                limit?: number;
             };
             header?: never;
             path: {
@@ -16272,7 +16338,7 @@ export interface operations {
     ChatController_getChatRoomMessagesWithCursor: {
         parameters: {
             query?: {
-                /** @description Number of messages to fetch (default: 50) */
+                /** @description Items per page; values above 100 are capped. */
                 limit?: number;
                 /** @description Message ID to use as cursor */
                 cursor?: string;
@@ -16584,6 +16650,11 @@ export interface operations {
                          *     ]
                          */
                         courses?: string[];
+                        /**
+                         * @description Number of students enrolled in the class
+                         * @example 25
+                         */
+                        studentCount?: number;
                     }[];
                 };
             };
@@ -16729,14 +16800,14 @@ export interface operations {
     ClassController_findByTeacher: {
         parameters: {
             query?: {
-                /** @description Page number (1-based) */
+                /** @description Page number (1-based). */
                 page?: number;
-                /** @description Number of items per page */
+                /** @description Items per page; values above 500 are capped. */
                 limit?: number;
             };
             header?: never;
             path: {
-                /** @description Teacher ID */
+                /** @description The teacher's User id. 404 when that user is not a teacher of the caller's school. */
                 id: string;
             };
             cookie?: never;
@@ -16767,7 +16838,7 @@ export interface operations {
             query?: never;
             header?: never;
             path: {
-                /** @description Teacher ID to get assigned classes for */
+                /** @description The teacher's User id. 404 when that user is not a teacher of the caller's school. */
                 teacherId: string;
             };
             cookie?: never;

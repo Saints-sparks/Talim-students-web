@@ -82,7 +82,9 @@ describe("student write payloads type-check against the backend DTOs", () => {
 
   it("resolves a real body, not `any`", () => {
     // `never` for an endpoint with no JSON body proves the helper is not `any`.
-    type NoBody = RequestBody<"/auth/logout">;
+    // (`/auth/logout` used to be this example; it now takes an optional
+    // `{ refreshToken }` body for native apps.)
+    type NoBody = RequestBody<"/notifications/read-all", "patch">;
     const noBody: [NoBody] extends [never] ? true : false = true;
     expect(noBody).toBe(true);
   });
