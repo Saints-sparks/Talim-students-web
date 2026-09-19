@@ -159,7 +159,9 @@ export function ChatProvider({ children }: { children: ReactNode }) {
     () =>
       Array.from(
         new Set(
-          [user?.userId, user?.id, (user as any)?._id].filter(Boolean).map(String)
+          [user?.userId, user?.id, typeof user?._id === "string" ? user._id : undefined]
+            .filter(Boolean)
+            .map(String)
         )
       ),
     [user]
@@ -620,7 +622,10 @@ export function ChatProvider({ children }: { children: ReactNode }) {
           if (ack.message) {
             const saved = normalizeMessage({
               ...ack.message,
-              clientMessageId: ack.message.clientMessageId || clientMessageId,
+              clientMessageId:
+                typeof ack.message.clientMessageId === "string" && ack.message.clientMessageId
+                  ? ack.message.clientMessageId
+                  : clientMessageId,
             });
             if (roomStatesRef.current[roomId]) {
               patchRoom(roomId, (room) => ({ messages: mergeMessages(room.messages, [saved]) }));
