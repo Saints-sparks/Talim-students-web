@@ -92,6 +92,11 @@ export function toTimetableSubjects(timetable: Timetable | null | undefined): Ti
 /**
  * The signed-in student's weekly timetable.
  *
+ * `isLoading` stays true while the session is still settling, so a screen never
+ * flashes "no classes" before it knows which class to ask for. `errorCause` is
+ * the thrown value itself, so the screen can branch on `error.code`;
+ * `error` is the ready-made sentence for callers that only show text.
+ *
  * @returns The periods with their query state.
  */
 export const useTimetable = () => {
@@ -108,8 +113,12 @@ export const useTimetable = () => {
 
   return {
     subjects,
-    isLoading: query.isPending && query.fetchStatus !== "idle",
+    isLoading: !isReady || (query.isPending && query.fetchStatus !== "idle"),
+    /** True while any request for the timetable is in flight, including a refresh. */
+    isFetching: query.isFetching,
     error: query.error ? getErrorMessage(query.error, "We couldn't load your timetable.") : null,
+    /** The raw failure, for branching on `error.code`. */
+    errorCause: query.error ?? null,
     refetch: () => {
       void query.refetch();
     },
