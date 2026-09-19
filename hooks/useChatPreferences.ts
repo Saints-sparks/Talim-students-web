@@ -3,6 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { settingsService, type ChatPreferences } from "@/services/settings.service";
 import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { queryKeys } from "@/lib/queryKeys";
 import { messageForError } from "@/lib/errorMessages";
 import { logger } from "@/lib/logger";
 
@@ -21,7 +22,7 @@ const DEFAULTS: Required<ChatPreferences> = {
 export function useChatPreferences() {
   const { userId } = useStudentIdentity();
   const queryClient = useQueryClient();
-  const queryKey = ["chat", userId ?? "anonymous", "preferences"] as const;
+  const queryKey = queryKeys.chat.preferences(userId ?? "anonymous");
 
   const query = useQuery({
     queryKey,

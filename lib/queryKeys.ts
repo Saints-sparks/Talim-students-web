@@ -61,6 +61,11 @@ export const queryKeys = {
     /** Per-student notification preferences. */
     preferences: (userId: string) => ["notifications", userId, "preferences"] as const,
   },
+  chat: {
+    all: ["chat"] as const,
+    /** The student's messaging switches (`/chat/preferences`). */
+    preferences: (userId: string) => ["chat", userId, "preferences"] as const,
+  },
   academics: {
     all: ["academics"] as const,
     /** The school's academic sessions and terms. */
