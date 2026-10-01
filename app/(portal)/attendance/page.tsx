@@ -1,12 +1,20 @@
 "use client";
 
+import { Suspense } from "react";
+import AttendanceScreen from "@/components/screens/attendance/AttendanceScreen";
 import { ScreenLoading } from "@/components/tl/states";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Attendance (`/attendance`): the term's rate and marked days, for the term
+ * in `?term=` (the current one by default). Suspense is needed because the
+ * screen reads the address with `useSearchParams`.
  *
- * @returns A loading state.
+ * @returns The Attendance screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function AttendancePage() {
+  return (
+    <Suspense fallback={<ScreenLoading label="Loading your attendance" />}>
+      <AttendanceScreen />
+    </Suspense>
+  );
 }
