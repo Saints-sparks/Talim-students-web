@@ -1,12 +1,13 @@
 "use client";
 
-import { ScreenLoading } from "@/components/tl/states";
+import SubjectDetailScreen from "@/components/screens/subjects/SubjectDetailScreen";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Subject detail (`/subjects/:courseId`): scores, the scheme of work and the
+ * files of one subject.
  *
- * @returns A loading state.
+ * @returns The Subject detail screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function SubjectDetailPage() {
+  return <SubjectDetailScreen />;
 }

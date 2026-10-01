@@ -10,6 +10,7 @@ import { learnerService } from "@/services/learner.service";
 import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { messageForError } from "@/lib/errorMessages";
+import { ApiError, type ApiErrorCode } from "@/lib/apiError";
 
 /** What every screen hook hands its page. */
 export interface ScreenQuery<T> {
@@ -21,6 +22,8 @@ export interface ScreenQuery<T> {
   isFetching: boolean;
   /** A sentence to show when the load failed, else null. */
   error: string | null;
+  /** The API's error code when the load failed with an `ApiError` ("NOT_FOUND"…), else null. */
+  errorCode: ApiErrorCode | null;
   /** Loads again. */
   refetch: () => void;
 }
@@ -38,6 +41,7 @@ export function toScreenQuery<T>(query: UseQueryResult<T>, fallback: string): Sc
     isLoading: query.isPending && query.fetchStatus !== "idle",
     isFetching: query.isFetching,
     error: query.error && !query.data ? messageForError(query.error, fallback) : null,
+    errorCode: query.error instanceof ApiError && !query.data ? query.error.code : null,
     refetch: () => void query.refetch(),
   };
 }
