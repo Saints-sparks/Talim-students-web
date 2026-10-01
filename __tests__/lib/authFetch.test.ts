@@ -43,6 +43,30 @@ describe("api client", () => {
     expect(unwrapEnvelope(null)).toBeNull();
   });
 
+  it("unwraps strictly: only { success, data } and { success, data, meta } are envelopes", () => {
+    // A paginated envelope keeps its meta, in the same { data, meta } shape the
+    // API answers when its envelope flag is off.
+    const meta = { total: 3, page: 1, limit: 20, lastPage: 1 };
+    expect(unwrapEnvelope({ success: true, data: [1, 2, 3], meta })).toEqual({ data: [1, 2, 3], meta });
+    // Any other key means the body is not an envelope: it comes back untouched.
+    const legacy = { success: true, data: { id: 1 }, message: "Saved" };
+    expect(unwrapEnvelope(legacy)).toBe(legacy);
+    const fields = { success: true, settings: { theme: "dark" } };
+    expect(unwrapEnvelope(fields)).toBe(fields);
+    // success must be exactly true, and data must be present.
+    const failed = { success: false, data: null };
+    expect(unwrapEnvelope(failed)).toBe(failed);
+    const noData = { success: true };
+    expect(unwrapEnvelope(noData)).toBe(noData);
+    expect(unwrapEnvelope({ success: true, data: null })).toBeNull();
+  });
+
+  it("hands a paginated envelope to callers with its meta", async () => {
+    const meta = { total: 1, page: 1, limit: 20, lastPage: 1 };
+    fetchMock.mockResolvedValue(jsonResponse({ success: true, data: [{ id: "f1" }], meta }));
+    await expect(api.get("http://api.test/students/me/files")).resolves.toEqual({ data: [{ id: "f1" }], meta });
+  });
+
   it("sends the session's bearer token", async () => {
     fetchMock.mockResolvedValue(jsonResponse([{ _id: "c1" }]));
     await api.get("http://api.test/courses");

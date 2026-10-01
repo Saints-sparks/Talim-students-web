@@ -135,8 +135,10 @@ export const notificationService = {
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
   getAnnouncements: async (accessToken: string | undefined, userId: string, page = 1, limit = 10): Promise<NotificationListResponse> => {
-    // Fixtures: the announcements are already in the notification feed (A10's single feed).
-    if (fixturesEnabled()) return { data: [], meta: { total: 0, page, lastPage: 1, limit } };
+    if (fixturesEnabled()) {
+      const items = (await import("@/lib/fixtures/learner.fixture")).makeRawAnnouncements(fixtureVariant()) as RawNotification[];
+      return { data: items, meta: { total: items.length, page, lastPage: 1, limit } };
+    }
     return api.get<NotificationListResponse>(
       `${API_ENDPOINTS.NOTIFICATIONS}/announcements/receiver/${userId}${buildQuery({ page, limit })}`,
       { accessToken }

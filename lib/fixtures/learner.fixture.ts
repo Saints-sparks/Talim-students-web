@@ -752,8 +752,10 @@ export function makeNotificationCounts(variant: FixtureVariant = "normal"): Noti
 }
 
 /**
- * The raw notifications the Updates screen merges (the design's four), in the
- * shape `GET /notifications` answers.
+ * The raw notifications of `GET /notifications` for the Updates screen: the
+ * design's assessment, file and results items. The school announcement comes
+ * from the announcements feed ({@link makeRawAnnouncements}), as it does from
+ * the API today (the inbox drops a school announcement's copy from this feed).
  *
  * @param variant - "empty" has none.
  * @returns The raw items.
@@ -764,6 +766,19 @@ export function makeRawNotifications(variant: FixtureVariant = "normal") {
     { _id: "nf-assess", title: "New assessment: 1st CA", message: "Advance Maths 1st CA holds on Thursday 17 September, in class. Revise indices and standard form.", category: "academics", source: "school", senderName: "Easy Sparks Education Center", isRead: false, createdAt: "2026-09-14T07:00:00.000Z", metadata: { target: { page: "today" }, actionLabel: "See coming up" } },
     { _id: "nf-file", title: "New file in Computer Studies", message: "Miss Chidinma Okafor shared the spreadsheet practice file with Jss1 A.", category: "resources", source: "school", senderName: "Miss Chidinma Okafor", isRead: false, createdAt: "2026-09-14T07:10:00.000Z", metadata: { target: { page: "resources", courseId: seed("cmp").id }, actionLabel: "Open Files" } },
     { _id: "nf-result", title: "Results published for Civic Education", message: "1st CA, 2nd CA and Exam scores are now visible. You placed 1st in the class.", category: "grading", source: "school", senderName: "Easy Sparks Education Center", isRead: true, createdAt: "2026-09-13T15:00:00.000Z", metadata: { target: { page: "results" }, actionLabel: "Open Results" } },
-    { _id: "nf-school", title: "Assembly moves to 8:15", message: "Tomorrow's assembly starts fifteen minutes later. Games kit for the whole day.", category: "announcement", source: "school", senderName: "Mr Saint Agbukor", isRead: true, createdAt: "2026-09-11T16:40:00.000Z", metadata: { target: { page: "messages", roomId: "room-class" }, actionLabel: "Open Messages" } },
+  ];
+}
+
+/**
+ * The raw school announcements (`GET /notifications/announcements/receiver/:userId`):
+ * the design's "Assembly moves to 8:15", already read.
+ *
+ * @param variant - "empty" has none.
+ * @returns The raw items.
+ */
+export function makeRawAnnouncements(variant: FixtureVariant = "normal") {
+  if (variant === "empty") return [];
+  return [
+    { _id: "an-assembly", title: "Assembly moves to 8:15", message: "Tomorrow's assembly starts fifteen minutes later. Games kit for the whole day.", category: "announcement", source: "school", senderName: "Mr Saint Agbukor", isRead: true, createdAt: "2026-09-11T16:40:00.000Z", metadata: { target: { page: "messages", roomId: "room-class" }, actionLabel: "Open Messages" } },
   ];
 }
