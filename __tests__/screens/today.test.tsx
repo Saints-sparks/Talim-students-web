@@ -1,9 +1,9 @@
 import React from "react";
 import { render, screen, within } from "@/test-utils/render";
-import { TodayView } from "@/components/today/TodayScreen";
-import { glanceTiles } from "@/components/today/GlanceCard";
-import { splitLessons } from "@/components/today/LessonCards";
-import { schoolDayMessage } from "@/components/today/SchoolDayNotice";
+import { TodayView } from "@/components/screens/today/TodayScreen";
+import { glanceTiles } from "@/components/screens/today/GlanceCard";
+import { splitLessons } from "@/components/screens/today/LessonCards";
+import { schoolDayMessage } from "@/components/screens/today/SchoolDayNotice";
 import { makeToday } from "@/lib/fixtures/learner.fixture";
 
 jest.mock("next/navigation", () => ({

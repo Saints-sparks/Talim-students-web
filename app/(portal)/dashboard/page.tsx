@@ -1,6 +1,6 @@
 "use client";
 
-import TodayScreen from "@/components/today/TodayScreen";
+import TodayScreen from "@/components/screens/today/TodayScreen";
 
 /**
  * Today (`/dashboard`, the page students land on after signing in).
