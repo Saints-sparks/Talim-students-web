@@ -3,6 +3,8 @@ export interface LoginCredentials {
   identifier?: string;
   email?: string;
   password: string;
+  /** "Keep me signed in": a longer-lived refresh token. */
+  rememberMe?: boolean;
   deviceToken: string;
   platform: string;
 }
