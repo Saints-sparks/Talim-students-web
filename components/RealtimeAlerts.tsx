@@ -8,6 +8,8 @@ import { useChatContext } from "@/contexts/ChatContext";
 import { NOTIFICATION_EVENT } from "@/hooks/useNotifications";
 import { isGroupRoomType, isSameUser } from "@/lib/chat";
 import type { ChatRoomActivity } from "@/types/chat";
+import { targetHref } from "@/lib/learner/targets";
+import type { NotificationTarget } from "@/types/learner";
 
 const TITLE_PREFIX = /^\(\d+\+?\) /;
 // A busy group shouldn't bury the screen: one chat toast per room per window.
@@ -19,7 +21,8 @@ interface RealtimeNotificationEvent {
   title?: string;
   body?: string;
   message?: string;
-  metadata?: { url?: string };
+  /** `target` is the producer's deep link (round-4 §30); `url` the older plain link. */
+  metadata?: { url?: string; target?: NotificationTarget };
   data?: { url?: string };
 }
 
@@ -80,10 +83,11 @@ export default function RealtimeAlerts() {
       if (notification?.type === "chat_message") return;
 
       const body = notification?.body || notification?.message || "";
-      const path = toAppPath(notification?.metadata?.url || notification?.data?.url);
+      // The producer's deep link (§30 `metadata.target`) first, then a plain URL, else Updates.
+      const path = targetHref(notification?.metadata?.target) ?? toAppPath(notification?.metadata?.url || notification?.data?.url);
       toast.info(body || notification?.title || "New notification", {
         title: body ? notification?.title : undefined,
-        onClick: () => router.push(path || "/notifications"),
+        onClick: () => router.push(path || "/updates"),
       });
     };
 
