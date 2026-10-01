@@ -17,6 +17,7 @@ import {
   useStudentOnboarding,
 } from "@/contexts/OnboardingContext";
 import { useAuthContext } from "@/contexts/AuthContext";
+import { useTour } from "@/components/tour/TourProvider";
 
 const STEP_ICONS: Record<StudentOnboardingStepId, React.ReactNode> = {
   "student-profile": <CheckCircle2 className="h-5 w-5" />,
@@ -40,6 +41,7 @@ export default function StudentOnboardingSetup() {
   } = useStudentOnboarding();
 
   const [navigating, setNavigating] = useState<StudentOnboardingStepId | null>(null);
+  const { openTour, tourDone } = useTour();
 
   // Guard: wait for auth + onboarding state to fully load before checking phase1
   useEffect(() => {
@@ -83,7 +85,7 @@ export default function StudentOnboardingSetup() {
             className="inline-flex items-center gap-2 rounded-lg border border-[#F0F0F0] bg-white px-3 py-2 text-sm font-semibold text-[#030E18] hover:bg-[#F7F7F7] transition-colors"
           >
             <LayoutDashboard className="h-4 w-4" />
-            Dashboard
+            Today
           </button>
         </div>
       </header>
@@ -142,19 +144,36 @@ export default function StudentOnboardingSetup() {
                     All setup steps are complete!
                   </h2>
                   <p className="mt-1 text-sm text-[#6F6F6F]">
-                    You're all set. Head to your dashboard to start learning.
+                    You're all set. Head to Today to start learning.
                   </p>
                   <button
                     onClick={() => router.push("/dashboard")}
                     className="mt-3 inline-flex items-center gap-2 rounded-lg bg-[#003366] px-4 py-2 text-sm font-semibold text-white hover:bg-[#002244] transition-colors"
                   >
                     <LayoutDashboard className="h-4 w-4" />
-                    Go to Dashboard
+                    Go to Today
                   </button>
                 </div>
               </div>
             </div>
           )}
+
+          {/* The portal tour (the design's "Getting started" sheet) */}
+          <div className="flex flex-wrap items-center justify-between gap-4 rounded-2xl border border-[#F0F0F0] bg-white p-5">
+            <div>
+              <h2 className="text-sm font-semibold text-[#030E18]">Take the portal tour</h2>
+              <p className="mt-1 text-sm text-[#6F6F6F]">
+                {tourDone ? "You've taken the tour. Take it again any time." : "Eight short steps through Today, your timetable, subjects, files, results and messages."}
+              </p>
+            </div>
+            <button
+              type="button"
+              onClick={openTour}
+              className="inline-flex min-h-[44px] items-center gap-2 rounded-lg bg-[#003366] px-4 py-2 text-sm font-semibold text-white hover:bg-[#002244] transition-colors"
+            >
+              {tourDone ? "Replay the tour" : "Start the tour"}
+            </button>
+          </div>
 
           {/* Phase 2 step cards */}
           <div className="grid gap-4 md:grid-cols-2">
