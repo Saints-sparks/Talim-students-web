@@ -1,12 +1,13 @@
 "use client";
 
-import { ScreenLoading } from "@/components/tl/states";
+import SettingsScreen from "@/components/screens/settings/SettingsScreen";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * `/settings`: profile, notifications, messaging, help, security, appearance
+ * and about.
  *
- * @returns A loading state.
+ * @returns The Settings screen.
  */
 export default function Page() {
-  return <ScreenLoading label="Loading" />;
+  return <SettingsScreen />;
 }
