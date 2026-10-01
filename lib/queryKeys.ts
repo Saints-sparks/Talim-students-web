@@ -60,6 +60,8 @@ export const queryKeys = {
       ["notifications", userId, "announcements", params ?? {}] as const,
     /** Per-student notification preferences. */
     preferences: (userId: string) => ["notifications", userId, "preferences"] as const,
+    /** Unread and total counts per category (`/notifications/counts`). */
+    counts: (userId: string) => ["notifications", userId, "counts"] as const,
   },
   chat: {
     all: ["chat"] as const,
@@ -67,6 +69,28 @@ export const queryKeys = {
     preferences: (userId: string) => ["chat", userId, "preferences"] as const,
     /** Teachers this student may start a direct message with (`/chat/contacts`). */
     contacts: (userId: string) => ["chat", userId, "contacts"] as const,
+    /** What was shared in a room, by kind (`/chat/rooms/:id/media?kind=`). */
+    media: (roomId: string, kind: string) => ["chat", "media", roomId, kind] as const,
+  },
+  /** The learner-view aggregates (portals contract Part B), one per screen. */
+  learner: {
+    all: ["learner"] as const,
+    today: (userId: string) => ["learner", userId, "today"] as const,
+    timetable: (userId: string, weekStart?: string) => ["learner", userId, "timetable", weekStart ?? "current"] as const,
+    subjects: (userId: string, termId?: string) => ["learner", userId, "subjects", termId ?? "current"] as const,
+    subject: (userId: string, courseId: string, termId?: string) =>
+      ["learner", userId, "subject", courseId, termId ?? "current"] as const,
+    reportCard: (userId: string, termId?: string) => ["learner", userId, "report-card", termId ?? "current"] as const,
+    reportTerms: (userId: string) => ["learner", userId, "report-terms"] as const,
+    attendance: (userId: string, termId?: string) => ["learner", userId, "attendance", termId ?? "current"] as const,
+    files: (userId: string, params?: Record<string, unknown>) => ["learner", userId, "files", params ?? {}] as const,
+    school: (userId: string) => ["learner", userId, "school"] as const,
+  },
+  /** Account security (round-4 §34). */
+  account: {
+    all: ["account"] as const,
+    passwordPolicy: () => ["account", "password-policy"] as const,
+    sessions: (userId: string) => ["account", userId, "sessions"] as const,
   },
   academics: {
     all: ["academics"] as const,

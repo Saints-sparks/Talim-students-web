@@ -1,6 +1,7 @@
 // services/settings.service.ts
 import { API_BASE_URL } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import { fixturesEnabled } from "@/lib/fixtures/flag";
 import type { ChangePasswordBody, ChatPreferencesBody } from "@/types/apiPayloads";
 
 /**
@@ -21,7 +22,13 @@ export interface ChangePasswordResult {
  * The chat preferences a student can set (`UpdateChatPreferencesDto`), from the
  * generated contract. `showOnlineStatus` off means you always show offline to others.
  */
-export type ChatPreferences = ChatPreferencesBody;
+export type ChatPreferences = ChatPreferencesBody & {
+  /**
+   * B10 `ChatPreference.messagePreview`: when false, push text reads "New
+   * message". Not in the vendored contract yet (hand-added).
+   */
+  messagePreview?: boolean;
+};
 
 export const settingsService = {
   /**
@@ -35,8 +42,10 @@ export const settingsService = {
    * @returns A fresh access token and the server's confirmation message.
    * @throws {ApiError} `VALIDATION_FAILED` for a wrong, weak or reused password.
    */
-  changePassword: (payload: ChangePasswordPayload): Promise<ChangePasswordResult> =>
-    api.post<ChangePasswordResult>(`${API_BASE_URL}/auth/change-password`, payload),
+  changePassword: async (payload: ChangePasswordPayload): Promise<ChangePasswordResult> => {
+    if (fixturesEnabled()) return { access_token: "", message: "Password changed" };
+    return api.post<ChangePasswordResult>(`${API_BASE_URL}/auth/change-password`, payload);
+  },
 
   /**
    * The signed-in student's chat preferences.
@@ -44,7 +53,10 @@ export const settingsService = {
    * @returns The stored preferences.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  getChatPreferences: (): Promise<ChatPreferences> => api.get<ChatPreferences>(`${API_BASE_URL}/chat/preferences`),
+  getChatPreferences: async (): Promise<ChatPreferences> => {
+    if (fixturesEnabled()) return { showOnlineStatus: true, readReceipts: true, messagePreview: true };
+    return api.get<ChatPreferences>(`${API_BASE_URL}/chat/preferences`);
+  },
 
   /**
    * Updates one or more chat preferences.
@@ -53,6 +65,8 @@ export const settingsService = {
    * @returns The updated preferences.
    * @throws {ApiError} `VALIDATION_FAILED` when a field is not on the DTO.
    */
-  updateChatPreferences: (patch: ChatPreferences): Promise<ChatPreferences> =>
-    api.patch<ChatPreferences>(`${API_BASE_URL}/chat/preferences`, patch),
+  updateChatPreferences: async (patch: ChatPreferences): Promise<ChatPreferences> => {
+    if (fixturesEnabled()) return patch;
+    return api.patch<ChatPreferences>(`${API_BASE_URL}/chat/preferences`, patch);
+  },
 };

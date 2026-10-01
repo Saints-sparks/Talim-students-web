@@ -231,8 +231,9 @@ html.dark [class*="text-[#738195]"],
 html.dark [class*="text-[#8A95A5]"] { color: #cbd5e1; }
 
 /* ── Muted / placeholder text ── */
+/* #94a3b8, not slate-500: small grey text must stay AA (4.5:1) on the dark cards. */
 html.dark .text-gray-500,
-html.dark .text-gray-400 { color: #64748b; }
+html.dark .text-gray-400 { color: #94a3b8; }
 html.dark [class*="text-[#525252]"],
 html.dark [class*="text-[#545454]"],
 html.dark [class*="text-[#5D5D5D]"],
@@ -310,11 +311,7 @@ html.dark .shadow-md { box-shadow: 0 4px 6px rgba(0,0,0,0.5), 0 2px 4px rgba(0,0
 html.dark .shadow-lg { box-shadow: 0 10px 15px rgba(0,0,0,0.5), 0 4px 6px rgba(0,0,0,0.4); }
 html.dark .shadow-xl { box-shadow: 0 20px 25px rgba(0,0,0,0.5), 0 8px 10px rgba(0,0,0,0.4); }
 
-/* ── Tables ── */
-html.dark table  { background-color: #1a2540; color: #f1f5f9; }
-html.dark thead  { background-color: #152238; }
-html.dark tbody tr:hover { background-color: #1e3050; }
-html.dark th, html.dark td { border-color: #2a3a5a; }
+/* Tables: no global override; the redesign's tables colour themselves with tokens. */
 
 /* ── ShadCN CSS variable component overrides ── */
 html.dark .bg-card       { background-color: #1a2540; }
@@ -372,4 +369,137 @@ html, body {
 
 .scrollbar-hide::-webkit-scrollbar {
   display: none; /* Safari and Chrome */
+}
+
+/* ============================================================
+   Redesign tokens (students portal). Channels ("r g b") so Tailwind's
+   `tl-*` and `subj-*` colours keep opacity modifiers. Light values are the
+   design's, darkened where a pair missed WCAG AA; dark values are the
+   Teachers app's set. Every new screen uses these instead of hex classes, so
+   the legacy `html.dark [class*=...]` overrides above never touch them.
+   ============================================================ */
+:root {
+  --tl-bg: 244 246 250;          /* #F4F6FA page */
+  --tl-surface: 255 255 255;
+  --tl-subtle: 248 250 253;      /* #F8FAFD tiles, notes */
+  --tl-ink: 15 27 46;            /* #0F1B2E text */
+  --tl-body: 36 56 79;           /* #24384F long copy */
+  --tl-muted: 91 107 128;        /* #5B6B80 */
+  --tl-faint: 98 112 133;        /* #627085: the design's #96A2B4 darkened to AA */
+  --tl-line: 230 234 242;        /* #E6EAF2 */
+  --tl-line-soft: 238 241 247;   /* #EEF1F7 */
+  --tl-control: 215 225 242;     /* #D7E1F2 ghost button border */
+  --tl-brand: 11 46 94;          /* #0B2E5E navy as text */
+  --tl-brand-fill: 11 46 94;
+  --tl-brand-fill-hover: 18 60 119;
+  --tl-on-brand: 255 255 255;
+  --tl-link: 44 95 224;          /* #2C5FE0 */
+  --tl-select: 234 241 255;      /* #EAF1FF active nav */
+  --tl-track: 241 244 248;       /* #F1F4F8 progress tracks */
+  --tl-success: 27 122 85;
+  --tl-success-bg: 228 243 236;
+  --tl-warning: 138 84 22;
+  --tl-warning-bg: 248 238 225;
+  --tl-danger: 166 63 50;        /* #A63F32: the design's #B4483A darkened to AA on its tint */
+  --tl-danger-bg: 249 228 224;
+  --tl-accent: 107 79 184;
+  --tl-accent-bg: 238 234 248;
+  --tl-badge: 160 88 20;         /* #A05814: the design's #C77A22 darkened so white text is AA */
+  --tl-present: 44 95 224;
+  --tl-late: 199 122 34;
+  --tl-missed: 192 80 58;
+}
+html.dark {
+  --tl-bg: 11 17 32;
+  --tl-surface: 15 23 42;
+  --tl-subtle: 20 30 50;
+  --tl-ink: 226 232 240;
+  --tl-body: 203 213 225;
+  --tl-muted: 163 177 198;
+  --tl-faint: 138 154 178;
+  --tl-line: 30 41 59;
+  --tl-line-soft: 26 36 54;
+  --tl-control: 51 65 85;
+  --tl-brand: 147 197 253;
+  --tl-brand-fill: 37 99 235;
+  --tl-brand-fill-hover: 29 78 216;
+  --tl-on-brand: 255 255 255;
+  --tl-link: 122 167 255;
+  --tl-select: 26 39 64;
+  --tl-track: 30 41 59;
+  --tl-success: 74 222 128;
+  --tl-success-bg: 15 42 32;
+  --tl-warning: 251 191 36;
+  --tl-warning-bg: 42 31 10;
+  --tl-danger: 248 113 113;
+  --tl-danger-bg: 46 20 17;
+  --tl-accent: 196 181 253;
+  --tl-accent-bg: 34 26 64;
+  --tl-badge: 154 85 18;
+  --tl-present: 122 167 255;
+  --tl-late: 251 191 36;
+  --tl-missed: 248 113 113;
+}
+
+/* Subject tones (the design's twelve subject colours). `ink` is the colour
+   for text on `tint`, darkened (light) or lightened (dark) to reach AA. */
+.subj-0 { --subj-solid: 79 70 200; --subj-tint: 236 234 250; --subj-ink: 79 70 200; }
+.subj-1 { --subj-solid: 44 95 224; --subj-tint: 232 239 251; --subj-ink: 44 95 224; }
+.subj-2 { --subj-solid: 18 134 126; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
+.subj-3 { --subj-solid: 27 122 85; --subj-tint: 226 241 234; --subj-ink: 26 118 82; }
+.subj-4 { --subj-solid: 53 115 181; --subj-tint: 233 240 249; --subj-ink: 50 108 170; }
+.subj-5 { --subj-solid: 14 124 146; --subj-tint: 225 240 244; --subj-ink: 13 113 133; }
+.subj-6 { --subj-solid: 107 79 184; --subj-tint: 238 234 248; --subj-ink: 107 79 184; }
+.subj-7 { --subj-solid: 163 95 28; --subj-tint: 247 235 220; --subj-ink: 153 89 26; }
+.subj-8 { --subj-solid: 87 129 44; --subj-tint: 237 243 226; --subj-ink: 79 118 40; }
+.subj-9 { --subj-solid: 42 100 128; --subj-tint: 230 239 244; --subj-ink: 42 100 128; }
+.subj-10 { --subj-solid: 163 68 56; --subj-tint: 247 231 228; --subj-ink: 163 68 56; }
+.subj-11 { --subj-solid: 176 106 32; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
+html.dark .subj-0 { --subj-solid: 99 91 206; --subj-tint: 30 34 80; --subj-ink: 143 137 220; }
+html.dark .subj-1 { --subj-solid: 44 95 224; --subj-tint: 22 40 86; --subj-ink: 115 149 234; }
+html.dark .subj-2 { --subj-solid: 18 134 126; --subj-tint: 16 50 62; --subj-ink: 84 168 162; }
+html.dark .subj-3 { --subj-solid: 27 122 85; --subj-tint: 18 47 52; --subj-ink: 97 163 137; }
+html.dark .subj-4 { --subj-solid: 53 115 181; --subj-tint: 24 45 75; --subj-ink: 115 158 204; }
+html.dark .subj-5 { --subj-solid: 14 124 146; --subj-tint: 15 47 67; --subj-ink: 88 164 180; }
+html.dark .subj-6 { --subj-solid: 119 93 190; --subj-tint: 37 36 76; --subj-ink: 157 138 208; }
+html.dark .subj-7 { --subj-solid: 163 95 28; --subj-tint: 51 40 39; --subj-ink: 191 144 98; }
+html.dark .subj-8 { --subj-solid: 87 129 44; --subj-tint: 32 48 42; --subj-ink: 134 164 103; }
+html.dark .subj-9 { --subj-solid: 59 112 138; --subj-tint: 21 41 63; --subj-ink: 119 156 174; }
+html.dark .subj-10 { --subj-solid: 170 83 72; --subj-tint: 51 34 45; --subj-ink: 194 131 123; }
+html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 54 43 40; --subj-ink: 196 143 87; }
+
+/* The design's break cell: a soft diagonal stripe. */
+.tl-break-stripes {
+  background: repeating-linear-gradient(45deg, rgb(var(--tl-bg)), rgb(var(--tl-bg)) 7px, rgb(var(--tl-line-soft)) 7px, rgb(var(--tl-line-soft)) 14px);
+}
+
+/* Print: the shell, toolbars and anything marked data-print-hide disappear;
+   the report card (data-sheet) prints flat on white, in the light palette. */
+@media print {
+  @page { margin: 12mm; }
+  html.dark { color-scheme: light; }
+  html, html.dark {
+    --tl-bg: 255 255 255; --tl-surface: 255 255 255; --tl-subtle: 248 250 253;
+    --tl-ink: 15 27 46; --tl-body: 36 56 79; --tl-muted: 91 107 128; --tl-faint: 98 112 133;
+    --tl-line: 230 234 242; --tl-line-soft: 238 241 247; --tl-brand: 11 46 94; --tl-brand-fill: 11 46 94;
+    --tl-on-brand: 255 255 255; --tl-select: 234 241 255;
+  }
+  body { background: #fff !important; }
+  [data-print-hide="1"] { display: none !important; }
+  [data-sheet="1"] { border: none !important; box-shadow: none !important; border-radius: 0 !important; padding: 0 !important; }
+  [data-sheet="1"] .tl-print-row { break-inside: avoid; }
+  * { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  /* The report card prints in the light subject tones even from dark mode. */
+  html.dark .subj-0 { --subj-solid: 79 70 200; --subj-tint: 236 234 250; --subj-ink: 79 70 200; }
+  html.dark .subj-1 { --subj-solid: 44 95 224; --subj-tint: 232 239 251; --subj-ink: 44 95 224; }
+  html.dark .subj-2 { --subj-solid: 18 134 126; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
+  html.dark .subj-3 { --subj-solid: 27 122 85; --subj-tint: 226 241 234; --subj-ink: 26 118 82; }
+  html.dark .subj-4 { --subj-solid: 53 115 181; --subj-tint: 233 240 249; --subj-ink: 50 108 170; }
+  html.dark .subj-5 { --subj-solid: 14 124 146; --subj-tint: 225 240 244; --subj-ink: 13 113 133; }
+  html.dark .subj-6 { --subj-solid: 107 79 184; --subj-tint: 238 234 248; --subj-ink: 107 79 184; }
+  html.dark .subj-7 { --subj-solid: 163 95 28; --subj-tint: 247 235 220; --subj-ink: 153 89 26; }
+  html.dark .subj-8 { --subj-solid: 87 129 44; --subj-tint: 237 243 226; --subj-ink: 79 118 40; }
+  html.dark .subj-9 { --subj-solid: 42 100 128; --subj-tint: 230 239 244; --subj-ink: 42 100 128; }
+  html.dark .subj-10 { --subj-solid: 163 68 56; --subj-tint: 247 231 228; --subj-ink: 163 68 56; }
+  html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
 }

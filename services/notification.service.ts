@@ -1,5 +1,6 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
+import { fixturesEnabled, fixtureVariant } from "@/lib/fixtures/flag";
 import type { MarkAnnouncementReadBody, NotificationPreferencesBody } from "@/types/apiPayloads";
 
 /** Filters the notification list endpoint accepts. */
@@ -113,10 +114,15 @@ export const notificationService = {
    * @returns A page of notifications.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  getNotifications: (accessToken: string | undefined, params: NotificationQuery = {}) =>
-    api.get<NotificationListResponse>(`${API_ENDPOINTS.NOTIFICATIONS}${buildQuery({ page: 1, limit: 10, ...params })}`, {
+  getNotifications: async (accessToken: string | undefined, params: NotificationQuery = {}): Promise<NotificationListResponse> => {
+    if (fixturesEnabled()) {
+      const items = (await import("@/lib/fixtures/learner.fixture")).makeRawNotifications(fixtureVariant()) as RawNotification[];
+      return { data: items, meta: { total: items.length, page: 1, lastPage: 1, limit: params.limit ?? 10 } };
+    }
+    return api.get<NotificationListResponse>(`${API_ENDPOINTS.NOTIFICATIONS}${buildQuery({ page: 1, limit: 10, ...params })}`, {
       accessToken,
-    }),
+    });
+  },
 
   /**
    * School announcements addressed to one recipient.
@@ -128,11 +134,14 @@ export const notificationService = {
    * @returns A page of announcements.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  getAnnouncements: (accessToken: string | undefined, userId: string, page = 1, limit = 10) =>
-    api.get<NotificationListResponse>(
+  getAnnouncements: async (accessToken: string | undefined, userId: string, page = 1, limit = 10): Promise<NotificationListResponse> => {
+    // Fixtures: the announcements are already in the notification feed (A10's single feed).
+    if (fixturesEnabled()) return { data: [], meta: { total: 0, page, lastPage: 1, limit } };
+    return api.get<NotificationListResponse>(
       `${API_ENDPOINTS.NOTIFICATIONS}/announcements/receiver/${userId}${buildQuery({ page, limit })}`,
       { accessToken }
-    ),
+    );
+  },
 
   /**
    * Marks one notification read for the signed-in student.
@@ -143,8 +152,10 @@ export const notificationService = {
    * @returns Nothing useful; the server answers 200 or 204.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  markNotificationAsRead: (accessToken: string | undefined, notificationId: string) =>
-    api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, undefined, { accessToken }),
+  markNotificationAsRead: async (accessToken: string | undefined, notificationId: string): Promise<unknown> => {
+    if (fixturesEnabled()) return null;
+    return api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, undefined, { accessToken });
+  },
 
   /**
    * Marks one announcement read for the signed-in student.
@@ -155,7 +166,8 @@ export const notificationService = {
    * @returns Nothing useful; the server answers 200 or 204.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  markAnnouncementAsRead: (accessToken: string | undefined, announcementId: string, userId: string) => {
+  markAnnouncementAsRead: async (accessToken: string | undefined, announcementId: string, userId: string): Promise<unknown> => {
+    if (fixturesEnabled()) return null;
     const body: MarkAnnouncementReadBody = { userId };
     return api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/announcements/${announcementId}/read`, body, { accessToken });
   },
@@ -167,8 +179,10 @@ export const notificationService = {
    * @returns The stored preference document.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  getPreferences: (accessToken?: string) =>
-    api.get<NotificationPreferences>(`${API_ENDPOINTS.NOTIFICATIONS}/preferences`, { accessToken }),
+  getPreferences: async (accessToken?: string): Promise<NotificationPreferences> => {
+    if (fixturesEnabled()) return {};
+    return api.get<NotificationPreferences>(`${API_ENDPOINTS.NOTIFICATIONS}/preferences`, { accessToken });
+  },
 
   /**
    * Updates one or more notification preferences.
@@ -178,6 +192,8 @@ export const notificationService = {
    * @returns The updated preference document.
    * @throws {ApiError} `VALIDATION_FAILED` when a field is not on the DTO.
    */
-  updatePreferences: (patch: NotificationPreferences, accessToken?: string) =>
-    api.patch<NotificationPreferences>(`${API_ENDPOINTS.NOTIFICATIONS}/preferences`, patch, { accessToken }),
+  updatePreferences: async (patch: NotificationPreferences, accessToken?: string): Promise<NotificationPreferences> => {
+    if (fixturesEnabled()) return patch;
+    return api.patch<NotificationPreferences>(`${API_ENDPOINTS.NOTIFICATIONS}/preferences`, patch, { accessToken });
+  },
 };

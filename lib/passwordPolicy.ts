@@ -39,3 +39,48 @@ export function firstPasswordProblem(value: string): string | null {
   const broken = PASSWORD_RULES.find((rule) => !rule.test(value));
   return broken ? `Your new password needs: ${broken.label.toLowerCase()}.` : null;
 }
+
+/**
+ * The rules a password policy from `GET /auth/password-policy` asks for, in
+ * the order the checklist shows them. Without a policy (still loading, or the
+ * call failed) the built-in {@link PASSWORD_RULES} apply.
+ *
+ * @param policy - The server's policy, or null.
+ * @param policy.minLength - Shortest allowed length.
+ * @param policy.maxLength - Longest allowed length, when the server caps it.
+ * @param policy.requireUppercase - Needs an upper-case letter.
+ * @param policy.requireLowercase - Needs a lower-case letter.
+ * @param policy.requireNumber - Needs a digit.
+ * @param policy.requireSymbol - Needs a symbol.
+ * @param policy.symbols - The characters the symbol rule accepts.
+ * @returns The rules.
+ */
+export function rulesFromPolicy(
+  policy: {
+    minLength: number;
+    maxLength?: number;
+    requireUppercase: boolean;
+    requireLowercase: boolean;
+    requireNumber: boolean;
+    requireSymbol: boolean;
+    symbols?: string;
+  } | null | undefined
+): PasswordRule[] {
+  if (!policy) return PASSWORD_RULES;
+  const rules: PasswordRule[] = [{ label: `At least ${policy.minLength} characters`, test: (v) => v.length >= policy.minLength }];
+  if (policy.maxLength) {
+    const max = policy.maxLength;
+    rules.push({ label: `At most ${max} characters`, test: (v) => v.length <= max });
+  }
+  if (policy.requireUppercase) rules.push({ label: "An upper-case letter", test: (v) => /[A-Z]/.test(v) });
+  if (policy.requireLowercase) rules.push({ label: "A lower-case letter", test: (v) => /[a-z]/.test(v) });
+  if (policy.requireNumber) rules.push({ label: "A number", test: (v) => /\d/.test(v) });
+  if (policy.requireSymbol) {
+    const symbols = policy.symbols ? new Set(policy.symbols.split("")) : null;
+    rules.push({
+      label: "A symbol",
+      test: (v) => (symbols ? v.split("").some((ch) => symbols.has(ch)) : /[^A-Za-z0-9]/.test(v)),
+    });
+  }
+  return rules;
+}

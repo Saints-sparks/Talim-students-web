@@ -25,6 +25,46 @@ const config: Config = {
   			sm: 'calc(var(--radius) - 4px)'
   		},
   		colors: {
+  			// Redesign tokens (the Teachers app's `tl-*` set): CSS variables in
+  			// app/globals.css, redefined under `html.dark`, so every screen of the
+  			// redesign switches theme without per-class dark overrides.
+  			tl: {
+  				bg: 'rgb(var(--tl-bg) / <alpha-value>)',
+  				surface: 'rgb(var(--tl-surface) / <alpha-value>)',
+  				subtle: 'rgb(var(--tl-subtle) / <alpha-value>)',
+  				ink: 'rgb(var(--tl-ink) / <alpha-value>)',
+  				body: 'rgb(var(--tl-body) / <alpha-value>)',
+  				muted: 'rgb(var(--tl-muted) / <alpha-value>)',
+  				faint: 'rgb(var(--tl-faint) / <alpha-value>)',
+  				line: 'rgb(var(--tl-line) / <alpha-value>)',
+  				'line-soft': 'rgb(var(--tl-line-soft) / <alpha-value>)',
+  				control: 'rgb(var(--tl-control) / <alpha-value>)',
+  				brand: 'rgb(var(--tl-brand) / <alpha-value>)',
+  				'brand-fill': 'rgb(var(--tl-brand-fill) / <alpha-value>)',
+  				'brand-fill-hover': 'rgb(var(--tl-brand-fill-hover) / <alpha-value>)',
+  				'on-brand': 'rgb(var(--tl-on-brand) / <alpha-value>)',
+  				link: 'rgb(var(--tl-link) / <alpha-value>)',
+  				select: 'rgb(var(--tl-select) / <alpha-value>)',
+  				track: 'rgb(var(--tl-track) / <alpha-value>)',
+  				success: 'rgb(var(--tl-success) / <alpha-value>)',
+  				'success-bg': 'rgb(var(--tl-success-bg) / <alpha-value>)',
+  				warning: 'rgb(var(--tl-warning) / <alpha-value>)',
+  				'warning-bg': 'rgb(var(--tl-warning-bg) / <alpha-value>)',
+  				danger: 'rgb(var(--tl-danger) / <alpha-value>)',
+  				'danger-bg': 'rgb(var(--tl-danger-bg) / <alpha-value>)',
+  				accent: 'rgb(var(--tl-accent) / <alpha-value>)',
+  				'accent-bg': 'rgb(var(--tl-accent-bg) / <alpha-value>)',
+  				badge: 'rgb(var(--tl-badge) / <alpha-value>)',
+  				'present': 'rgb(var(--tl-present) / <alpha-value>)',
+  				'late': 'rgb(var(--tl-late) / <alpha-value>)',
+  				'missed': 'rgb(var(--tl-missed) / <alpha-value>)'
+  			},
+  			// The current subject's colour, set by a `.subj-N` class (lib/learner/subjectTone.ts).
+  			subj: {
+  				solid: 'rgb(var(--subj-solid) / <alpha-value>)',
+  				tint: 'rgb(var(--subj-tint) / <alpha-value>)',
+  				ink: 'rgb(var(--subj-ink) / <alpha-value>)'
+  			},
   			background: 'hsl(var(--background))',
   			foreground: 'hsl(var(--foreground))',
   			card: {

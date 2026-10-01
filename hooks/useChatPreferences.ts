@@ -13,6 +13,7 @@ const DEFAULTS: Required<ChatPreferences> = {
   schoolAnnouncements: true,
   readReceipts: true,
   showOnlineStatus: true,
+  messagePreview: true,
 };
 
 /**
