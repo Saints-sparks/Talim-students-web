@@ -6,7 +6,7 @@ import { newestServerMessageId, normalizeMessage } from "@/lib/chat";
 import type { ChatAck, ChatMessage, ChatRoomJoined } from "@/types/chat";
 import { JOIN_TIMEOUT } from "./constants";
 import { withJoinedRoom } from "./listReducers";
-import { emptyRoomState, joinFailurePatch, joinedPatch, leavePatch } from "./roomReducers";
+import { emptyRoomState, joinFailurePatch, joinedPatch, leavePatch, resetToLatestPatch } from "./roomReducers";
 import { subscribe } from "./socketEvents";
 import type { ChatStore } from "./useChatStore";
 
@@ -25,7 +25,7 @@ export function useRoomSession(
   store: ChatStore,
   socket: Socket | null,
   markVisibleAsRead: (roomId: string) => void,
-  backfill: (roomId: string, cursor: string) => Promise<void>
+  backfill: (roomId: string, cursor: string) => Promise<"done" | "gap">
 ) {
   const {
     socketRef,
@@ -145,9 +145,14 @@ export function useRoomSession(
         setChatRooms((rooms) => withJoinedRoom(rooms, joinedRoom, userIdsRef.current));
       }
 
-      // Messages that arrived while we were away and aren't in this first page.
+      // Messages that arrived while we were away and aren't in this first page:
+      // one catch-up page, or, for a bigger gap, start again from this page.
       if (newestKnown && !incoming.some((m) => m._id === newestKnown)) {
-        void backfill(roomId, newestKnown);
+        void backfill(roomId, newestKnown).then((result) => {
+          if (result === "gap" && selectedRef.current === roomId) {
+            patchRoom(roomId, (room) => resetToLatestPatch(room, data, incoming));
+          }
+        });
       }
       markVisibleAsRead(roomId);
     };

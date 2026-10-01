@@ -39,7 +39,7 @@ export const STUDENT_ONBOARDING_STEPS: StudentOnboardingStep[] = [
     description: "Check your school announcements and updates.",
     required: true,
     phase: 2,
-    href: "/notifications",
+    href: "/updates",
   },
   {
     id: "download-resource",
@@ -47,7 +47,7 @@ export const STUDENT_ONBOARDING_STEPS: StudentOnboardingStep[] = [
     description: "Access and download a learning resource shared by your teacher.",
     required: true,
     phase: 2,
-    href: "/resources",
+    href: "/files",
   },
   {
     id: "view-timetable",

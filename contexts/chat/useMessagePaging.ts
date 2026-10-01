@@ -64,9 +64,19 @@ export function useMessagePaging(
     [applyPage, emitWithAck, patchRoom, roomStatesRef]
   );
 
-  /** Fetches what arrived after the newest message we already had (reconnect / reopen). */
+  /**
+   * Fetches what arrived after the newest message we already had (reconnect /
+   * reopen), at most {@link BACKFILL_MAX_PAGES} page(s) of
+   * {@link BACKFILL_PAGE_SIZE}.
+   *
+   * @param roomId - The room being rejoined.
+   * @param cursor - The newest stored message we had.
+   * @returns "done" when the gap is filled (or the fetch failed or the room
+   *   was left), "gap" when more messages remain than one catch-up fetches:
+   *   the caller then resets the room to the newest page.
+   */
   const backfill = useCallback(
-    async (roomId: string, cursor: string) => {
+    async (roomId: string, cursor: string): Promise<"done" | "gap"> => {
       let next: string | undefined = cursor;
       for (let page = 0; page < BACKFILL_MAX_PAGES && next; page++) {
         const ack = await emitWithAck("fetch-messages", {
@@ -75,10 +85,12 @@ export function useMessagePaging(
           direction: "after",
           limit: BACKFILL_PAGE_SIZE,
         });
-        if (!ack.ok || selectedRef.current !== roomId) return;
+        if (!ack.ok || selectedRef.current !== roomId) return "done";
+        if (ack.hasMore && page === BACKFILL_MAX_PAGES - 1) return "gap";
         applyPage({ roomId, direction: "after", ...ack });
         next = ack.hasMore ? ack.prevCursor : undefined;
       }
+      return "done";
     },
     [applyPage, emitWithAck, selectedRef]
   );

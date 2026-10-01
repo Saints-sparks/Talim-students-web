@@ -1,89 +1,82 @@
 "use client";
 
 import { useCallback } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import { useAuthContext } from "@/contexts/AuthContext";
-import { useStudentOnboarding } from "@/contexts/OnboardingContext";
-import { notificationService } from "@/services/notification.service";
-import { studentService } from "@/services/student.service";
-import { ResourceServices } from "@/services/resource.service";
-import { timetableService } from "@/services/timetable.service";
-import type { AcademicResponse } from "@/types/auth";
+import { useStudentOnboarding, type StudentOnboardingStepId } from "@/contexts/OnboardingContext";
+import { accountService } from "@/services/account.service";
+import { learnerService } from "@/services/learner.service";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+
+/** The page of files the Files screen opens on; the same key, so the cache is shared. */
+const FIRST_FILES_PAGE = { page: 1, limit: 20 } as const;
+
+/** User ids already synced in this tab, so a remount never repeats the checks. */
+const syncedUsers = new Set<string>();
 
 /**
- * Whether a response carries at least one item, across the three shapes the
- * onboarding-sync checks use: a paginated `{data,meta}` or `{data,total}`
- * page, a bare array, or a day-keyed timetable object.
- *
- * @param value - The parsed response body.
- * @returns True when it holds anything.
+ * Forgets which students were synced (tests, and a sign-out in the same tab).
  */
-function hasItems(value: unknown): boolean {
-  if (!value || typeof value !== "object") return false;
-  const record = value as Record<string, unknown>;
-
-  const meta = record.meta as Record<string, unknown> | undefined;
-  if (typeof meta?.total === "number") return meta.total > 0;
-  if (typeof record.total === "number") return record.total > 0;
-  if (Array.isArray(value)) return value.length > 0;
-
-  return Object.values(record).some((entry) => Array.isArray(entry) && entry.length > 0);
+export function resetOnboardingSync(): void {
+  syncedUsers.clear();
 }
 
 /**
+ * Ticks the setup steps the student has already done, once per sign-in.
  *
+ * It used to send five requests on every route change. Now it runs once per
+ * student per tab, skips everything when the steps are all done, and reads
+ * through the query cache with the screens' own keys (notification counts,
+ * this week's timetable, the first page of files), so at most three requests
+ * go out and the screens then open from the cache. The steps are also ticked
+ * when the student visits Updates or Timetable, or opens a file.
+ *
+ * @returns `syncProgress`, which resolves when the checks are done.
  */
 export function useStudentOnboardingSync() {
-  const { user, accessToken } = useAuthContext();
-  const { markStepComplete } = useStudentOnboarding();
+  const { user } = useAuthContext();
+  const { markStepComplete, isStepComplete, isHydrated } = useStudentOnboarding();
+  const queryClient = useQueryClient();
 
   const syncProgress = useCallback(async () => {
-    if (!user || !accessToken) return;
-    const userId = user.userId || user.id;
-    if (!userId) return;
+    const userId = (user?.userId || user?.id) as string | undefined;
+    if (!user || !userId || !isHydrated || syncedUsers.has(userId)) return;
+    syncedUsers.add(userId);
 
-    // student-profile: user object always carries name when profile is set
-    if (user.firstName && user.lastName) {
-      markStepComplete("student-profile");
+    if (user.firstName && user.lastName) markStepComplete("student-profile");
+
+    const pending = (id: StudentOnboardingStepId) => !isStepComplete(id);
+    const checks: Array<Promise<void>> = [];
+
+    if (pending("view-notifications")) {
+      checks.push(
+        queryClient
+          .fetchQuery({ queryKey: queryKeys.notifications.counts(userId), staleTime: 60_000, queryFn: () => accountService.getNotificationCounts() })
+          .then((counts) => {
+            if (counts.all > 0) markStepComplete("view-notifications");
+          })
+      );
     }
-
-    // view-notifications: check both notifications and announcements
-    const notifResults = await Promise.allSettled([
-      notificationService.getNotifications(accessToken, {
-        recipientId: userId,
-        page: 1,
-        limit: 1,
-      }),
-      notificationService.getAnnouncements(accessToken, userId, 1, 1),
-    ]);
-    if (
-      notifResults.some((result) => result.status === "fulfilled" && hasItems(result.value))
-    ) {
-      markStepComplete("view-notifications");
+    if (pending("view-timetable")) {
+      checks.push(
+        queryClient
+          .fetchQuery({ queryKey: queryKeys.learner.timetable(userId), staleTime: staleTimes.reference, queryFn: () => learnerService.getTimetable() })
+          .then((week) => {
+            if (week.lessons.length > 0) markStepComplete("view-timetable");
+          })
+      );
     }
-
-    // download-resource + view-timetable require the student's classId
-    let classId: string | null = null;
-    try {
-      const academic = (await studentService.getAcademicDetails(userId, accessToken)) as AcademicResponse;
-      classId = academic?.data?.[0]?.classId ?? null;
-    } catch {
-      // if we can't get classId, skip these two checks
+    if (pending("download-resource")) {
+      checks.push(
+        queryClient
+          .fetchQuery({ queryKey: queryKeys.learner.files(userId, FIRST_FILES_PAGE), staleTime: staleTimes.list, queryFn: () => learnerService.getFiles(FIRST_FILES_PAGE) })
+          .then((page) => {
+            if (page.meta.total > 0) markStepComplete("download-resource");
+          })
+      );
     }
-
-    if (classId) {
-      const [resourceResult, timetableResult] = await Promise.allSettled([
-        ResourceServices.getResourceDetails(classId, accessToken),
-        timetableService.getTimetableByClass(classId, accessToken),
-      ]);
-
-      if (resourceResult.status === "fulfilled" && hasItems(resourceResult.value)) {
-        markStepComplete("download-resource");
-      }
-      if (timetableResult.status === "fulfilled" && hasItems(timetableResult.value)) {
-        markStepComplete("view-timetable");
-      }
-    }
-  }, [user, accessToken, markStepComplete]);
+    await Promise.allSettled(checks);
+  }, [isHydrated, isStepComplete, markStepComplete, queryClient, user]);
 
   return { syncProgress };
 }

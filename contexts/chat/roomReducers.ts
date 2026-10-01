@@ -71,6 +71,28 @@ export function joinedPatch(
 }
 
 /**
+ * A rejoin after too long away: the cached messages can no longer be joined
+ * up with the newest page without fetching everything in between, so the
+ * room starts again from the newest page, keeping only messages still being
+ * sent from this device. Paging state comes from the join, as on a first load.
+ *
+ * @param room - The room's state before the reset.
+ * @param data - The join payload.
+ * @param incoming - The join's messages, normalised.
+ * @returns The fields to change.
+ */
+export function resetToLatestPatch(room: RoomState, data: ChatRoomJoined, incoming: ChatMessage[]): Partial<RoomState> {
+  const unsent = room.messages.filter((message) => message.status && message.status !== "sent");
+  return {
+    messages: mergeMessages(unsent, incoming),
+    hasMore: Boolean(data.hasMore),
+    nextCursor: data.nextCursor,
+    isLoadingMore: false,
+    loadMoreError: null,
+  };
+}
+
+/**
  * A page of messages: merged in place. An older page (or a plain update) also
  * moves the paging state; a forward page (`after`) leaves it alone.
  *

@@ -102,19 +102,15 @@ describe("chat-room-joined", () => {
     expect(fetches("fetch-messages")).toHaveLength(0); // no gap, so no backfill
   });
 
-  it("rejoin: backfills, page by page, what arrived while away and is not in the first page", async () => {
+  it("rejoin: catches up with one page when the gap fits in it", async () => {
     await openRoom(h, "r1", {
       messages: [rawMessage("m1", { createdAt: at(1) })],
       hasMore: false,
     });
     await h.run(() => h.chat().unselectRoom());
 
-    const pages: Record<string, unknown> = {
-      m1: { ok: true, messages: [rawMessage("m2", { createdAt: at(2) })], hasMore: true, prevCursor: "m2" },
-      m2: { ok: true, messages: [rawMessage("m3", { createdAt: at(3) })], hasMore: false },
-    };
-    responders["fetch-messages"] = (payload) =>
-      pages[(payload as { cursor: string }).cursor] as never;
+    responders["fetch-messages"] = () =>
+      ({ ok: true, messages: [rawMessage("m2", { createdAt: at(2) }), rawMessage("m3", { createdAt: at(3) })], hasMore: false }) as never;
 
     await h.run(() => h.chat().selectRoom("r1"));
     await h.run(() =>
@@ -127,12 +123,38 @@ describe("chat-room-joined", () => {
     );
 
     expect(fetches("fetch-messages").map(([, payload]) => payload)).toEqual([
-      { roomId: "r1", cursor: "m1", direction: "after", limit: 100 },
-      { roomId: "r1", cursor: "m2", direction: "after", limit: 100 },
+      { roomId: "r1", cursor: "m1", direction: "after", limit: 50 },
     ]);
     expect(h.messages("r1").map((m) => m._id)).toEqual(["m1", "m2", "m3", "m9"]);
     // Backfilling forward must not disturb the paging state for older history.
     expect(h.room("r1")).toMatchObject({ hasMore: false, nextCursor: "cursor-new" });
+  });
+
+  it("rejoin: a gap bigger than one page resets the room to the newest page instead of walking it", async () => {
+    await openRoom(h, "r1", {
+      messages: [rawMessage("m1", { createdAt: at(1) })],
+      hasMore: false,
+    });
+    await h.run(() => h.chat().unselectRoom());
+
+    responders["fetch-messages"] = () =>
+      ({ ok: true, messages: [rawMessage("m2", { createdAt: at(2) })], hasMore: true, prevCursor: "m2" }) as never;
+
+    await h.run(() => h.chat().selectRoom("r1"));
+    await h.run(() =>
+      socket.serverEmit("chat-room-joined", {
+        roomId: "r1",
+        messages: [rawMessage("m9", { createdAt: at(9) })],
+        hasMore: true,
+        nextCursor: "cursor-new",
+      })
+    );
+
+    // One catch-up request only, never ten pages of a hundred.
+    expect(fetches("fetch-messages")).toHaveLength(1);
+    // The stale cache is dropped; older history comes back by scrolling.
+    expect(h.messages("r1").map((m) => m._id)).toEqual(["m9"]);
+    expect(h.room("r1")).toMatchObject({ hasMore: true, nextCursor: "cursor-new" });
   });
 
   it("clears the join timer once joined", async () => {

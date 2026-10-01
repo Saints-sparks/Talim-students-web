@@ -3,6 +3,7 @@
 import { useCallback, useEffect, useMemo } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { notificationService } from "@/services/notification.service";
+import { accountService } from "@/services/account.service";
 import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { messageForError } from "@/lib/errorMessages";
@@ -123,6 +124,7 @@ export const useNotifications = () => {
     },
     onSettled: () => {
       void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.counts(userId ?? "anonymous") });
     },
   });
 
@@ -135,11 +137,32 @@ export const useNotifications = () => {
     [markRead, notifications, userId]
   );
 
+  // One `PATCH /notifications/read-all` (it covers announcements too), never
+  // one request per unread item. Optimistic, rolled back if the write fails.
+  const markAll = useMutation({
+    mutationFn: () => accountService.markAllNotificationsRead(),
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey });
+      const previous = queryClient.getQueryData<StudentNotification[]>(queryKey);
+      queryClient.setQueryData<StudentNotification[]>(queryKey, (current) =>
+        (current ?? []).map((item) => (item.unread ? { ...item, unread: false } : item))
+      );
+      return { previous };
+    },
+    onError: (error, _vars, context) => {
+      queryClient.setQueryData(queryKey, context?.previous);
+      logger.error("notifications", "Marking everything as read failed", error);
+    },
+    onSettled: () => {
+      void queryClient.invalidateQueries({ queryKey });
+      void queryClient.invalidateQueries({ queryKey: queryKeys.notifications.counts(userId ?? "anonymous") });
+    },
+  });
+
   const markAllAsRead = useCallback(async () => {
-    const unread = notifications.filter((item) => item.unread);
-    if (!unread.length || !userId) return;
-    await markRead.mutateAsync(unread).catch(() => undefined);
-  }, [markRead, notifications, userId]);
+    if (!userId || !notifications.some((item) => item.unread)) return;
+    await markAll.mutateAsync().catch(() => undefined);
+  }, [markAll, notifications, userId]);
 
   const counts = useMemo(() => countByCategory(notifications), [notifications]);
 
@@ -150,10 +173,13 @@ export const useNotifications = () => {
       ? messageForError(query.error, "We couldn't load your notifications.")
       : markRead.error
         ? messageForError(markRead.error, "That couldn't be marked as read.")
-        : null,
+        : markAll.error
+          ? messageForError(markAll.error, "We couldn't mark everything as read.")
+          : null,
     counts,
     refetch: () => queryClient.invalidateQueries({ queryKey }),
     markAsRead,
     markAllAsRead,
+    isMarkingAll: markAll.isPending,
   };
 };

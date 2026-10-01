@@ -115,19 +115,32 @@ export async function refreshAccessToken(): Promise<string> {
   return refreshPromise;
 }
 
+/** The keys a canonical success envelope may have, and nothing else. */
+const ENVELOPE_KEYS = new Set(["success", "data", "meta"]);
+
 /**
- * Unwraps the canonical `{ success, data }` envelope. Responses that predate
- * the envelope are returned untouched, so a mixed API keeps working.
+ * Unwraps the canonical success envelope, strictly: only a body whose keys
+ * are exactly `success: true` and `data` (plus an optional pagination
+ * `meta`) is an envelope.
+ *
+ * - `{ success: true, data }` → `data`.
+ * - `{ success: true, data, meta }` → `{ data, meta }`: a paginated list keeps
+ *   its `meta`, so callers read the same `{ data, meta }` page whether the
+ *   API's envelope flag is on or off.
+ * - Anything else is returned untouched: bare payloads, and the endpoints
+ *   that answer `{ success: true, message, … }` with other fields (whose
+ *   `data` key, if any, is one field among several, not the payload).
  *
  * @param body - The parsed response body.
  * @returns The payload the caller asked for.
  */
 export function unwrapEnvelope(body: unknown): unknown {
-  if (body && typeof body === "object" && !Array.isArray(body)) {
-    const envelope = body as Partial<SuccessEnvelope<unknown>>;
-    if (envelope.success === true && "data" in envelope) return envelope.data;
-  }
-  return body;
+  if (!body || typeof body !== "object" || Array.isArray(body)) return body;
+  const record = body as Partial<SuccessEnvelope<unknown>> & { meta?: unknown };
+  if (record.success !== true || !("data" in record)) return body;
+  const keys = Object.keys(record);
+  if (!keys.every((key) => ENVELOPE_KEYS.has(key))) return body;
+  return "meta" in record && record.meta !== undefined ? { data: record.data, meta: record.meta } : record.data;
 }
 
 const errorListeners = new Set<ErrorListener>();

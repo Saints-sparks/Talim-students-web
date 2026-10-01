@@ -3,9 +3,12 @@
 
 import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { destroyCookie, parseCookies, setCookie } from "nookies";
 import { User } from "@/types/auth";
 import { authService } from "@/services/auth.service";
+import { accountService } from "@/services/account.service";
+import { isStudentRole } from "@/lib/auth/signIn";
 import { unsubscribeBrowserPush } from "@/lib/webPush";
 import { startWebPushSync } from "@/lib/webPushSync";
 import { sessionStore } from "@/lib/session";
@@ -17,7 +20,8 @@ interface AuthContextType {
   isLoading: boolean;
   accessToken: string | null;
   checkAuth: () => Promise<boolean>;
-  logout: () => void;
+  /** Signs out on the server (`POST /auth/logout`) and here, then goes to sign-in. */
+  logout: () => Promise<void>;
   setAuthState: (user: User | null, token: string | null) => void;
 }
 
@@ -31,7 +35,7 @@ export const AuthContext = createContext<AuthContextType>({
   isLoading: true,
   accessToken: null,
   checkAuth: async () => false,
-  logout: () => {},
+  logout: async () => {},
   setAuthState: () => {},
 });
 
@@ -94,9 +98,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         token = parseCookies().access_token ?? null;
       }
 
+      // A stored session of another role (signed in before the role gate
+      // existed) is not restored: only students use this portal.
+      let refusedRole = false;
       const persistValidatedSession = async (nextToken: string) => {
         const introspectResponse = await authService.introspect(nextToken);
         const userData = introspectResponse.user as unknown as User;
+        if (!isStudentRole(userData?.role)) {
+          refusedRole = true;
+          throw new Error("This session is not a student's");
+        }
 
         localStorage.setItem("accessToken", nextToken);
         localStorage.setItem("user", JSON.stringify(userData));
@@ -113,12 +124,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         }
       }
 
-      try {
-        const refreshResponse = await authService.refresh();
-        await persistValidatedSession(refreshResponse.access_token);
-        return true;
-      } catch (error) {
-        logger.warn("auth", "Session refresh failed", error);
+      if (!refusedRole) {
+        try {
+          const refreshResponse = await authService.refresh();
+          await persistValidatedSession(refreshResponse.access_token);
+          return true;
+        } catch (error) {
+          logger.warn("auth", "Session refresh failed", error);
+        }
       }
 
       localStorage.removeItem("user");
@@ -137,10 +150,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     }
   }, [setAuthState]);
 
-  const logout = useCallback(() => {
-    // Stop this browser receiving the student's pushes. Captures the token
-    // first; runs in the background so sign-out is never blocked.
-    void unsubscribeBrowserPush(localStorage.getItem("accessToken"), user?.userId || user?.id);
+  const queryClient = useQueryClient();
+
+  const logout = useCallback(async () => {
+    // Stop this browser receiving the student's pushes while the token still
+    // works, then end the session on the server (revokes the refresh token
+    // and clears its cookie). Neither may hold up signing out for long, and a
+    // failure of either still signs out here.
+    const token = localStorage.getItem("accessToken");
+    await Promise.race([
+      unsubscribeBrowserPush(token, user?.userId || user?.id).catch(() => undefined),
+      new Promise((resolve) => setTimeout(resolve, 3000)),
+    ]);
+    try {
+      await accountService.logout(token ?? undefined);
+    } catch (error) {
+      logger.debug("auth", "Server sign-out failed; the refresh token will expire on its own", error);
+    }
 
     destroyCookie(null, "access_token");
     destroyCookie(null, "refresh_token");
@@ -151,14 +177,16 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     localStorage.removeItem("studentDetails");
 
     setAuthState(null, null);
+    // Nothing of this student's may be shown to whoever signs in next.
+    queryClient.clear();
 
     // Trigger custom auth event for the WebSocket context
     if (typeof window !== "undefined") {
       window.dispatchEvent(new CustomEvent("auth-changed", { detail: { type: "logout" } }));
     }
 
-    router.push("/");
-  }, [router, setAuthState, user?.id, user?.userId]);
+    router.push("/signin");
+  }, [queryClient, router, setAuthState, user?.id, user?.userId]);
 
   // Keep the backend's push subscription in step with the browser (heals a
   // lost row, follows a rotated endpoint, clears a revoked permission).
