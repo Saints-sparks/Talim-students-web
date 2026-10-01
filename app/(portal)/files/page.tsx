@@ -1,12 +1,20 @@
 "use client";
 
+import { Suspense } from "react";
+import FilesScreen from "@/components/screens/files/FilesScreen";
 import { ScreenLoading } from "@/components/tl/states";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Files (`/files`): everything the student's teachers shared. The screen
+ * reads `?course=&q=` with `useSearchParams`, so it sits in a Suspense
+ * boundary.
  *
- * @returns A loading state.
+ * @returns The Files screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function FilesPage() {
+  return (
+    <Suspense fallback={<ScreenLoading label="Loading your files" blocks={2} />}>
+      <FilesScreen />
+    </Suspense>
+  );
 }
