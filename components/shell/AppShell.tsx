@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useCallback, useEffect, useState, type ReactNode } from "react";
+import React, { useCallback, useEffect, useRef, useState, type ReactNode } from "react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
 import * as Dialog from "@radix-ui/react-dialog";
@@ -152,6 +152,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
   const [drawerOpen, setDrawerOpen] = useState(false);
   const [signingOut, setSigningOut] = useState(false);
   const date = useTopBarDate();
+  const menuButtonRef = useRef<HTMLButtonElement>(null);
 
   // Growing past the breakpoint closes the drawer, as in the design.
   useEffect(() => {
@@ -199,6 +200,11 @@ export default function AppShell({ children }: { children: ReactNode }) {
           <Dialog.Overlay className="fixed inset-0 z-40 bg-[rgba(15,27,46,0.42)] print:hidden" />
           <Dialog.Content
             aria-describedby={undefined}
+            onCloseAutoFocus={(event) => {
+              // Back to the menu button (it is not a Radix trigger).
+              event.preventDefault();
+              menuButtonRef.current?.focus();
+            }}
             className="fixed left-0 top-0 z-50 flex h-[100dvh] w-[268px] flex-col overflow-y-auto bg-tl-surface px-3.5 py-5 font-manrope shadow-[0_0_40px_rgba(15,27,46,0.2)] focus:outline-none print:hidden"
           >
             <Dialog.Title className="sr-only">Menu</Dialog.Title>
@@ -213,6 +219,7 @@ export default function AppShell({ children }: { children: ReactNode }) {
           className="flex flex-wrap items-center gap-3.5 border-b border-tl-line bg-tl-surface px-[clamp(14px,3vw,26px)] py-3.5"
         >
           <button
+            ref={menuButtonRef}
             type="button"
             onClick={() => setDrawerOpen(true)}
             aria-label="Open the menu"

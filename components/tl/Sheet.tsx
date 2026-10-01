@@ -1,6 +1,6 @@
 "use client";
 
-import React, { type ReactNode } from "react";
+import React, { useRef, type ReactNode } from "react";
 import * as Dialog from "@radix-ui/react-dialog";
 import { Check, X } from "lucide-react";
 import { eyebrow, focusRing } from "./styles";
@@ -27,9 +27,10 @@ export interface SheetProps {
 
 /**
  * The redesign's sheet: a centred dialog (max 560px) on wider screens and a
- * bottom sheet on phones. Radix supplies the focus trap, Escape to close,
- * focus return to the opener and `aria-modal`; the first focusable control
- * inside receives focus when it opens.
+ * bottom sheet on phones. Radix supplies the focus trap, Escape to close and
+ * `aria-modal`; the first focusable control inside receives focus when it
+ * opens, and focus goes back to whatever opened it (a plain button, not only
+ * a Radix trigger) when it closes.
  *
  * @param props - See {@link SheetProps}.
  * @param props.open - Whether it shows.
@@ -43,12 +44,23 @@ export interface SheetProps {
  * @returns The dialog.
  */
 export function Sheet({ open, onOpenChange, eyebrowText, title, subtitle, children, footer, maxWidthClass = "sm:max-w-[560px]" }: SheetProps) {
+  const returnFocus = useRef<HTMLElement | null>(null);
   return (
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-[80] bg-[rgba(15,27,46,0.45)] print:hidden" />
         <Dialog.Content
           {...(subtitle ? {} : { "aria-describedby": undefined })}
+          onOpenAutoFocus={() => {
+            returnFocus.current = document.activeElement instanceof HTMLElement ? document.activeElement : null;
+          }}
+          onCloseAutoFocus={(event) => {
+            const opener = returnFocus.current;
+            if (opener && opener.isConnected) {
+              event.preventDefault();
+              opener.focus();
+            }
+          }}
           className={`fixed inset-x-0 bottom-0 z-[81] max-h-[88vh] overflow-y-auto rounded-t-[24px] bg-tl-surface p-[clamp(22px,3vw,30px)] pb-[max(22px,env(safe-area-inset-bottom))] font-manrope text-tl-ink shadow-[0_30px_70px_-30px_rgba(15,27,46,0.45)] focus:outline-none sm:bottom-auto sm:left-1/2 sm:right-auto sm:top-1/2 sm:w-[calc(100%-40px)] sm:-translate-x-1/2 sm:-translate-y-1/2 sm:rounded-[24px] dark:border dark:border-tl-line print:hidden ${maxWidthClass}`}
         >
           <div className="flex items-start justify-between gap-3">
