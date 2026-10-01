@@ -1,7 +1,8 @@
 "use client";
 
 import { AuthProvider } from "@/contexts/AuthContext";
-import { StudentOnboardingProvider } from "@/contexts/OnboardingContext";
+import { StudentOnboardingProvider, useStudentOnboarding } from "@/contexts/OnboardingContext";
+import { TourProvider } from "@/components/tour/TourProvider";
 import { WebSocketProvider } from "@/contexts/WebSocketContext";
 import { ChatProvider } from "@/contexts/ChatContext";
 import RealtimeAlerts from "@/components/RealtimeAlerts";
@@ -12,29 +13,26 @@ import "./globals.css";
 import { Inter } from "next/font/google";
 import { ToastViewport } from "@/components/CustomToast";
 import { usePathname, useRouter } from "next/navigation";
-import { useEffect, useRef } from "react";
+import { useEffect } from "react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { useStudentOnboardingSync } from "@/hooks/useStudentOnboardingSync";
 
-const SYNC_THROTTLE_MS = 60_000;
-
+/**
+ * Ticks the onboarding steps the student has already done: once per signed-in
+ * student (never per route change), through the query cache.
+ *
+ * @returns Nothing visible.
+ */
 function OnboardingSyncEffect() {
   const { user } = useAuthContext();
+  const { isHydrated } = useStudentOnboarding();
   const { syncProgress } = useStudentOnboardingSync();
-  const pathname = usePathname();
-  const lastSyncAt = useRef(0);
-  const lastSyncPath = useRef<string | null>(null);
+  const userId = user?.userId || user?.id;
 
   useEffect(() => {
-    if (!user) return;
-    const now = Date.now();
-    const pathChanged = lastSyncPath.current !== pathname;
-    if (!pathChanged && now - lastSyncAt.current < SYNC_THROTTLE_MS) return;
-
-    lastSyncPath.current = pathname;
-    lastSyncAt.current = now;
+    if (!userId || !isHydrated) return;
     syncProgress().catch(() => {});
-  }, [pathname, user?.userId]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [userId, isHydrated]); // eslint-disable-line react-hooks/exhaustive-deps
 
   return null;
 }
@@ -105,9 +103,11 @@ export default function RootLayout({
                 <AuthGuard>
                   <WebSocketProvider>
                     <ChatProvider>
-                      <RealtimeAlerts />
-                      {children}
-                      <ToastViewport />
+                      <TourProvider>
+                        <RealtimeAlerts />
+                        {children}
+                        <ToastViewport />
+                      </TourProvider>
                     </ChatProvider>
                   </WebSocketProvider>
                 </AuthGuard>
