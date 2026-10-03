@@ -1,12 +1,20 @@
 "use client";
 
+import { Suspense } from "react";
+import ResultsScreen from "@/components/screens/results/ResultsScreen";
 import { ScreenLoading } from "@/components/tl/states";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Results (`/results`): the term's report card, printable, for the term in
+ * `?term=` (the current one by default). Suspense is needed because the
+ * screen reads the address with `useSearchParams`.
  *
- * @returns A loading state.
+ * @returns The Results screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function ResultsPage() {
+  return (
+    <Suspense fallback={<ScreenLoading label="Loading your results" />}>
+      <ResultsScreen />
+    </Suspense>
+  );
 }
