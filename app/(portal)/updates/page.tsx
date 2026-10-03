@@ -1,12 +1,12 @@
 "use client";
 
-import { ScreenLoading } from "@/components/tl/states";
+import UpdatesScreen from "@/components/screens/updates/UpdatesScreen";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Updates (`/updates`): announcements from the school and alerts from Talim.
  *
- * @returns A loading state.
+ * @returns The Updates screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function UpdatesPage() {
+  return <UpdatesScreen />;
 }
