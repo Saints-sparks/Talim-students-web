@@ -12,52 +12,10 @@ export const queryKeys = {
     all: ["student"] as const,
     /** The student profile behind a user account (`/students/by-user/:userId`). */
     byUser: (userId: string) => ["student", userId, "profile"] as const,
-    /** Dashboard KPI tiles for the signed-in student. */
-    kpis: (studentId: string, termId?: string) => ["student", studentId, "kpis", termId ?? "current"] as const,
-  },
-  attendance: {
-    all: ["attendance"] as const,
-    kpis: (studentId: string) => ["attendance", studentId, "kpis"] as const,
-    dashboard: (studentId: string) => ["attendance", studentId, "dashboard"] as const,
-    classStatus: (classId: string, date: string) => ["attendance", "class", classId, "status", date] as const,
-  },
-  grades: {
-    all: ["grades"] as const,
-    /** Courses in the student's class with published-result counts, per term. */
-    courses: (termId: string) => ["grades", "me", "courses", termId] as const,
-    /** Course grade records for the student, per term. */
-    courseGrades: (termId: string) => ["grades", "me", "course-grades", termId] as const,
-    /** Published assessments for one course, per term. */
-    publishedAssessments: (courseId: string, termId: string) =>
-      ["grades", "me", "courses", courseId, "published-assessments", termId] as const,
-    /** Every cumulative term record for the student. */
-    cumulative: () => ["grades", "me", "cumulative"] as const,
-    /** One term's cumulative record. */
-    cumulativeByTerm: (termId: string) => ["grades", "me", "cumulative", termId] as const,
-    /** The student's records for one assessment. */
-    assessment: (assessmentId: string) => ["grades", "me", "assessments", assessmentId] as const,
-  },
-  timetable: {
-    all: ["timetable"] as const,
-    byClass: (classId: string) => ["timetable", classId] as const,
-  },
-  curriculum: {
-    all: ["curriculum"] as const,
-    coursesByClass: (classId: string) => ["curriculum", "courses", "class", classId] as const,
-    coursesBySchool: () => ["curriculum", "courses", "school"] as const,
-    subjects: () => ["curriculum", "subjects"] as const,
-    byCourse: (courseId: string) => ["curriculum", "course", courseId] as const,
-    detail: (curriculumId: string) => ["curriculum", "detail", curriculumId] as const,
-  },
-  resources: {
-    all: ["resources"] as const,
-    byClass: (classId: string) => ["resources", "class", classId] as const,
   },
   notifications: {
     all: ["notifications"] as const,
     list: (userId: string, params?: Record<string, unknown>) => ["notifications", userId, "list", params ?? {}] as const,
-    announcements: (userId: string, params?: Record<string, unknown>) =>
-      ["notifications", userId, "announcements", params ?? {}] as const,
     /** Per-student notification preferences. */
     preferences: (userId: string) => ["notifications", userId, "preferences"] as const,
     /** Unread and total counts per category (`/notifications/counts`). */
@@ -67,8 +25,6 @@ export const queryKeys = {
     all: ["chat"] as const,
     /** The student's messaging switches (`/chat/preferences`). */
     preferences: (userId: string) => ["chat", userId, "preferences"] as const,
-    /** Teachers this student may start a direct message with (`/chat/contacts`). */
-    contacts: (userId: string) => ["chat", userId, "contacts"] as const,
     /** What was shared in a room, by kind (`/chat/rooms/:id/media?kind=`). */
     media: (roomId: string, kind: string) => ["chat", "media", roomId, kind] as const,
   },
@@ -91,11 +47,6 @@ export const queryKeys = {
     all: ["account"] as const,
     passwordPolicy: () => ["account", "password-policy"] as const,
     sessions: (userId: string) => ["account", userId, "sessions"] as const,
-  },
-  academics: {
-    all: ["academics"] as const,
-    /** The school's academic sessions and terms. */
-    sessions: (schoolId: string) => ["academics", schoolId, "sessions"] as const,
   },
 } as const;
 

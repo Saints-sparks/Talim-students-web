@@ -1,7 +1,6 @@
 import { API_BASE_URL } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
 import type { AcademicResponse } from "@/types/auth";
-import type { StudentKPIData } from "@/services/grades.service";
 
 // services/student.service.ts
 export const studentService = {
@@ -16,16 +15,4 @@ export const studentService = {
    */
   getAcademicDetails: (userId: string, accessToken?: string): Promise<AcademicResponse> =>
     api.get<AcademicResponse>(`${API_BASE_URL}/students/by-user/${userId}`, { accessToken }),
-
-  /**
-   * Dashboard KPI tiles for one student.
-   *
-   * @param studentId - The student profile id.
-   * @param accessToken - Bearer token; omit to use the stored session.
-   * @returns The KPI payload, always for the school's current term — the
-   *   endpoint takes no term parameter and silently ignores `?termId=`.
-   * @throws {ApiError} `NOT_FOUND` when the id is not the caller's.
-   */
-  getDashboardKPIs: (studentId: string, accessToken?: string): Promise<StudentKPIData> =>
-    api.get<StudentKPIData>(`${API_BASE_URL}/students/${studentId}/dashboard/kpis`, { accessToken }),
 };
