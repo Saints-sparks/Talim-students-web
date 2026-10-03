@@ -1,19 +1,15 @@
 import { Ban, Check, CheckCheck, Clock } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-import { Card } from "@/components/ui/card";
 import MessageAttachments from "./MessageAttachments";
 import BubbleMenu from "./BubbleMenu";
 import { Linkified, QuotedMessage, type ChatReplyTo, type ReplyDraft } from "@/components/chat-kit";
-import { generateColorFromString, getUserInitials } from "@/lib/colorUtils";
+import { focusRing } from "@/components/tl/styles";
 import type { ChatAttachment, OwnMessageTick } from "@/types/chat";
 
 interface MessageBubbleProps {
   msg: {
     _id: string;
     senderType: string;
-    avatar: string;
     sender: string;
-    color: string;
     type: string;
     text?: string;
     duration?: number;
@@ -31,7 +27,7 @@ interface MessageBubbleProps {
   };
   /** Groups label each sender; a direct chat only has one other person. */
   showSenderName?: boolean;
-  /** Start a reply to this message. */
+  /** Start a reply to this message (omitted in a read-only thread). */
   onReply?: (reply: ReplyDraft) => void;
   /** Present when this user may delete this message. */
   onDeleteMessage?: () => Promise<void>;
@@ -41,6 +37,22 @@ interface MessageBubbleProps {
   onDelete?: () => void;
 }
 
+/**
+ * One message, styled like the redesign: my messages in a navy bubble on the
+ * right, others' in a grey bubble on the left with the sender's name above,
+ * and the time (or "Not sent" with Retry / Delete) under each. Replies,
+ * attachments, voice notes and the message menu come from the chat kit.
+ *
+ * @param props - See {@link MessageBubbleProps}.
+ * @param props.msg - The message, ready to show.
+ * @param props.showSenderName - Whether to name the sender (groups).
+ * @param props.onReply - Starts a reply.
+ * @param props.onDeleteMessage - Deletes a stored message.
+ * @param props.onJump - Scrolls to a quoted message.
+ * @param props.onRetry - Resends a failed message.
+ * @param props.onDelete - Discards a failed message.
+ * @returns The bubble row.
+ */
 export default function GroupMessageBubble({
   msg,
   showSenderName = true,
@@ -52,145 +64,80 @@ export default function GroupMessageBubble({
 }: MessageBubbleProps) {
   const isPending = msg.status === "pending";
   const isFailed = msg.status === "failed";
-
-  const initials = getUserInitials(msg.sender);
-  const bgColor = msg.color || generateColorFromString(msg.sender);
+  const mine = msg.senderType === "self";
+  const showMenu = !isPending && !isFailed && !msg.isDeleted;
+  const failedAction = `inline-flex min-h-[44px] items-center rounded-md px-1 font-bold underline ${focusRing}`;
 
   return (
-    <div
-      className={`relative flex items-end ${
-        msg.senderType === "self" ? "justify-end" : "justify-start"
-      } gap-2 px-2 sm:px-0 mb-3`}
-    >
-      <div className={`flex gap-2 max-w-[85%] sm:max-w-md ${
-        msg.senderType === "self" ? "flex-row-reverse" : "flex-row"
-      }`}>
-        {/* Avatar - only show for other users, not self */}
-        {msg.senderType !== "self" && (
-          <div className="relative w-8 h-8 flex-shrink-0 self-end mb-1">
-            <Avatar className="w-8 h-8 rounded-full">
-              <AvatarImage src={msg.avatar} />
-              <AvatarFallback 
-                className="text-white font-medium text-xs"
-                style={{ backgroundColor: bgColor }}
-              >
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-          </div>
+    <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+      <div className={`flex max-w-[min(78%,520px)] flex-col ${mine ? "items-end" : "items-start"}`}>
+        {showSenderName && !mine && (
+          <p className="mb-[5px] px-1 text-[13px] font-bold text-tl-muted">{msg.sender}</p>
         )}
 
-        {/* Message Content */}
-        <div className={`flex flex-col ${
-          msg.senderType === "self" ? "items-end" : "items-start"
-        }`}>
-          {/* Sender Name - only show for group messages from others */}
-          {showSenderName && msg.sender !== "me" && msg.senderType !== "self" && (
-            <div className="mb-1 px-1">
-              <p 
-                className="text-xs font-semibold"
-                style={{ color: bgColor }}
-              >
-                {msg.sender}
-              </p>
-            </div>
-          )}
+        <div
+          className={`group relative max-w-full rounded-2xl px-4 py-[13px] text-base leading-normal ${showMenu ? "pr-9" : ""} ${
+            isPending ? "opacity-70" : ""
+          } ${mine ? "bg-tl-brand-fill text-tl-on-brand" : "bg-tl-track text-tl-ink"}`}
+        >
+          {showMenu && <BubbleMenu msg={msg} isMine={mine} onReply={onReply} onDeleteMessage={onDeleteMessage} />}
 
-          {/* Message Bubble */}
-          <Card
-            className={`px-3 py-2 sm:px-4 sm:py-3 border-none shadow-sm relative group ${
-              isPending ? "opacity-70" : ""
-            } ${
-              msg.senderType === "self"
-                ? "bg-blue-500 text-white rounded-2xl rounded-br-md"
-                : "bg-white text-gray-900 border border-gray-200 rounded-2xl rounded-bl-md"
-            }`}
-          >
-            {!isPending && !isFailed && !msg.isDeleted && (
-              <BubbleMenu
-                msg={msg}
-                isMine={msg.senderType === "self"}
-                onReply={onReply}
-                onDeleteMessage={onDeleteMessage}
-              />
-            )}
-
-            {msg.isDeleted ? (
-              <p className="flex items-center gap-1.5 text-sm italic opacity-80">
-                <Ban className="w-3.5 h-3.5" aria-hidden /> This message was deleted
-              </p>
-            ) : (
-              <>
-                {msg.replyTo && (
-                  <QuotedMessage
-                    replyTo={msg.replyTo}
-                    tone={msg.senderType === "self" ? "inverted" : "default"}
-                    onJump={onJump}
-                  />
-                )}
-                {msg.attachments && msg.attachments.length > 0 && (
-                  <MessageAttachments
-                    attachments={msg.attachments}
-                    isMine={msg.senderType === "self"}
-                    pending={isPending || isFailed}
-                    failed={isFailed}
-                    progress={isPending ? msg.uploadProgress : undefined}
-                  />
-                )}
-                {msg.text && (
-                  <p
-                    className={`text-sm sm:text-base leading-relaxed break-words whitespace-pre-wrap ${
-                      msg.attachments?.length ? "mt-1.5" : ""
-                    }`}
-                  >
-                    <Linkified text={msg.text} tone={msg.senderType === "self" ? "inverted" : "default"} />
-                  </p>
-                )}
-              </>
-            )}
-          </Card>
-
-          {/* Time and Status */}
-          <div className={`flex items-center gap-1 text-xs text-gray-400 mt-1 px-1 ${
-            msg.senderType === "self" ? "flex-row-reverse" : "flex-row"
-          }`}>
-            {isFailed ? (
-              <span className="text-red-600" title={msg.error}>
-                Not sent
-                {onRetry && (
-                  <>
-                    {" · "}
-                    <button className="underline hover:text-red-800" onClick={onRetry}>
-                      Retry
-                    </button>
-                  </>
-                )}
-                {onDelete && (
-                  <>
-                    {" · "}
-                    <button className="underline hover:text-red-800" onClick={onDelete}>
-                      Delete
-                    </button>
-                  </>
-                )}
-              </span>
-            ) : (
-              <span>{msg.time}</span>
-            )}
-            {msg.senderType === "self" && msg.tick === "pending" && (
-              <Clock className="w-3 h-3" aria-label="Sending" />
-            )}
-            {msg.senderType === "self" && msg.tick === "sent" && (
-              <Check className="w-3.5 h-3.5" aria-label="Sent" />
-            )}
-            {msg.senderType === "self" && msg.tick === "read" && (
-              <CheckCheck className="w-3.5 h-3.5 text-blue-500" aria-label="Read" />
-            )}
-          </div>
-          {msg.senderType === "self" && msg.readByLabel && (
-            <p className="text-[11px] text-gray-400 px-1">{msg.readByLabel}</p>
+          {msg.isDeleted ? (
+            <p className="flex items-center gap-1.5 text-[15px] italic opacity-80">
+              <Ban className="h-3.5 w-3.5" aria-hidden /> This message was deleted
+            </p>
+          ) : (
+            <>
+              {msg.replyTo && (
+                <QuotedMessage replyTo={msg.replyTo} tone={mine ? "inverted" : "default"} onJump={onJump} />
+              )}
+              {msg.attachments && msg.attachments.length > 0 && (
+                <MessageAttachments
+                  attachments={msg.attachments}
+                  isMine={mine}
+                  pending={isPending || isFailed}
+                  failed={isFailed}
+                  progress={isPending ? msg.uploadProgress : undefined}
+                />
+              )}
+              {msg.text && (
+                <p className={`whitespace-pre-wrap break-words ${msg.attachments?.length ? "mt-1.5" : ""}`}>
+                  <Linkified text={msg.text} tone={mine ? "inverted" : "default"} />
+                </p>
+              )}
+            </>
           )}
         </div>
+
+        <div className={`mt-[5px] flex items-center gap-1 px-1 text-xs text-tl-faint ${mine ? "flex-row-reverse" : "flex-row"}`}>
+          {isFailed ? (
+            <span className="flex flex-wrap items-center gap-x-1 text-tl-danger" title={msg.error}>
+              Not sent
+              {onRetry && (
+                <>
+                  {" · "}
+                  <button type="button" className={failedAction} onClick={onRetry}>
+                    Retry
+                  </button>
+                </>
+              )}
+              {onDelete && (
+                <>
+                  {" · "}
+                  <button type="button" className={failedAction} onClick={onDelete}>
+                    Delete
+                  </button>
+                </>
+              )}
+            </span>
+          ) : (
+            <span>{msg.time}</span>
+          )}
+          {mine && msg.tick === "pending" && <Clock className="h-3 w-3" aria-label="Sending" />}
+          {mine && msg.tick === "sent" && <Check className="h-3.5 w-3.5" aria-label="Sent" />}
+          {mine && msg.tick === "read" && <CheckCheck className="h-3.5 w-3.5 text-tl-link" aria-label="Read" />}
+        </div>
+        {mine && msg.readByLabel && <p className="px-1 text-[11px] text-tl-faint">{msg.readByLabel}</p>}
       </div>
     </div>
   );

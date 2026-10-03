@@ -1,7 +1,7 @@
 "use client";
 
-import { useRef, useState } from "react";
-import { Mic, Paperclip, SendHorizontal, X } from "lucide-react";
+import { useId, useRef, useState } from "react";
+import { Mic, Paperclip, X } from "lucide-react";
 import {
   ATTACHMENT_ACCEPT,
   ComposerAttachments,
@@ -11,6 +11,7 @@ import {
   useVoiceRecorder,
   type VoiceRecording,
 } from "@/components/chat-kit";
+import { focusRing, primaryButton } from "@/components/tl/styles";
 
 interface MessageInputProps {
   onSendMessage?: (content: string) => void;
@@ -23,6 +24,23 @@ interface MessageInputProps {
   onDraftChange?: (text: string) => void;
 }
 
+/** The round 44px icon button beside the message box (attach, record). */
+const iconButton = `flex h-11 w-11 shrink-0 items-center justify-center rounded-full border border-tl-line text-tl-muted transition-colors hover:bg-tl-bg hover:text-tl-ink disabled:cursor-not-allowed disabled:opacity-40 ${focusRing}`;
+
+/**
+ * The composer, as the redesign draws it: attach, a labelled "Write a
+ * message" box that grows with the text, record a voice note, and Send.
+ * Picked files wait above the box with the text as their caption.
+ *
+ * @param props - See {@link MessageInputProps}.
+ * @param props.onSendMessage - Sends text.
+ * @param props.onSendFiles - Sends files with a caption.
+ * @param props.onSendVoice - Sends a voice note.
+ * @param props.disabled - Whether sending is off.
+ * @param props.initialValue - The saved draft.
+ * @param props.onDraftChange - Saves the draft as it changes.
+ * @returns The composer.
+ */
 export default function MessageInput({
   onSendMessage,
   onSendFiles,
@@ -35,6 +53,7 @@ export default function MessageInput({
   const [files, setFiles] = useState<File[]>([]);
   const [fileErrors, setFileErrors] = useState<string[]>([]);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const inputId = useId();
 
   const sendRecording = (recording: VoiceRecording | null) => {
     if (recording) onSendVoice?.(recording.file, recording.duration);
@@ -89,7 +108,7 @@ export default function MessageInput({
   };
 
   return (
-    <div className="p-4 bg-white border-t border-gray-100" data-guide="messages-input">
+    <div className="border-t border-tl-line-soft px-[clamp(12px,2vw,20px)] py-3.5" data-guide="messages-input">
       <ComposerAttachments
         files={files}
         onRemove={(index) => setFiles((prev) => prev.filter((_, i) => i !== index))}
@@ -102,36 +121,36 @@ export default function MessageInput({
       {recorder.error && !recorder.isRecording && (
         <div
           role="alert"
-          className="mb-2 flex items-center gap-2 rounded-md bg-red-50 px-2.5 py-1.5 text-xs text-red-700"
+          className="mb-2 flex items-center gap-2 rounded-xl bg-tl-danger-bg px-3 py-1.5 text-[13px] text-tl-danger"
         >
           <span className="flex-1">{recorder.error}</span>
           <button
             type="button"
             onClick={recorder.clearError}
-            className="rounded p-0.5 hover:bg-red-100"
+            className={`flex h-11 w-11 items-center justify-center rounded-full ${focusRing}`}
             aria-label="Dismiss"
           >
-            <X size={12} />
+            <X size={14} aria-hidden />
           </button>
         </div>
       )}
 
-      <div className="flex items-end space-x-3">
+      <div className="flex items-end gap-2.5">
         {recorder.isRecording ? (
-          <div className="flex-1 flex items-center gap-3 px-4 py-3 bg-red-50 border border-red-200 rounded-2xl">
-            <span className="w-2 h-2 rounded-full bg-red-500 animate-pulse flex-shrink-0" aria-hidden />
-            <span className="text-sm text-red-600 font-medium">Recording</span>
-            <span className="text-sm text-red-500 ml-auto tabular-nums" aria-live="polite">
+          <div className="flex min-h-[46px] flex-1 items-center gap-3 rounded-[13px] border border-tl-danger bg-tl-danger-bg pl-4 pr-1 text-tl-danger">
+            <span className="h-2 w-2 flex-shrink-0 animate-pulse rounded-full bg-tl-danger" aria-hidden />
+            <span className="text-sm font-bold">Recording</span>
+            <span className="ml-auto text-sm tabular-nums" aria-live="polite">
               {formatDuration(recorder.elapsed)}
             </span>
             <button
               type="button"
               onClick={recorder.cancel}
-              className="p-1 rounded-full hover:bg-red-100"
+              className={`flex h-11 w-11 items-center justify-center rounded-full ${focusRing}`}
               title="Cancel recording"
               aria-label="Cancel recording"
             >
-              <X size={16} className="text-red-500" />
+              <X size={16} aria-hidden />
             </button>
           </div>
         ) : (
@@ -143,23 +162,28 @@ export default function MessageInput({
               className="hidden"
               accept={ATTACHMENT_ACCEPT}
               onChange={handleFileChange}
+              tabIndex={-1}
+              aria-hidden
             />
             <button
               type="button"
-              className="p-2 text-gray-500 hover:bg-gray-100 rounded-full transition-colors"
+              className={iconButton}
               onClick={() => fileInputRef.current?.click()}
               disabled={disabled || !onSendFiles}
-              title="Attach files"
+              title="Attach a file"
               aria-label="Attach files"
             >
-              <Paperclip className="w-5 h-5" />
+              <Paperclip className="h-[18px] w-[18px]" aria-hidden />
             </button>
 
-            <div className="flex-1 relative">
+            <div className="min-w-0 flex-1">
+              <label htmlFor={inputId} className="sr-only">
+                Write a message
+              </label>
               <ComposerTextarea
-                aria-label="Message"
-                placeholder={hasFiles ? "Add a caption..." : "Type a message..."}
-                className="block w-full px-4 py-3 text-sm leading-6 border border-gray-200 rounded-2xl outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 disabled:opacity-60"
+                id={inputId}
+                placeholder={hasFiles ? "Add a caption" : "Write a message"}
+                className={`block min-h-[46px] w-full rounded-[13px] border border-tl-control bg-tl-surface px-3.5 py-[11px] text-[15px] leading-6 text-tl-ink placeholder:text-tl-faint disabled:opacity-60 ${focusRing}`}
                 value={message}
                 onValueChange={updateMessage}
                 // Enter sends with a mouse; on a touch screen it is a new line and Send sends.
@@ -167,38 +191,38 @@ export default function MessageInput({
                 disabled={disabled}
               />
             </div>
+
+            <button
+              type="button"
+              className={iconButton}
+              onClick={() => void startRecording()}
+              disabled={disabled || !onSendVoice}
+              title="Record a voice note"
+              aria-label="Record voice note"
+            >
+              <Mic className="h-[18px] w-[18px]" aria-hidden />
+            </button>
           </>
         )}
 
         {recorder.isRecording ? (
           <button
             type="button"
-            className="p-2 rounded-full bg-red-500 hover:bg-red-600 text-white transition-colors"
+            className={primaryButton}
             onClick={() => void stopAndSend()}
             title="Stop and send"
             aria-label="Stop and send voice note"
           >
-            <SendHorizontal className="w-5 h-5" />
-          </button>
-        ) : canSend ? (
-          <button
-            type="button"
-            className="p-2 rounded-full transition-all duration-200 bg-blue-500 hover:bg-blue-600 text-white"
-            onClick={handleSendMessage}
-            aria-label="Send"
-          >
-            <SendHorizontal className="w-5 h-5" />
+            Send
           </button>
         ) : (
           <button
             type="button"
-            className="p-2 rounded-full transition-all duration-200 text-gray-500 hover:bg-gray-100 disabled:text-gray-300"
-            onClick={() => void startRecording()}
-            disabled={disabled || !onSendVoice}
-            title="Record voice note"
-            aria-label="Record voice note"
+            className={primaryButton}
+            onClick={handleSendMessage}
+            disabled={!canSend}
           >
-            <Mic className="w-5 h-5" />
+            Send
           </button>
         )}
       </div>

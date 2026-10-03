@@ -1,12 +1,12 @@
 "use client";
 
-import { ScreenLoading } from "@/components/tl/states";
+import MessagesScreen from "@/components/screens/messages/MessagesScreen";
 
 /**
- * Placeholder while the redesigned screen is built.
+ * Messages (`/messages`): the class group and subject groups; `?room=` opens a thread.
  *
- * @returns A loading state.
+ * @returns The Messages screen.
  */
-export default function Page() {
-  return <ScreenLoading label="Loading" />;
+export default function MessagesPage() {
+  return <MessagesScreen />;
 }
