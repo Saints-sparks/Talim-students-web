@@ -13,6 +13,12 @@ import { AccountPanel } from "./AccountPanel";
 import { MessagesPanel, NotificationsPanel } from "./PreferencePanels";
 import { AboutPanel, HelpPanel, SecurityPanel } from "./ActionPanels";
 import { AppearancePanel } from "./AppearancePanel";
+import { PhotoSheet } from "./PhotoSheet";
+import { PasswordSheet } from "./PasswordSheet";
+import { SessionsSheet } from "./SessionsSheet";
+import { ContactSheet } from "./ContactSheet";
+import { ReportSheet } from "./ReportSheet";
+import { LegalSheet } from "./LegalSheet";
 
 const TAB_KEYS: readonly SettingsTabKey[] = SETTINGS_TABS.map((tab) => tab.key);
 const PANEL_TITLE_ID = "settings-panel-title";
@@ -37,9 +43,20 @@ export interface SettingsViewProps {
  */
 export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
   const { user } = useAuthContext();
-  const [, setSheet] = useState<SettingsSheetKey | null>(null);
+  const [sheet, setSheet] = useState<SettingsSheetKey | null>(null);
   const tabProps = useRovingGroup(TAB_KEYS, tab, onTabChange);
   const active = SETTINGS_TABS.find((item) => item.key === tab) ?? SETTINGS_TABS[0];
+
+  /**
+   * The open/close props of one sheet.
+   *
+   * @param key - Which sheet.
+   * @returns `open` and `onOpenChange` for it.
+   */
+  const sheetProps = (key: SettingsSheetKey) => ({
+    open: sheet === key,
+    onOpenChange: (open: boolean) => setSheet(open ? key : null),
+  });
 
   let panel: React.ReactNode;
   switch (active.key) {
@@ -121,6 +138,14 @@ export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
           {panel}
         </section>
       </div>
+
+      <PhotoSheet {...sheetProps("photo")} />
+      <PasswordSheet {...sheetProps("password")} />
+      <SessionsSheet {...sheetProps("sessions")} />
+      <ContactSheet {...sheetProps("contact")} />
+      <ReportSheet {...sheetProps("report")} />
+      <LegalSheet kind="privacy" {...sheetProps("privacy")} />
+      <LegalSheet kind="terms" {...sheetProps("terms")} />
     </div>
   );
 }
