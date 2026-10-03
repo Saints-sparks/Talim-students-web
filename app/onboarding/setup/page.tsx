@@ -26,6 +26,12 @@ const STEP_ICONS: Record<StudentOnboardingStepId, React.ReactNode> = {
   "view-timetable": <Calendar className="h-5 w-5" />,
 };
 
+/**
+ * Onboarding phase 2: the setup steps with their progress, and the portal
+ * tour.
+ *
+ * @returns The setup page.
+ */
 export default function StudentOnboardingSetup() {
   const router = useRouter();
   const { isLoading: authLoading } = useAuthContext();

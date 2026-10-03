@@ -39,6 +39,14 @@ function OnboardingSyncEffect() {
 
 const inter = Inter({ subsets: ["latin"] });
 
+/**
+ * Sends signed-out visitors of a private page to sign-in, and signed-in
+ * students away from sign-in, once the session has loaded.
+ *
+ * @param props - Standard children.
+ * @param props.children - The page.
+ * @returns A loader while the session loads, then the page.
+ */
 function AuthGuard({ children }: { children: React.ReactNode }) {
   const { isAuthenticated, isLoading } = useAuthContext();
   const pathname = usePathname();
@@ -78,6 +86,14 @@ function AuthGuard({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+/**
+ * The root layout: theme, query cache, session, onboarding, socket, chat and
+ * tour providers around every page.
+ *
+ * @param props - Standard children.
+ * @param props.children - The page.
+ * @returns The document.
+ */
 export default function RootLayout({
   children,
 }: {

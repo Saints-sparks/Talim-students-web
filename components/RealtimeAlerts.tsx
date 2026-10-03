@@ -44,6 +44,8 @@ const toAppPath = (url: unknown): string | null => {
  * - a toast for in-app notifications (chat pushes are excluded)
  * - "(N) " unread prefix in the tab title
  * - routing for notification clicks posted by the service worker
+ *
+ * @returns Nothing visible.
  */
 export default function RealtimeAlerts() {
   const router = useRouter();

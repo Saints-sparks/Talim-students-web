@@ -82,6 +82,12 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const router = useRouter();
 
+  /**
+   * Replaces the signed-in user and token, here and in `sessionStore`.
+   *
+   * @param newUser - The student, or null when signed out.
+   * @param newToken - The access token, or null.
+   */
   const setAuthState = useCallback((newUser: User | null, newToken: string | null) => {
     setUser(newUser);
     setAccessToken(newToken);
@@ -89,6 +95,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     sessionStore.set(newUser, newToken);
   }, []);
 
+  /**
+   * Restores the session on load: introspects the stored token, else
+   * refreshes once, and keeps it only for a student (a stored session of
+   * another role is cleared without a refresh).
+   *
+   * @returns True when a student's session was restored.
+   */
   const checkAuth = useCallback(async (): Promise<boolean> => {
     try {
       let token = localStorage.getItem("accessToken");
@@ -152,6 +165,13 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const queryClient = useQueryClient();
 
+  /**
+   * Signs out: browser push off, `POST /auth/logout`, then this browser's
+   * session, cookies and query cache are cleared and the student goes to
+   * sign-in. A failed server call still signs out here.
+   *
+   * @returns Resolves once signed out.
+   */
   const logout = useCallback(async () => {
     // Stop this browser receiving the student's pushes while the token still
     // works, then end the session on the server (revokes the refresh token

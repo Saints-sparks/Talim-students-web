@@ -159,6 +159,11 @@ export const useNotifications = () => {
     },
   });
 
+  /**
+   * Marks every notification and announcement read with one read-all call.
+   *
+   * @returns Resolves when the call settles (failures roll back and show `error`).
+   */
   const markAllAsRead = useCallback(async () => {
     if (!userId || !notifications.some((item) => item.unread)) return;
     await markAll.mutateAsync().catch(() => undefined);
