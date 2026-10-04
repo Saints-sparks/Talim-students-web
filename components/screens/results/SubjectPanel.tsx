@@ -35,7 +35,7 @@ function SubjectDetail({ card, row }: { card: ReportCard; row: ReportRow }) {
   return (
     <section aria-labelledby="result-subject-title" className={`${cardClass} self-start`}>
       <div className="flex items-center gap-2.5">
-        <SubjectDot toneKey={row.course.id} sizeClass="h-[11px] w-[11px]" />
+        <SubjectDot toneKey={row.course.colourKey} sizeClass="h-[11px] w-[11px]" />
         <h2 id="result-subject-title" className="text-xl font-extrabold tracking-[-0.3px] text-tl-ink">
           {row.course.title}
         </h2>
@@ -51,7 +51,7 @@ function SubjectDetail({ card, row }: { card: ReportCard; row: ReportRow }) {
         ))}
         <li
           title="Your total for the term, and the grade it earns"
-          className={`${subjectToneClass(row.course.id)} rounded-2xl border border-subj-solid/20 bg-subj-tint p-[18px] text-subj-ink`}
+          className={`${subjectToneClass(row.course.colourKey)} rounded-2xl border border-subj-solid/20 bg-subj-tint p-[18px] text-subj-ink`}
         >
           <p className="text-[13px] font-extrabold uppercase tracking-[0.05em]">Total</p>
           <div className="mt-2 flex flex-wrap items-baseline gap-2.5">
@@ -96,11 +96,11 @@ export function SubjectPanel({ card }: { card: ReportCard }) {
                 aria-pressed={on}
                 onClick={() => setChosenId(row.course.id)}
                 title={[row.course.title, row.teacher?.name].filter(Boolean).join(" · ")}
-                className={`${subjectToneClass(row.course.id)} flex min-h-[44px] w-full items-center gap-2 rounded-[14px] border bg-tl-surface px-4 py-3.5 text-left shadow-[0_1px_2px_rgba(15,27,46,0.04)] transition-colors ${
+                className={`${subjectToneClass(row.course.colourKey)} flex min-h-[44px] w-full items-center gap-2 rounded-[14px] border bg-tl-surface px-4 py-3.5 text-left shadow-[0_1px_2px_rgba(15,27,46,0.04)] transition-colors ${
                   on ? "border-subj-solid ring-1 ring-subj-solid" : "border-tl-line hover:bg-tl-bg"
                 } ${focusRing}`}
               >
-                <SubjectDot toneKey={row.course.id} />
+                <SubjectDot toneKey={row.course.colourKey} />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-bold text-tl-ink">{shortName(row)}</span>
                 <span className="text-[15px] font-extrabold text-tl-ink">{formatPercent(row.percent)}</span>
               </button>

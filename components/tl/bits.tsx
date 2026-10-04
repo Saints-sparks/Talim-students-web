@@ -6,8 +6,8 @@ import { focusRing, pageSubtitle, pageTitle, pill } from "./styles";
 
 /** Props for {@link SubjectDot}. */
 export interface SubjectDotProps {
-  /** The course id (or colour key) the subject's colour is derived from. */
-  toneKey: string;
+  /** The API's `colourKey`, or a course id when the payload has none. */
+  toneKey: string | number;
   /** Diameter class; 9px by default. */
   sizeClass?: string;
 }

@@ -81,7 +81,7 @@ export function ScoresCard({ detail }: { detail: StudentSubjectDetail }) {
         })}
         <li
           title="Your total for the term, and the grade it earns"
-          className={`${subjectToneClass(detail.course.id)} rounded-2xl border border-subj-solid/20 bg-subj-tint p-[18px] text-subj-ink`}
+          className={`${subjectToneClass(detail.course.colourKey)} rounded-2xl border border-subj-solid/20 bg-subj-tint p-[18px] text-subj-ink`}
         >
           <p className="text-[13px] font-extrabold uppercase tracking-[0.05em]">Total</p>
           <div className="mt-2 flex flex-wrap items-baseline gap-2.5">

@@ -52,7 +52,7 @@ function SubjectLegend({ timetable }: { timetable: StudentTimetable }) {
               title={teacher ? `${subject.title} · ${teacher}` : subject.title}
               className="flex items-center gap-[7px] rounded-full border border-tl-line bg-tl-surface px-3 py-[7px] text-[13px] font-bold text-tl-body"
             >
-              <SubjectDot toneKey={subject.courseId} />
+              <SubjectDot toneKey={subject.colourKey} />
               {subject.short || subject.title}
             </li>
           );

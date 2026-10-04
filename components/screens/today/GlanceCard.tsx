@@ -110,7 +110,7 @@ export function GlanceChart({ totals, passMark }: { totals: SubjectTotal[]; pass
             const pct = s.percent ?? 0;
             const tip = s.percent === null ? `${s.title} — no score yet` : `${s.title} — ${formatPercent(s.percent)}${s.classAverage !== null ? ` · class average ${formatPercent(s.classAverage)}` : ""}`;
             return (
-              <li key={s.courseId} title={tip} className={`${subjectToneClass(s.courseId)} flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5`}>
+              <li key={s.courseId} title={tip} className={`${subjectToneClass(s.colourKey)} flex h-full min-w-0 flex-1 flex-col items-center justify-end gap-1.5`}>
                 <span className="sr-only">{tip}</span>
                 <span aria-hidden className="text-[11px] font-extrabold text-tl-muted">
                   {s.percent === null ? "" : Math.round(s.percent)}

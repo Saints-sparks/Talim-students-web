@@ -68,7 +68,7 @@ export function UpNextCard({ today }: { today: StudentToday }) {
       {lesson ? (
         <>
           <div className="mt-3 flex items-center gap-2.5">
-            <SubjectDot toneKey={lesson.course.id} />
+            <SubjectDot toneKey={lesson.colourKey} />
             <p className="text-[21px] font-extrabold tracking-[-0.3px]">{lesson.course.title}</p>
           </div>
           <p className="mt-1.5 text-[15px] text-tl-muted">
@@ -123,7 +123,7 @@ export function RestOfToday({ today }: { today: StudentToday }) {
                 className={`flex min-h-[44px] items-center gap-3 rounded-[14px] border border-tl-line-soft px-3.5 py-3 hover:border-tl-control ${focusRing}`}
               >
                 <span className="w-[92px] shrink-0 text-[13px] font-semibold text-tl-muted">{formatTimeRange(lesson.startTime, lesson.endTime)}</span>
-                <SubjectDot toneKey={lesson.course.id} />
+                <SubjectDot toneKey={lesson.colourKey} />
                 <span className="min-w-0 flex-1 truncate text-[15px] font-bold">{lesson.course.title}</span>
               </Link>
             </li>

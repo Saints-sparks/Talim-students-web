@@ -26,7 +26,7 @@ interface SummaryCard {
  * @returns The pill.
  */
 function SubjectPercentPill({ highlight }: { highlight: ReportHighlight }) {
-  return <span className={`${pill} ${subjectToneClass(highlight.courseId)} bg-subj-tint px-2.5 text-subj-ink`}>{formatPercent(highlight.percent)}</span>;
+  return <span className={`${pill} ${subjectToneClass(highlight.colourKey)} bg-subj-tint px-2.5 text-subj-ink`}>{formatPercent(highlight.percent)}</span>;
 }
 
 /**

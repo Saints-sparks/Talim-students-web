@@ -50,12 +50,12 @@ export function SubjectCard({ subject }: { subject: SubjectSummary }) {
     <Link
       href={subjectHref(course.id)}
       title={[course.title, teacher?.name].filter(Boolean).join(" · ")}
-      className={`${subjectToneClass(course.id)} flex h-full flex-col rounded-[20px] border border-tl-line bg-tl-surface p-5 text-tl-ink shadow-[0_1px_2px_rgba(15,27,46,0.04)] transition-transform duration-150 hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:shadow-none ${focusRing}`}
+      className={`${subjectToneClass(course.colourKey)} flex h-full flex-col rounded-[20px] border border-tl-line bg-tl-surface p-5 text-tl-ink shadow-[0_1px_2px_rgba(15,27,46,0.04)] transition-transform duration-150 hover:-translate-y-[3px] motion-reduce:transition-none motion-reduce:hover:translate-y-0 dark:shadow-none ${focusRing}`}
     >
       <span className="flex items-start justify-between gap-3">
         <span className="min-w-0">
           <span className="flex items-center gap-2">
-            <SubjectDot toneKey={course.id} />
+            <SubjectDot toneKey={course.colourKey} />
             <span className="text-lg font-extrabold tracking-[-0.3px]">{course.title}</span>
           </span>
           {teacher ? <span className="mt-1 block text-sm text-tl-muted">{teacher.name}</span> : null}

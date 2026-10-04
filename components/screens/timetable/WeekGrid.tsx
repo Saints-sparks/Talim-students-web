@@ -49,7 +49,7 @@ function LessonLink({ lesson }: { lesson: StudentLesson }) {
     <Link
       href={`/subjects/${encodeURIComponent(lesson.course.id)}`}
       title={lessonTip(lesson)}
-      className={`${subjectToneClass(lesson.course.id)} flex min-h-[74px] flex-col justify-center gap-1 rounded-[13px] border-l-4 p-3 transition-[filter] hover:brightness-[0.97] ${tone} ${focusRing}`}
+      className={`${subjectToneClass(lesson.colourKey)} flex min-h-[74px] flex-col justify-center gap-1 rounded-[13px] border-l-4 p-3 transition-[filter] hover:brightness-[0.97] ${tone} ${focusRing}`}
     >
       <span className={`text-[15px] font-extrabold leading-tight ${cancelled ? "text-tl-faint line-through" : "text-subj-ink"}`}>{lesson.courseShort || lesson.course.title}</span>
       {lesson.teacher ? <span className={`text-xs leading-snug ${cancelled ? "text-tl-faint" : "text-subj-ink"}`}>{lesson.teacher.name}</span> : null}

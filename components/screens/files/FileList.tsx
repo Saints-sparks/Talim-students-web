@@ -22,7 +22,7 @@ export function FileRow({ file, onDownload }: { file: StudentFile; onDownload: D
     <li className="flex flex-wrap items-center gap-3.5 border-b border-tl-line-soft px-5 py-4">
       <span
         title={course.title}
-        className={`${subjectToneClass(course.id)} shrink-0 whitespace-nowrap rounded-full bg-subj-tint px-2.5 py-1.5 text-xs font-extrabold text-subj-ink`}
+        className={`${subjectToneClass(course.colourKey)} shrink-0 whitespace-nowrap rounded-full bg-subj-tint px-2.5 py-1.5 text-xs font-extrabold text-subj-ink`}
       >
         {course.code ? (
           <>

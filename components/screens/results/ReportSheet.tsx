@@ -120,7 +120,7 @@ export function ReportSheet({ card }: { card: ReportCard }) {
               <tr key={row.course.id} className={`tl-print-row border-t border-tl-line-soft ${index % 2 ? "bg-tl-subtle" : "bg-tl-surface"}`}>
                 <th scope="row" className={`${cellBase} text-[15px] font-bold text-tl-ink`}>
                   <span className="flex min-w-0 items-center gap-2">
-                    <SubjectDot toneKey={row.course.id} />
+                    <SubjectDot toneKey={row.course.colourKey} />
                     {row.course.title}
                   </span>
                 </th>

@@ -3,6 +3,7 @@
 import React from "react";
 import { initialsOf } from "@/lib/learner/format";
 import { subjectToneClass } from "@/lib/learner/subjectTone";
+import { useCourseColourKeys } from "@/hooks/learner/useCourseColourKeys";
 import type { ChatRoomType } from "@/types/chat";
 
 /** Props for {@link RoomAvatar}. */
@@ -22,8 +23,9 @@ export interface RoomAvatarProps {
 /**
  * The round avatar beside a thread: its picture when it has one, otherwise
  * its initials on navy (class group), on the subject's colour (subject
- * group) or on pale blue (anything else). Decorative: the name beside it
- * carries the meaning.
+ * group, by the course's `colourKey` when Subjects or Today has loaded it)
+ * or on pale blue (anything else). Decorative: the name beside it carries
+ * the meaning.
  *
  * @param props - See {@link RoomAvatarProps}.
  * @param props.name - The name.
@@ -34,6 +36,7 @@ export interface RoomAvatarProps {
  * @returns The avatar.
  */
 export function RoomAvatar({ name, type, courseId, imageUrl, sizeClass = "h-[38px] w-[38px] text-sm" }: RoomAvatarProps) {
+  const colourKeys = useCourseColourKeys();
   const base = `flex shrink-0 items-center justify-center overflow-hidden rounded-full font-extrabold ${sizeClass}`;
   if (imageUrl) {
     return (
@@ -47,7 +50,7 @@ export function RoomAvatar({ name, type, courseId, imageUrl, sizeClass = "h-[38p
     type === "class_group"
       ? "bg-tl-brand-fill text-tl-on-brand"
       : type === "course_group"
-        ? `${subjectToneClass(courseId || name)} bg-subj-solid text-white`
+        ? `${subjectToneClass((courseId && colourKeys.get(courseId)) ?? (courseId || name))} bg-subj-solid text-white`
         : "bg-tl-select text-tl-brand";
   return (
     <span aria-hidden className={`${base} ${tone}`}>

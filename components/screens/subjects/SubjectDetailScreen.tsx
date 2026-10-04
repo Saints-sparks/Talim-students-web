@@ -81,7 +81,7 @@ export function SubjectDetailView({ detail }: { detail: StudentSubjectDetail }) 
         guide="subject-header"
         title={
           <span className="inline-flex items-center gap-2.5">
-            <SubjectDot toneKey={course.id} sizeClass="h-3 w-3" />
+            <SubjectDot toneKey={course.colourKey} sizeClass="h-3 w-3" />
             {course.title}
           </span>
         }
