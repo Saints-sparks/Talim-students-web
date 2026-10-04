@@ -11,16 +11,17 @@ import type {
   ComingUpItem,
   CourseRef,
   GradeBand,
+  LearnerCourse,
   NotificationCounts,
   NotificationItem,
   PasswordPolicy,
   Period,
   ReportCard,
   ReportRow,
-  ReportTerm,
   RoomMediaKind,
   RoomMediaPage,
   SchoolContact,
+  SchoolTerm,
   StudentAttendance,
   StudentFile,
   StudentFilesPage,
@@ -57,9 +58,10 @@ export const FIXTURE_TERM: TermRef = {
   endDate: "2026-12-18",
   totalWeeks: 15,
   session: "2026/2027",
+  isCurrent: true,
 };
 
-const PREVIOUS_TERM: TermRef = { id: "term-0", name: "Third term", startDate: "2026-04-20", endDate: "2026-07-24", totalWeeks: 14, session: "2025/2026" };
+const PREVIOUS_TERM: TermRef = { id: "term-0", name: "Third term", startDate: "2026-04-20", endDate: "2026-07-24", totalWeeks: 14, session: "2025/2026", isCurrent: false };
 
 /** The columns of the fixture report card (the API decides these; not 20/20/60 by rule). */
 export const FIXTURE_COLUMNS = [
@@ -114,6 +116,8 @@ const CURRICULUM: Record<string, string> = {
 };
 
 const BY_KEY = new Map(FIXTURE_SUBJECTS.map((s) => [s.key, s]));
+/** Each subject's `colourKey`: its place in the design's order, so it gets the design's colour. */
+const COLOUR_KEY = new Map(FIXTURE_SUBJECTS.map((s, index) => [s.id, index]));
 const BY_ID = new Map(FIXTURE_SUBJECTS.map((s) => [s.id, s]));
 
 /**
@@ -136,6 +140,16 @@ function seed(key: string): SubjectSeed {
  */
 function courseOf(s: SubjectSeed): CourseRef {
   return { id: s.id, code: s.code, title: s.title };
+}
+
+/**
+ * A seed's course as B3/B4/B5/B7 send it: with its short name and colour.
+ *
+ * @param s - The seed.
+ * @returns The course.
+ */
+function learnerCourseOf(s: SubjectSeed): LearnerCourse {
+  return { id: s.id, code: s.code, title: s.title, short: s.short, colourKey: COLOUR_KEY.get(s.id) ?? 0 };
 }
 
 /**
@@ -283,6 +297,8 @@ function lessonFor(key: string, dayIndex: number, date: string, period: Period):
     teacher: teacherOf(s),
     topic: { week: 2, topic: CURRICULUM[s.key].split(",")[0], objectives: "", taughtAt: null },
     cancelled: null,
+    colourKey: COLOUR_KEY.get(s.id) ?? 0,
+    offSchedule: false,
   };
 }
 
@@ -343,7 +359,7 @@ export function makeTimetable(variant: FixtureVariant = "normal", weekStart: str
     periods: FIXTURE_PERIODS,
     periodsSource: "school",
     lessons: variant === "empty" || !inTerm ? [] : weekLessons(monday, holidayIndex >= 0 ? new Set([holidayIndex]) : undefined),
-    subjects: FIXTURE_SUBJECTS.map((s) => ({ courseId: s.id, title: s.title, short: s.short, colourKey: s.key })),
+    subjects: FIXTURE_SUBJECTS.map((s) => ({ courseId: s.id, title: s.title, short: s.short, colourKey: COLOUR_KEY.get(s.id) ?? 0, teacher: teacherOf(s) })),
   };
 }
 
@@ -433,6 +449,7 @@ export function makeToday(variant: FixtureVariant = "normal"): StudentToday {
       courseId: s.id,
       title: s.title,
       short: s.short,
+      colourKey: COLOUR_KEY.get(s.id) ?? 0,
       percent: percents[index],
       classAverage: empty ? null : s.classAverage,
     })),
@@ -456,7 +473,7 @@ function summaryOf(s: SubjectSeed, variant: FixtureVariant): SubjectSummary {
   const scores = scoresIn(s, variant);
   const percent = percentOf(scores);
   return {
-    course: courseOf(s),
+    course: learnerCourseOf(s),
     subject: { id: `subject-${s.key}`, name: s.title },
     teacher: teacherOf(s),
     // Yoruba's subject group has never been opened, so it has no room yet.
@@ -501,7 +518,7 @@ export function makeSubjectDetail(courseId: string, variant: FixtureVariant = "n
     taughtAt: i < 1 ? "2026-09-08T09:00:00.000Z" : null,
   }));
   return {
-    course: courseOf(s),
+    course: learnerCourseOf(s),
     term: FIXTURE_TERM,
     scale: FIXTURE_SCALE,
     passMark: FIXTURE_PASS_MARK,
@@ -544,7 +561,7 @@ export function makeReportCard(variant: FixtureVariant = "normal", termId: strin
         const scores = scoresIn(s, effective);
         const percent = percentOf(scores);
         return {
-          course: { ...courseOf(s), short: s.short },
+          course: learnerCourseOf(s),
           teacher: teacherOf(s),
           scores,
           total: sumScores(scores),
@@ -558,7 +575,7 @@ export function makeReportCard(variant: FixtureVariant = "normal", termId: strin
   const overallPercent = meanPercent(percents);
   const sorted = rows.filter((r) => r.percent !== null).sort((a, b) => (b.percent as number) - (a.percent as number));
   const highlight = (row: ReportRow | undefined) =>
-    row ? { courseId: row.course.id, title: row.course.title, short: row.course.short, percent: row.percent as number, position: row.position } : null;
+    row ? { courseId: row.course.id, title: row.course.title, short: row.course.short, colourKey: row.course.colourKey, percent: row.percent as number, position: row.position } : null;
   return {
     status: none ? "none" : effective === "partial" ? "partial" : "published",
     issuedAt: none ? null : "2026-09-14T08:00:00.000Z",
@@ -600,16 +617,15 @@ export function makeReportCard(variant: FixtureVariant = "normal", termId: strin
 }
 
 /**
- * B5 `GET /students/me/report-card/terms`.
+ * `GET /academic-year-term/term/school` as `learnerService.getSchoolTerms`
+ * hands it on: the school's terms, newest first.
  *
- * @param variant - The fixture variant (sets the current term's status).
- * @returns The terms that have results, newest first.
+ * @returns The terms.
  */
-export function makeReportTerms(variant: FixtureVariant = "normal"): ReportTerm[] {
-  const status = variant === "empty" ? "none" : variant === "partial" ? "partial" : "published";
+export function makeSchoolTerms(): SchoolTerm[] {
   return [
-    { id: FIXTURE_TERM.id, name: FIXTURE_TERM.name, session: FIXTURE_TERM.session ?? null, status, isCurrent: true },
-    { id: PREVIOUS_TERM.id, name: PREVIOUS_TERM.name, session: PREVIOUS_TERM.session ?? null, status: "published" },
+    { id: FIXTURE_TERM.id, name: FIXTURE_TERM.name, session: FIXTURE_TERM.session, startDate: "2026-09-07T00:00:00.000Z", endDate: "2026-12-18T00:00:00.000Z", isCurrent: true },
+    { id: PREVIOUS_TERM.id, name: PREVIOUS_TERM.name, session: PREVIOUS_TERM.session, startDate: "2026-04-20T00:00:00.000Z", endDate: "2026-07-24T00:00:00.000Z", isCurrent: false },
   ];
 }
 
@@ -636,12 +652,12 @@ export function makeAttendance(variant: FixtureVariant = "normal", termId: strin
 /* ───────────────────────────── files ───────────────────────────── */
 
 const FILES: StudentFile[] = [
-  { id: "res-mth-1", name: "Indices worksheet", course: courseOf(seed("mth")), teacher: teacherOf(seed("mth")), kind: "pdf", sizeBytes: 482_000, mimeType: "application/pdf", createdAt: "2026-05-12T10:00:00.000Z", week: 2, url: "https://res.cloudinary.com/talim/raw/upload/indices.pdf" },
-  { id: "res-eng-1", name: "Formal letter template", course: courseOf(seed("eng")), teacher: teacherOf(seed("eng")), kind: "doc", sizeBytes: 36_000, mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", createdAt: "2026-09-09T10:00:00.000Z", week: 1, url: "https://res.cloudinary.com/talim/raw/upload/letter.docx" },
-  { id: "res-bio-1", name: "Cell structure diagram", course: courseOf(seed("bio")), teacher: teacherOf(seed("bio")), kind: "pdf", sizeBytes: 1_250_000, mimeType: "application/pdf", createdAt: "2026-09-08T10:00:00.000Z", week: 1, url: "https://res.cloudinary.com/talim/raw/upload/cell.pdf" },
-  { id: "res-cmp-1", name: "Spreadsheet practice file", course: courseOf(seed("cmp")), teacher: teacherOf(seed("cmp")), kind: "doc", sizeBytes: 88_000, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", createdAt: "2026-09-11T10:00:00.000Z", week: 2, url: "https://res.cloudinary.com/talim/raw/upload/practice.xlsx" },
-  { id: "res-phy-1", name: "Simple machines (video)", course: courseOf(seed("phy")), teacher: teacherOf(seed("phy")), kind: "video", sizeBytes: 24_500_000, mimeType: "video/mp4", createdAt: "2026-09-10T10:00:00.000Z", week: 2, url: "https://res.cloudinary.com/talim/video/upload/machines.mp4" },
-  { id: "res-geo-1", name: "Map reading slides", course: courseOf(seed("geo")), teacher: teacherOf(seed("geo")), kind: "slides", sizeBytes: 3_400_000, mimeType: "application/vnd.ms-powerpoint", createdAt: "2026-09-07T10:00:00.000Z", week: 1, url: "https://res.cloudinary.com/talim/raw/upload/maps.pptx" },
+  { id: "res-mth-1", name: "Indices worksheet", course: learnerCourseOf(seed("mth")), teacher: teacherOf(seed("mth")), kind: "pdf", sizeBytes: 482_000, mimeType: "application/pdf", createdAt: "2026-05-12T10:00:00.000Z", week: 2, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/raw/upload/indices.pdf" },
+  { id: "res-eng-1", name: "Formal letter template", course: learnerCourseOf(seed("eng")), teacher: teacherOf(seed("eng")), kind: "doc", sizeBytes: 36_000, mimeType: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", createdAt: "2026-09-09T10:00:00.000Z", week: 1, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/raw/upload/letter.docx" },
+  { id: "res-bio-1", name: "Cell structure diagram", course: learnerCourseOf(seed("bio")), teacher: teacherOf(seed("bio")), kind: "pdf", sizeBytes: 1_250_000, mimeType: "application/pdf", createdAt: "2026-09-08T10:00:00.000Z", week: 1, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/raw/upload/cell.pdf" },
+  { id: "res-cmp-1", name: "Spreadsheet practice file", course: learnerCourseOf(seed("cmp")), teacher: teacherOf(seed("cmp")), kind: "doc", sizeBytes: 88_000, mimeType: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", createdAt: "2026-09-11T10:00:00.000Z", week: 2, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/raw/upload/practice.xlsx" },
+  { id: "res-phy-1", name: "Simple machines (video)", course: learnerCourseOf(seed("phy")), teacher: teacherOf(seed("phy")), kind: "video", sizeBytes: 24_500_000, mimeType: "video/mp4", createdAt: "2026-09-10T10:00:00.000Z", week: 2, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/video/upload/machines.mp4" },
+  { id: "res-geo-1", name: "Map reading slides", course: learnerCourseOf(seed("geo")), teacher: teacherOf(seed("geo")), kind: "slides", sizeBytes: 3_400_000, mimeType: "application/vnd.ms-powerpoint", createdAt: "2026-09-07T10:00:00.000Z", week: 1, termId: "term-1", downloadUrl: "https://res.cloudinary.com/talim/raw/upload/maps.pptx" },
 ];
 
 /**
@@ -738,15 +754,28 @@ export function makeRoomMedia(kind: RoomMediaKind): RoomMediaPage {
  * @returns The counts.
  */
 export function makeNotificationCounts(variant: FixtureVariant = "normal"): NotificationCounts {
-  if (variant === "empty") return { all: 0, unread: 0, byCategory: {} };
+  const zero = { all: 0, unread: 0 };
+  const byCategory = {
+    announcement: zero,
+    attendance: zero,
+    academics: zero,
+    grading: zero,
+    resources: zero,
+    messages: zero,
+    account: zero,
+    payments: zero,
+    leave: zero,
+    other: zero,
+  };
+  if (variant === "empty") return { all: 0, unread: 0, byCategory };
   return {
     all: 4,
     unread: 2,
     byCategory: {
-      academics: { all: 1, unread: 1 },
+      ...byCategory,
+      academics: { all: 2, unread: 1 },
       resources: { all: 1, unread: 1 },
       grading: { all: 1, unread: 0 },
-      announcement: { all: 1, unread: 0 },
     },
   };
 }

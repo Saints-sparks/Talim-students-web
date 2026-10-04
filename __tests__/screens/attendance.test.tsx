@@ -2,7 +2,7 @@ import React from "react";
 import userEvent from "@testing-library/user-event";
 import { render, screen, within } from "@/test-utils/render";
 import AttendanceScreen, { AttendanceView, attendanceBar } from "@/components/screens/attendance/AttendanceScreen";
-import { makeAttendance, makeReportTerms } from "@/lib/fixtures/learner.fixture";
+import { makeAttendance, makeSchoolTerms } from "@/lib/fixtures/learner.fixture";
 import { termOptions } from "@/lib/results/terms";
 import type { FixtureVariant } from "@/lib/fixtures/flag";
 
@@ -21,10 +21,10 @@ jest.mock("@/hooks/learner/queries", () => {
   const fixtures = jest.requireActual("@/lib/fixtures/learner.fixture");
   return {
     useAttendance: (termId?: string) => ({ data: fixtures.makeAttendance(mockVariant, termId), isLoading: false, isFetching: false, error: null, refetch: jest.fn() }),
-    useReportTerms: () =>
+    useSchoolTerms: () =>
       mockTermsFail
         ? { data: undefined, isLoading: false, isFetching: false, error: "We couldn't load the list of terms.", refetch: jest.fn() }
-        : { data: fixtures.makeReportTerms(mockVariant), isLoading: false, isFetching: false, error: null, refetch: jest.fn() },
+        : { data: fixtures.makeSchoolTerms(), isLoading: false, isFetching: false, error: null, refetch: jest.fn() },
   };
 });
 
@@ -44,7 +44,7 @@ beforeEach(() => {
  */
 function renderView(variant: FixtureVariant = "normal", termId?: string) {
   const attendance = makeAttendance(variant, termId);
-  return render(<AttendanceView attendance={attendance} termOptions={termOptions(makeReportTerms(variant), attendance.term)} termId={attendance.term.id} onTermChange={jest.fn()} />);
+  return render(<AttendanceView attendance={attendance} termOptions={termOptions(makeSchoolTerms(), attendance.term)} termId={attendance.term?.id} onTermChange={jest.fn()} />);
 }
 
 /**

@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, within } from "@/test-utils/render";
 import ResultsScreen, { ResultsView } from "@/components/screens/results/ResultsScreen";
 import { summaryCards } from "@/components/screens/results/SummaryCards";
-import { FIXTURE_COLUMNS, makeReportCard, makeReportTerms } from "@/lib/fixtures/learner.fixture";
+import { FIXTURE_COLUMNS, makeReportCard, makeSchoolTerms } from "@/lib/fixtures/learner.fixture";
 import { formatPercent } from "@/lib/learner/format";
 import { compareWithAverage, maxTotal, movementNote, schoolInitials } from "@/lib/results/report";
 import { termOptions } from "@/lib/results/terms";
@@ -24,7 +24,7 @@ jest.mock("@/hooks/learner/queries", () => {
   const fixtures = jest.requireActual("@/lib/fixtures/learner.fixture");
   return {
     useReportCard: (termId?: string) => ({ data: fixtures.makeReportCard(mockVariant, termId), isLoading: false, isFetching: false, error: null, refetch: jest.fn() }),
-    useReportTerms: () => ({ data: fixtures.makeReportTerms(mockVariant), isLoading: false, isFetching: false, error: null, refetch: jest.fn() }),
+    useSchoolTerms: () => ({ data: fixtures.makeSchoolTerms(), isLoading: false, isFetching: false, error: null, refetch: jest.fn() }),
   };
 });
 
@@ -38,11 +38,10 @@ beforeEach(() => {
  * Renders the view for one report card with the fixture term list.
  *
  * @param card - The report card.
- * @param variant - The variant of the term list.
  * @returns The render result.
  */
-function renderView(card: ReportCard, variant: FixtureVariant = "normal") {
-  return render(<ResultsView card={card} termOptions={termOptions(makeReportTerms(variant), card.term, card.session)} termId={card.term.id} onTermChange={jest.fn()} />);
+function renderView(card: ReportCard) {
+  return render(<ResultsView card={card} termOptions={termOptions(makeSchoolTerms(), card.term, card.session)} termId={card.term.id} onTermChange={jest.fn()} />);
 }
 
 /**
@@ -159,7 +158,7 @@ describe("Results screen", () => {
 
   it("marks a partly published term and shows dashes for scores not out", () => {
     const card = makeReportCard("partial");
-    renderView(card, "partial");
+    renderView(card);
     expect(screen.getByRole("status")).toHaveTextContent("Some results aren't published yet. Your report card is final once your school publishes the term.");
     expect(rowCells("Computer Studies").slice(0, 4)).toEqual(["16", "18", "—", "34"]);
     const examColumn = card.rows.map((row) => rowCells(row.course.title)[2]);
@@ -169,7 +168,7 @@ describe("Results screen", () => {
   });
 
   it("says results are not out and cannot be printed yet", () => {
-    renderView(makeReportCard("empty"), "empty");
+    renderView(makeReportCard("empty"));
     expect(screen.getByText("Your first term results aren't out yet.")).toBeInTheDocument();
     expect(screen.getByText("They appear here once your school publishes them.")).toBeInTheDocument();
     expect(screen.queryByRole("table")).not.toBeInTheDocument();

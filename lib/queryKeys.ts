@@ -37,7 +37,10 @@ export const queryKeys = {
     subject: (userId: string, courseId: string, termId?: string) =>
       ["learner", userId, "subject", courseId, termId ?? "current"] as const,
     reportCard: (userId: string, termId?: string) => ["learner", userId, "report-card", termId ?? "current"] as const,
-    reportTerms: (userId: string) => ["learner", userId, "report-terms"] as const,
+    /** The school's terms (`/academic-year-term/term/school`), for the term pickers. */
+    terms: (userId: string) => ["learner", userId, "terms"] as const,
+    /** The student's portal preferences (the tour flag). */
+    preferences: (userId: string) => ["learner", userId, "preferences"] as const,
     attendance: (userId: string, termId?: string) => ["learner", userId, "attendance", termId ?? "current"] as const,
     files: (userId: string, params?: Record<string, unknown>) => ["learner", userId, "files", params ?? {}] as const,
     school: (userId: string) => ["learner", userId, "school"] as const,

@@ -129,7 +129,7 @@ export const accountService = {
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
   async markAllNotificationsRead(): Promise<ReadAllResult> {
-    if (fixturesEnabled()) return { updated: 2 };
+    if (fixturesEnabled()) return { updated: 2, message: "Marked as read" };
     return api.patch<ReadAllResult>(`${API_ENDPOINTS.NOTIFICATIONS}/read-all`);
   },
 

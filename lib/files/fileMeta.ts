@@ -56,8 +56,8 @@ export function extensionOf(url: string | null | undefined): string | null {
  * @param file - The file.
  * @returns The label.
  */
-export function fileTypeLabel(file: Pick<StudentFile, "url" | "mimeType" | "kind">): string {
-  return extensionOf(file.url) ?? (file.mimeType ? MIME_LABEL[file.mimeType.toLowerCase()] : undefined) ?? KIND_LABEL[file.kind] ?? "File";
+export function fileTypeLabel(file: Pick<StudentFile, "downloadUrl" | "mimeType" | "kind">): string {
+  return extensionOf(file.downloadUrl) ?? (file.mimeType ? MIME_LABEL[file.mimeType.toLowerCase()] : undefined) ?? KIND_LABEL[file.kind] ?? "File";
 }
 
 /**

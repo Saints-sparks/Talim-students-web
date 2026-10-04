@@ -147,17 +147,18 @@ export function useReportCard(termId?: string) {
 }
 
 /**
- * B5 the terms with results, for the Results and Attendance term pickers.
+ * The school's terms, newest first, for the Results and Attendance term
+ * pickers (one cached request shared by both).
  *
  * @returns The terms' state.
  */
-export function useReportTerms() {
+export function useSchoolTerms() {
   const { scope, ready } = useScope();
   const query = useQuery({
-    queryKey: queryKeys.learner.reportTerms(scope),
+    queryKey: queryKeys.learner.terms(scope),
     enabled: ready,
     staleTime: staleTimes.reference,
-    queryFn: () => learnerService.getReportTerms(),
+    queryFn: () => learnerService.getSchoolTerms(),
   });
   return toScreenQuery(query, "We couldn't load the list of terms.");
 }

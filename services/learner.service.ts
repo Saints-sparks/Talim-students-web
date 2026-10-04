@@ -9,9 +9,10 @@ import { api, authFetch } from "@/lib/authFetch";
 import { ApiError } from "@/lib/apiError";
 import { fixturesEnabled, fixtureVariant } from "@/lib/fixtures/flag";
 import type {
+  LearnerPreferences,
   ReportCard,
-  ReportTerm,
   ResourceViewResult,
+  SchoolTerm,
   SchoolContact,
   StudentAttendance,
   StudentFilesPage,
@@ -19,10 +20,48 @@ import type {
   StudentSubjects,
   StudentTimetable,
   StudentToday,
+  UpdateLearnerPreferences,
 } from "@/types/learner";
 import type { ChatRoomView } from "@/types/chat";
 
 const ME = `${API_BASE_URL}/students/me`;
+
+/** A term as `GET /academic-year-term/term/school` sends it. */
+interface RawSchoolTerm {
+  id?: string;
+  _id?: string;
+  name?: string;
+  session?: string | null;
+  startDate?: string;
+  endDate?: string;
+  isCurrent?: boolean;
+  academicYearId?: string;
+}
+
+/**
+ * The school's terms as the pickers read them: the id however the API spelled
+ * it, and newest first (the API lists them oldest first).
+ *
+ * @param raw - The answer's `terms`.
+ * @returns The terms, newest first, without ones lacking an id.
+ */
+export function toSchoolTerms(raw: readonly RawSchoolTerm[]): SchoolTerm[] {
+  const terms: SchoolTerm[] = [];
+  for (const term of raw) {
+    const id = term.id ?? term._id;
+    if (!id) continue;
+    terms.push({
+      id,
+      name: term.name ?? "Term",
+      session: term.session ?? null,
+      startDate: term.startDate ?? "",
+      endDate: term.endDate ?? "",
+      isCurrent: Boolean(term.isCurrent),
+      academicYearId: term.academicYearId,
+    });
+  }
+  return terms.sort((a, b) => b.startDate.localeCompare(a.startDate));
+}
 
 /**
  * Builds a query string from defined, non-empty values.
@@ -138,17 +177,43 @@ export const learnerService = {
   },
 
   /**
-   * B5: the terms that have results, for the term picker.
+   * The school's terms for the term pickers (`GET
+   * /academic-year-term/term/school`; there is no `/students/me/terms`).
    *
    * @returns The terms, newest first.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  async getReportTerms(): Promise<ReportTerm[]> {
+  async getSchoolTerms(): Promise<SchoolTerm[]> {
     if (fixturesEnabled()) {
       await fixtureDelay();
-      return (await fixtures()).makeReportTerms(fixtureVariant());
+      return (await fixtures()).makeSchoolTerms();
     }
-    return api.get<ReportTerm[]>(`${ME}/report-card/terms`);
+    const body = await api.get<{ message?: string; terms?: RawSchoolTerm[] }>(`${API_BASE_URL}/academic-year-term/term/school`);
+    return toSchoolTerms(body?.terms ?? []);
+  },
+
+  /**
+   * The student's portal preferences (the tour flag).
+   *
+   * @returns `{ guides: { tourCompletedAt } }`.
+   * @throws {ApiError} On any non-2xx or connectivity failure.
+   */
+  async getPreferences(): Promise<LearnerPreferences> {
+    if (fixturesEnabled()) return { guides: { tourCompletedAt: null } };
+    return api.get<LearnerPreferences>(`${ME}/preferences`);
+  },
+
+  /**
+   * Updates the student's portal preferences: `{ guides: { tourCompleted } }`
+   * stamps (true) or clears (false) the tour's completion.
+   *
+   * @param body - The change.
+   * @returns The preferences after the change.
+   * @throws {ApiError} `VALIDATION_FAILED` for an unknown field.
+   */
+  async updatePreferences(body: UpdateLearnerPreferences): Promise<LearnerPreferences> {
+    if (fixturesEnabled()) return { guides: { tourCompletedAt: body.guides?.tourCompleted ? new Date().toISOString() : null } };
+    return api.patch<LearnerPreferences>(`${ME}/preferences`, body);
   },
 
   /**

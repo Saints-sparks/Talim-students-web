@@ -1,11 +1,19 @@
 /**
  * The term pickers of Results and Attendance: which terms to offer and which
- * one is chosen. The list comes from B5 `GET /students/me/report-card/terms`;
- * the term the screen's own answer is for is always offered, so the picker
- * still works while the list loads, if it fails, or when the list (terms with
- * results) does not include the current term yet.
+ * one is chosen. The list is the school's terms
+ * (`GET /academic-year-term/term/school`, see `useSchoolTerms`); the term the
+ * screen's own answer is for is always offered, so the picker still works
+ * while the list loads or if it fails.
  */
-import type { ReportTerm, TermRef } from "@/types/learner";
+import type { TermRef } from "@/types/learner";
+
+/** What a picker needs of a term (a `SchoolTerm`, or a `ReportTerm`). */
+export interface PickerTerm {
+  id: string;
+  name: string;
+  session: string | null;
+  isCurrent: boolean;
+}
 
 /** One option of a term picker. */
 export interface TermOption {
@@ -26,15 +34,16 @@ export function termLabel(name: string, session: string | null | undefined): str
 }
 
 /**
- * The options of a term picker: the B5 terms (newest first), with the term
- * on screen added at the top when the list lacks it or has not loaded.
+ * The options of a term picker: the school's terms (in the order given,
+ * newest first), with the term on screen added at the top when the list lacks
+ * it or has not loaded.
  *
- * @param terms - B5 terms, or undefined while loading or after a failure.
+ * @param terms - The terms, or undefined while loading or after a failure.
  * @param shown - The term the screen's answer is for.
  * @param shownSession - Its session, when the answer carries it separately.
  * @returns The options, never with the same id twice.
  */
-export function termOptions(terms: readonly ReportTerm[] | undefined, shown: TermRef | null | undefined, shownSession?: string | null): TermOption[] {
+export function termOptions(terms: readonly PickerTerm[] | undefined, shown: TermRef | null | undefined, shownSession?: string | null): TermOption[] {
   const options: TermOption[] = [];
   const seen = new Set<string>();
   for (const term of terms ?? []) {
@@ -49,12 +58,12 @@ export function termOptions(terms: readonly ReportTerm[] | undefined, shown: Ter
 }
 
 /**
- * The school's current term from the B5 list (the one marked `isCurrent`).
+ * The school's current term (the one marked `isCurrent`).
  *
- * @param terms - B5 terms, or undefined.
+ * @param terms - The terms, or undefined.
  * @returns Its id, or undefined when none is marked or the list is not loaded.
  */
-export function currentTermId(terms: readonly ReportTerm[] | undefined): string | undefined {
+export function currentTermId(terms: readonly PickerTerm[] | undefined): string | undefined {
   return terms?.find((term) => term.isCurrent)?.id;
 }
 
@@ -64,10 +73,10 @@ export function currentTermId(terms: readonly ReportTerm[] | undefined): string 
  * the current term when none is asked for), else the newest in the list.
  *
  * @param requested - `?term=`, or undefined.
- * @param terms - B5 terms, or undefined.
+ * @param terms - The terms, or undefined.
  * @param shownId - The id of the term the screen's answer is for.
  * @returns The id, or undefined before anything has loaded.
  */
-export function chosenTermId(requested: string | undefined, terms: readonly ReportTerm[] | undefined, shownId: string | undefined): string | undefined {
+export function chosenTermId(requested: string | undefined, terms: readonly PickerTerm[] | undefined, shownId: string | undefined): string | undefined {
   return requested || currentTermId(terms) || shownId || terms?.[0]?.id;
 }

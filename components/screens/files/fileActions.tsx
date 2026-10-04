@@ -13,7 +13,7 @@ import type { StudentFile } from "@/types/learner";
  *
  * @returns `open(file)`; call it from a click.
  */
-export function useDownloadFile(): (file: Pick<StudentFile, "id" | "url" | "name">) => void {
+export function useDownloadFile(): (file: Pick<StudentFile, "id" | "downloadUrl" | "name">) => void {
   const { markStepComplete } = useStudentOnboarding();
   const onOpened = useCallback(() => markStepComplete("download-resource"), [markStepComplete]);
   return useOpenFile(onOpened);
@@ -22,9 +22,9 @@ export function useDownloadFile(): (file: Pick<StudentFile, "id" | "url" | "name
 /** Props for {@link DownloadFileButton}. */
 export interface DownloadFileButtonProps {
   /** The file the button opens. */
-  file: Pick<StudentFile, "id" | "url" | "name">;
+  file: Pick<StudentFile, "id" | "downloadUrl" | "name">;
   /** What the click calls (from {@link useDownloadFile}, shared by a list). */
-  onDownload: (file: Pick<StudentFile, "id" | "url" | "name">) => void;
+  onDownload: (file: Pick<StudentFile, "id" | "downloadUrl" | "name">) => void;
 }
 
 /**

@@ -202,8 +202,8 @@ describe("Files screen", () => {
 describe("file helpers", () => {
   it("names the type from the address, then the MIME type, then the kind", () => {
     expect(extensionOf("https://x.test/a/letter.docx?sig=1")).toBe("DOCX");
-    expect(fileTypeLabel({ url: null, mimeType: "application/pdf", kind: "pdf" })).toBe("PDF");
-    expect(fileTypeLabel({ url: "https://x.test/download", mimeType: null, kind: "slides" })).toBe("Slides");
+    expect(fileTypeLabel({ downloadUrl: null, mimeType: "application/pdf", kind: "pdf" })).toBe("PDF");
+    expect(fileTypeLabel({ downloadUrl: "https://x.test/download", mimeType: null, kind: "slides" })).toBe("Slides");
     const [file] = makeFiles("normal", { q: "indices" }).data;
     expect(fileMetaLine(file)).toBe("PDF · 12 May 2026 · 471 KB");
     expect(resultLine(0, "")).toBe("0 files shared this term.");

@@ -57,7 +57,7 @@ function serve(variant: "normal" | "empty" = "normal") {
   });
   account.markAllNotificationsRead.mockImplementation(async () => {
     [...notifications, ...announcements].forEach((n) => (n.isRead = true));
-    return { updated: 2 };
+    return { updated: 2, message: "Marked as read" };
   });
   account.getNotificationCounts.mockResolvedValue(makeNotificationCounts(variant));
 }

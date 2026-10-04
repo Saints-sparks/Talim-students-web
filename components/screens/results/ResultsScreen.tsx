@@ -2,7 +2,7 @@
 
 import React, { useCallback, useId, useMemo } from "react";
 import { Info } from "lucide-react";
-import { useReportCard, useReportTerms } from "@/hooks/learner/queries";
+import { useReportCard, useSchoolTerms } from "@/hooks/learner/queries";
 import { ScreenError, ScreenLoading, EmptyNote } from "@/components/tl/states";
 import { PageHeader } from "@/components/tl/bits";
 import { card as cardClass, primaryButton } from "@/components/tl/styles";
@@ -129,7 +129,7 @@ export function ResultsView({ card, termOptions: options, termId, onTermChange, 
 export default function ResultsScreen() {
   const { termParam, setTerm } = useTermParam("/results");
   const { data, isLoading, isFetching, error, refetch } = useReportCard(termParam);
-  const terms = useReportTerms();
+  const terms = useSchoolTerms();
 
   const options = useMemo(() => termOptions(terms.data, data?.term, data?.session), [terms.data, data?.term, data?.session]);
   const currentId = currentTermId(terms.data);

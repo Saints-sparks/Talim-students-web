@@ -1,7 +1,7 @@
 "use client";
 
 import React, { useCallback, useMemo } from "react";
-import { useAttendance, useReportTerms } from "@/hooks/learner/queries";
+import { useAttendance, useSchoolTerms } from "@/hooks/learner/queries";
 import { ScreenError, ScreenLoading } from "@/components/tl/states";
 import { PageHeader } from "@/components/tl/bits";
 import { card, pill, pillTone, statCard, type PillTone } from "@/components/tl/styles";
@@ -133,7 +133,8 @@ export function AttendanceView({ attendance, termOptions: options, termId, onTer
   const stats = attendanceStats(attendance);
   const attended = attendance.present + attendance.late;
   const { term } = attendance;
-  const termDates = term.startDate && term.endDate ? `${formatDate(term.startDate)} – ${formatDate(term.endDate)}` : term.name;
+  // The API answers `term: null` when the school has no current term.
+  const termDates = !term ? "No current term" : term.startDate && term.endDate ? `${formatDate(term.startDate)} – ${formatDate(term.endDate)}` : term.name;
   const barLabel = empty
     ? "No days marked yet"
     : `Present ${days(attendance.present)}, late ${days(attendance.late)}, missed ${days(attendance.absent)}`;
@@ -150,7 +151,7 @@ export function AttendanceView({ attendance, termOptions: options, termId, onTer
       <div aria-busy={busy} className={`flex flex-col gap-4 transition-opacity ${busy ? "opacity-60" : ""}`}>
         <section aria-labelledby="att-rate-title" className={`${card} flex flex-col gap-5`} data-guide="attendance-rate">
           <h2 id="att-rate-title" className="sr-only">
-            Attendance rate, {term.name}
+            Attendance rate, {term?.name ?? "this term"}
           </h2>
           <div className="flex flex-wrap items-center gap-6">
             <div>
@@ -207,7 +208,7 @@ export function AttendanceView({ attendance, termOptions: options, termId, onTer
 
 /**
  * The Attendance screen (`/attendance`): one B6 call for the chosen term
- * (`?term=`, the current term by default) and the B5 term list for the
+ * (`?term=`, the current term by default) and the school's terms for the
  * picker. Uses `useSearchParams`, so its page wraps it in Suspense.
  *
  * @returns The screen with its loading and error states.
@@ -215,7 +216,7 @@ export function AttendanceView({ attendance, termOptions: options, termId, onTer
 export default function AttendanceScreen() {
   const { termParam, setTerm } = useTermParam("/attendance");
   const { data, isLoading, isFetching, error, refetch } = useAttendance(termParam);
-  const terms = useReportTerms();
+  const terms = useSchoolTerms();
 
   const options = useMemo(() => termOptions(terms.data, data?.term), [terms.data, data?.term]);
   const currentId = currentTermId(terms.data);
@@ -228,7 +229,7 @@ export default function AttendanceScreen() {
     <AttendanceView
       attendance={data}
       termOptions={options}
-      termId={chosenTermId(termParam, terms.data, data.term.id)}
+      termId={chosenTermId(termParam, terms.data, data.term?.id)}
       onTermChange={onTermChange}
       busy={isFetching}
     />

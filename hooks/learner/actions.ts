@@ -71,12 +71,12 @@ export function useOpenCourseGroup() {
  */
 export function useOpenFile(onOpened?: () => void) {
   return useCallback(
-    (file: Pick<StudentFile, "id" | "url" | "name">) => {
-      if (!file.url) {
+    (file: Pick<StudentFile, "id" | "downloadUrl" | "name">) => {
+      if (!file.downloadUrl) {
         toast.error("This file isn't available to download yet.");
         return;
       }
-      window.open(file.url, "_blank", "noopener,noreferrer");
+      window.open(file.downloadUrl, "_blank", "noopener,noreferrer");
       onOpened?.();
       void learnerService.recordFileView(file.id).catch((error) => logger.warn("files", "Recording a file view failed", error));
     },
