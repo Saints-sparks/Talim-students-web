@@ -1,7 +1,7 @@
 import { API_ENDPOINTS } from "@/lib/constants";
 import { api } from "@/lib/authFetch";
 import { fixturesEnabled, fixtureVariant } from "@/lib/fixtures/flag";
-import type { MarkAnnouncementReadBody, NotificationPreferencesBody } from "@/types/apiPayloads";
+import type { NotificationPreferencesBody } from "@/types/apiPayloads";
 
 /** Filters the notification list endpoint accepts. */
 export type NotificationQuery = {
@@ -107,7 +107,8 @@ function buildQuery(params: NotificationQuery = {}): string {
 
 export const notificationService = {
   /**
-   * The signed-in student's notification feed.
+   * The signed-in student's notification feed: the one inbox (A10), school
+   * announcements included as rows with their own read state.
    *
    * @param accessToken - Bearer token; omit to use the stored session.
    * @param params - Paging and filters.
@@ -125,27 +126,6 @@ export const notificationService = {
   },
 
   /**
-   * School announcements addressed to one recipient.
-   *
-   * @param accessToken - Bearer token; omit to use the stored session.
-   * @param userId - The signed-in student's user-account id.
-   * @param page - 1-based page number.
-   * @param limit - Page size.
-   * @returns A page of announcements.
-   * @throws {ApiError} On any non-2xx or connectivity failure.
-   */
-  getAnnouncements: async (accessToken: string | undefined, userId: string, page = 1, limit = 10): Promise<NotificationListResponse> => {
-    if (fixturesEnabled()) {
-      const items = (await import("@/lib/fixtures/learner.fixture")).makeRawAnnouncements(fixtureVariant()) as RawNotification[];
-      return { data: items, meta: { total: items.length, page, lastPage: 1, limit } };
-    }
-    return api.get<NotificationListResponse>(
-      `${API_ENDPOINTS.NOTIFICATIONS}/announcements/receiver/${userId}${buildQuery({ page, limit })}`,
-      { accessToken }
-    );
-  },
-
-  /**
    * Marks one notification read for the signed-in student.
    *
    * @param accessToken - Bearer token; omit to use the stored session.
@@ -157,21 +137,6 @@ export const notificationService = {
   markNotificationAsRead: async (accessToken: string | undefined, notificationId: string): Promise<unknown> => {
     if (fixturesEnabled()) return null;
     return api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/${notificationId}/read`, undefined, { accessToken });
-  },
-
-  /**
-   * Marks one announcement read for the signed-in student.
-   *
-   * @param accessToken - Bearer token; omit to use the stored session.
-   * @param announcementId - The announcement to mark.
-   * @param userId - The reader's user-account id.
-   * @returns Nothing useful; the server answers 200 or 204.
-   * @throws {ApiError} On any non-2xx or connectivity failure.
-   */
-  markAnnouncementAsRead: async (accessToken: string | undefined, announcementId: string, userId: string): Promise<unknown> => {
-    if (fixturesEnabled()) return null;
-    const body: MarkAnnouncementReadBody = { userId };
-    return api.put<unknown>(`${API_ENDPOINTS.NOTIFICATIONS}/announcements/${announcementId}/read`, body, { accessToken });
   },
 
   /**

@@ -9,10 +9,13 @@ import type { NotificationCategory, NotificationTarget } from "@/types/learner";
  * The app route for a notification target.
  *
  * @param target - The producer's target, or null.
+ * @param metadata - The notification's metadata: a results notice names its
+ *   term there (`metadata.termId`) rather than in the target.
  * @returns The path to open, or null when there is nowhere better than Updates.
  */
-export function targetHref(target: NotificationTarget | null | undefined): string | null {
+export function targetHref(target: NotificationTarget | null | undefined, metadata?: Record<string, unknown> | null): string | null {
   if (!target?.page) return null;
+  const termId = target.termId ?? (typeof metadata?.termId === "string" ? metadata.termId : undefined);
   switch (target.page) {
     case "today":
     case "dashboard":
@@ -26,7 +29,7 @@ export function targetHref(target: NotificationTarget | null | undefined): strin
       return target.courseId ? `/files?course=${encodeURIComponent(target.courseId)}` : "/files";
     case "results":
     case "grading":
-      return target.termId ? `/results?term=${encodeURIComponent(target.termId)}` : "/results";
+      return termId ? `/results?term=${encodeURIComponent(termId)}` : "/results";
     case "attendance":
       return "/attendance";
     case "messages":

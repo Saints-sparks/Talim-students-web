@@ -86,7 +86,7 @@ export default function RealtimeAlerts() {
 
       const body = notification?.body || notification?.message || "";
       // The producer's deep link (§30 `metadata.target`) first, then a plain URL, else Updates.
-      const path = targetHref(notification?.metadata?.target) ?? toAppPath(notification?.metadata?.url || notification?.data?.url);
+      const path = targetHref(notification?.metadata?.target, notification?.metadata as Record<string, unknown> | undefined) ?? toAppPath(notification?.metadata?.url || notification?.data?.url);
       toast.info(body || notification?.title || "New notification", {
         title: body ? notification?.title : undefined,
         onClick: () => router.push(path || "/updates"),

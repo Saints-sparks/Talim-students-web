@@ -70,7 +70,7 @@ export function targetOf(metadata: Record<string, unknown> | undefined): Notific
  * @returns The link, or null when the update points nowhere in the app.
  */
 export function actionFor(item: StudentNotification): { href: string; label: string } | null {
-  const href = targetHref(targetOf(item.metadata));
+  const href = targetHref(targetOf(item.metadata), item.metadata);
   if (!href) return null;
   const label = item.metadata?.actionLabel;
   return { href, label: typeof label === "string" && label.trim() ? label : defaultActionLabel(href) };

@@ -88,7 +88,7 @@ export function NewSinceCard({ feed, now }: { feed: NotificationItem[]; now: str
         <ul className="mt-1.5 flex flex-col">
           {feed.map((row) => (
             <li key={row.id} className="border-t border-tl-line-soft">
-              <Link href={targetHref(row.target) ?? "/updates"} className={`flex items-start gap-3 py-3.5 hover:bg-tl-subtle ${focusRing}`}>
+              <Link href={targetHref(row.target, row.metadata) ?? "/updates"} className={`flex items-start gap-3 py-3.5 hover:bg-tl-subtle ${focusRing}`}>
                 <span aria-hidden className="mt-[7px] h-2 w-2 shrink-0 rounded-full bg-tl-link" />
                 <span className="min-w-0 flex-1">
                   <span className="block text-base font-bold">{row.title}</span>

@@ -41,6 +41,10 @@ function SubjectPercentPill({ highlight }: { highlight: ReportHighlight }) {
 export function summaryCards(card: ReportCard, teachers: ReadonlyMap<string, string>): SummaryCard[] {
   const { overall, strongest, weakest } = card;
   const subjects = card.rows.length;
+  // The term average covers only subjects with a published score (A7).
+  const scored = card.rows.reduce((count, row) => count + (row.percent === null ? 0 : 1), 0);
+  // With one scored subject the API names it both strongest and weakest.
+  const sameHighlight = Boolean(strongest && weakest && strongest.courseId === weakest.courseId);
   const noScores = card.status === "none" || overall.percent === null;
   const tipFor = (h: ReportHighlight) => [h.title, teachers.get(h.courseId)].filter(Boolean).join(" · ");
   return [
@@ -50,8 +54,8 @@ export function summaryCards(card: ReportCard, teachers: ReadonlyMap<string, str
           label: "Term average",
           value: formatPercent(overall.percent),
           pill: <GradePill grade={overall.grade} tone={gradeTone(overall.grade, card.scale, card.passMark)} />,
-          note: `Across all ${subjects} subject${subjects === 1 ? "" : "s"}`,
-          tip: `The average of your ${subjects} subject totals`,
+          note: scored < subjects ? `Across ${scored} of ${subjects} subjects so far` : `Across all ${subjects} subject${subjects === 1 ? "" : "s"}`,
+          tip: `The average of your ${scored} subject total${scored === 1 ? "" : "s"} published so far`,
         },
     overall.position && card.status !== "none"
       ? {
@@ -71,7 +75,7 @@ export function summaryCards(card: ReportCard, teachers: ReadonlyMap<string, str
           tip: tipFor(strongest),
         }
       : { label: "Strongest subject", value: "—", pill: null, note: "", tip: "" },
-    weakest && card.status !== "none"
+    weakest && card.status !== "none" && !sameHighlight
       ? {
           label: "Needs attention",
           value: weakest.short || weakest.title,
@@ -79,7 +83,7 @@ export function summaryCards(card: ReportCard, teachers: ReadonlyMap<string, str
           note: overall.percent !== null && weakest.percent < overall.percent ? "Below your term average" : "",
           tip: tipFor(weakest),
         }
-      : { label: "Needs attention", value: "—", pill: null, note: "", tip: "" },
+      : { label: "Needs attention", value: "—", pill: null, note: sameHighlight ? "Only one subject has scores so far" : "", tip: "" },
   ];
 }
 

@@ -8,15 +8,7 @@ import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { messageForError } from "@/lib/errorMessages";
 import { logger } from "@/lib/logger";
-import {
-  countByCategory,
-  isDuplicateAnnouncement,
-  itemsOf,
-  normalizeAnnouncement,
-  normalizeNotification,
-  sortByNewest,
-  type StudentNotification,
-} from "@/lib/notifications/normalize";
+import { countByCategory, itemsOf, normalizeNotification, sortByNewest, type StudentNotification } from "@/lib/notifications/normalize";
 
 export type {
   NotificationCategory,
@@ -32,12 +24,11 @@ const PAGE_SIZE = 50;
 const POLL_INTERVAL_MS = 5 * 60_000;
 
 /**
- * The student's inbox: school announcements and system notifications merged,
- * de-duplicated and sorted newest first.
- *
- * Both feeds are fetched in parallel and either may fail on its own — only a
- * double failure is an error, so one broken endpoint never empties the inbox.
- * Marking read is optimistic and rolls back if the write fails.
+ * The student's inbox, newest first: `GET /notifications`, the one feed
+ * (A10) that holds school announcements and system notifications alike,
+ * each row carrying its own read state. Marking one read, or all of them
+ * (one `PATCH /notifications/read-all`), is optimistic and rolls back if the
+ * write fails.
  *
  * @returns The notifications, per-tab counts, and the read actions.
  */
@@ -53,30 +44,10 @@ export const useNotifications = () => {
     refetchInterval: POLL_INTERVAL_MS,
     queryFn: async (): Promise<StudentNotification[]> => {
       const id = userId as string;
-      const [announcements, notifications] = await Promise.allSettled([
-        notificationService.getAnnouncements(undefined, id, 1, PAGE_SIZE),
-        // `recipientId` is ignored for non-staff callers — the API always
-        // serves the caller's own inbox — but it is sent for clarity.
-        notificationService.getNotifications(undefined, { recipientId: id, page: 1, limit: PAGE_SIZE }),
-      ]);
-
-      if (announcements.status === "rejected" && notifications.status === "rejected") {
-        throw announcements.reason;
-      }
-
-      const merged: StudentNotification[] = [];
-      if (announcements.status === "fulfilled") {
-        merged.push(...itemsOf(announcements.value).map((item) => normalizeAnnouncement(item, id)));
-      }
-      if (notifications.status === "fulfilled") {
-        merged.push(
-          ...itemsOf(notifications.value)
-            .filter((item) => !isDuplicateAnnouncement(item))
-            .map((item) => normalizeNotification(item, id))
-        );
-      }
-
-      return sortByNewest(merged);
+      // One feed (A10): announcements reach each recipient as a notification
+      // row that holds its read state, so `/notifications` is the whole inbox.
+      const page = await notificationService.getNotifications(undefined, { page: 1, limit: PAGE_SIZE });
+      return sortByNewest(itemsOf(page).map((item) => normalizeNotification(item, id)));
     },
   });
 
@@ -99,15 +70,9 @@ export const useNotifications = () => {
   }, [queryClient, userId]);
 
   const markRead = useMutation({
+    // Opening one update marks its row; an announcement's row included (A10).
     mutationFn: async (targets: StudentNotification[]) => {
-      const id = userId as string;
-      await Promise.all(
-        targets.map((target) =>
-          target.endpoint === "announcement"
-            ? notificationService.markAnnouncementAsRead(undefined, target.rawId, id)
-            : notificationService.markNotificationAsRead(undefined, target.rawId)
-        )
-      );
+      await Promise.all(targets.map((target) => notificationService.markNotificationAsRead(undefined, target.rawId)));
     },
     onMutate: async (targets) => {
       await queryClient.cancelQueries({ queryKey });

@@ -236,3 +236,22 @@ describe("results helpers", () => {
     expect(summaryCards(levelled, new Map())[3].note).toBe("");
   });
 });
+
+describe("summary cards with one subject scored (as the live API answers early in a term)", () => {
+  it("counts only scored subjects and does not name the same subject twice", () => {
+    const base = makeReportCard("partial");
+    const [first, ...rest] = base.rows;
+    const only = { courseId: first.course.id, title: first.course.title, short: first.course.short, colourKey: first.course.colourKey, percent: 81, position: null };
+    const card: ReportCard = {
+      ...base,
+      rows: [{ ...first, percent: 81 }, ...rest.map((row) => ({ ...row, percent: null, total: null, grade: null }))],
+      overall: { ...base.overall, percent: 81, grade: "A" },
+      strongest: only,
+      weakest: only,
+    };
+    const cards = summaryCards(card, new Map());
+    expect(cards[0].note).toBe(`Across 1 of ${base.rows.length} subjects so far`);
+    expect(cards[2].value).toBe(first.course.short);
+    expect(cards[3]).toMatchObject({ value: "—", note: "Only one subject has scores so far" });
+  });
+});

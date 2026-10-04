@@ -3,7 +3,7 @@ import userEvent from "@testing-library/user-event";
 import { render, screen, waitFor, within } from "@/test-utils/render";
 import UpdatesScreen from "@/components/screens/updates/UpdatesScreen";
 import { actionFor, attachmentName } from "@/components/screens/updates/updates";
-import { makeNotificationCounts, makeRawAnnouncements, makeRawNotifications } from "@/lib/fixtures/learner.fixture";
+import { makeNotificationCounts, makeRawNotifications } from "@/lib/fixtures/learner.fixture";
 import { normalizeNotification } from "@/lib/notifications/normalize";
 import { accountService } from "@/services/account.service";
 import { notificationService } from "@/services/notification.service";
@@ -22,9 +22,7 @@ jest.mock("@/contexts/OnboardingContext", () => ({
 jest.mock("@/services/notification.service", () => ({
   notificationService: {
     getNotifications: jest.fn(),
-    getAnnouncements: jest.fn(),
     markNotificationAsRead: jest.fn(),
-    markAnnouncementAsRead: jest.fn(),
   },
 }));
 
@@ -47,16 +45,14 @@ function serve(variant: "normal" | "empty" = "normal") {
   // A small in-memory server: reads change what the next fetch returns, as
   // the API's would, so the refetch after a read does not undo it.
   const notifications = makeRawNotifications(variant);
-  const announcements = makeRawAnnouncements(variant);
   svc.getNotifications.mockImplementation(async () => ({ data: notifications.map((n) => ({ ...n })) }));
-  svc.getAnnouncements.mockImplementation(async () => ({ data: announcements.map((n) => ({ ...n })) }));
   svc.markNotificationAsRead.mockImplementation(async (_token, id) => {
     const found = notifications.find((n) => n._id === id);
     if (found) found.isRead = true;
     return null;
   });
   account.markAllNotificationsRead.mockImplementation(async () => {
-    [...notifications, ...announcements].forEach((n) => (n.isRead = true));
+    notifications.forEach((n) => (n.isRead = true));
     return { updated: 2, message: "Marked as read" };
   });
   account.getNotificationCounts.mockResolvedValue(makeNotificationCounts(variant));
@@ -92,7 +88,6 @@ function setWide(wide: boolean) {
 beforeEach(() => {
   jest.clearAllMocks();
   setWide(false);
-  svc.markAnnouncementAsRead.mockResolvedValue(null);
   serve();
 });
 
@@ -137,7 +132,7 @@ describe("Updates screen", () => {
 
   it("says when a filter has nothing", async () => {
     const user = userEvent.setup();
-    svc.getAnnouncements.mockResolvedValue({ data: [] });
+    svc.getNotifications.mockResolvedValue({ data: makeRawNotifications().filter((n) => n.category !== "announcement") });
     render(<UpdatesScreen />);
     await screen.findByText("New file in Computer Studies");
     await user.click(screen.getByRole("button", { name: "School 0" }));
@@ -171,7 +166,6 @@ describe("Updates screen", () => {
     await user.click(screen.getByRole("button", { name: /Assembly moves to 8:15/ }));
     expect(screen.getByRole("link", { name: "Open Messages" })).toHaveAttribute("href", "/messages?room=room-class");
     expect(svc.markNotificationAsRead).not.toHaveBeenCalled();
-    expect(svc.markAnnouncementAsRead).not.toHaveBeenCalled();
   });
 
   it("marks everything read with one read-all call and no per-item calls", async () => {
@@ -184,7 +178,6 @@ describe("Updates screen", () => {
     await user.click(markAll);
     await waitFor(() => expect(account.markAllNotificationsRead).toHaveBeenCalledTimes(1));
     expect(svc.markNotificationAsRead).not.toHaveBeenCalled();
-    expect(svc.markAnnouncementAsRead).not.toHaveBeenCalled();
     await waitFor(() => expect(screen.getByRole("button", { name: "Unread 0" })).toBeInTheDocument());
     expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
   });
@@ -207,7 +200,6 @@ describe("Updates screen", () => {
 
   it("offers a retry when the inbox cannot load", async () => {
     svc.getNotifications.mockRejectedValue(new Error("offline"));
-    svc.getAnnouncements.mockRejectedValue(new Error("offline"));
     render(<UpdatesScreen />);
     expect(await screen.findByRole("alert")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Try again" })).toBeInTheDocument();
