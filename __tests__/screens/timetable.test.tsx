@@ -157,6 +157,14 @@ describe("Timetable screen", () => {
   });
 });
 
+describe("the week as the live API sends it", () => {
+  it("labels the week up to its last school day, though the API's week ends on Sunday", () => {
+    const base = makeTimetable("normal");
+    render(<TimetableView timetable={{ ...base, week: { ...base.week, end: "2026-09-20" } }} onWeekChange={jest.fn()} />);
+    expect(screen.getAllByText("Week 2 · Mon 14 Sep – Fri 18 Sep").length).toBeGreaterThan(0);
+  });
+});
+
 describe("timetable helpers", () => {
   it("indexes lessons by day and period, placing a lesson without a period by its start time", () => {
     const week = makeTimetable("normal");

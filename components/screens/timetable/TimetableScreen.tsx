@@ -119,7 +119,10 @@ export function TimetableView({ timetable, busy = false, onWeekChange }: Timetab
     return only.length ? only : timetable.days;
   }, [timetable.days, day]);
   const dayValue = timetable.days.some((d) => d.day === day) ? day : "all";
-  const label = weekLabel(timetable.week);
+  // The API's week runs Monday to Sunday; the label ends on the last school day shown.
+  const lastDay = timetable.days[timetable.days.length - 1]?.date;
+  const week = useMemo(() => ({ ...timetable.week, end: lastDay ?? timetable.week.end }), [timetable.week, lastDay]);
+  const label = weekLabel(week);
   const hasLessons = timetable.lessons.length > 0;
 
   return (
@@ -127,7 +130,7 @@ export function TimetableView({ timetable, busy = false, onWeekChange }: Timetab
       <PageHeader title="Timetable" subtitle={timetableSubtitle(timetable.subjects.length, timetable.periods)} guide="timetable-header" />
       <p className="hidden text-[15px] font-bold print:block">{label}</p>
 
-      <WeekNav week={timetable.week} busy={busy} onWeekChange={onWeekChange} />
+      <WeekNav week={week} busy={busy} onWeekChange={onWeekChange} />
 
       {hasLessons ? (
         <>
