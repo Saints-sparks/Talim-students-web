@@ -5,7 +5,11 @@ import Link from "next/link";
 import { Sheet, SheetRow } from "@/components/tl/Sheet";
 import { ghostButton, primaryButton, rowButton } from "@/components/tl/styles";
 import { toast } from "@/components/CustomToast";
-import { useAuthContext } from "@/contexts/AuthContext";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
+import { useStudentIdentity } from "@/hooks/useStudentIdentity";
+import { learnerService } from "@/services/learner.service";
+import { queryKeys, staleTimes } from "@/lib/queryKeys";
+import { logger } from "@/lib/logger";
 
 /** One step of the portal tour (the design's tour sheet, written for students). */
 export interface TourStep {
@@ -69,7 +73,7 @@ export const TOUR_STEPS: readonly TourStep[] = [
 interface TourContextValue {
   /** Opens the tour at its first step. */
   openTour: () => void;
-  /** Whether this student has finished the tour on this browser. */
+  /** Whether this student has finished the tour (stored on their account). */
   tourDone: boolean;
 }
 
@@ -85,49 +89,37 @@ export function useTour(): TourContextValue {
 }
 
 /**
- * The localStorage key that records a finished tour for one student.
- *
- * @param userId - The student's user id.
- * @returns The key.
- */
-export function tourStorageKey(userId: string): string {
-  return `talim.tour.done.${userId}`;
-}
-
-/**
- * Reads whether a student finished the tour on this browser.
- *
- * @param userId - The student's user id, or null.
- * @returns True once finished.
- */
-function readTourDone(userId: string | null): boolean {
-  if (!userId) return false;
-  try {
-    return Boolean(localStorage.getItem(tourStorageKey(userId)));
-  } catch {
-    return false;
-  }
-}
-
-/**
  * Holds the portal tour (the design's "Getting started" sheet): one step per
  * area of the portal, each with a "Go" to that page, Back and Next, and
- * Finish on the last step. Settings → Help replays it. Finishing is
- * remembered per student on this browser (the students' API has no field for
- * it yet).
+ * Finish on the last step. Settings → Help replays it. Whether the student
+ * finished it is stored on their account (`GET`/`PATCH
+ * /students/me/preferences`, `guides.tourCompletedAt`), so it follows them
+ * across browsers; a failed save only means the tour may be offered again.
  *
  * @param props - Standard children.
  * @param props.children - The app.
  * @returns The provider and the sheet.
  */
 export function TourProvider({ children }: { children: ReactNode }) {
-  const { user } = useAuthContext();
-  const userId = (user?.userId || user?.id || null) as string | null;
+  const { userId, isReady } = useStudentIdentity();
+  const queryClient = useQueryClient();
+  const key = queryKeys.learner.preferences(userId ?? "anonymous");
   const [open, setOpen] = useState(false);
   const [step, setStep] = useState(0);
-  const [doneVersion, setDoneVersion] = useState(0);
 
-  const tourDone = useMemo(() => readTourDone(userId), [userId, doneVersion]); // eslint-disable-line react-hooks/exhaustive-deps
+  const preferences = useQuery({
+    queryKey: key,
+    enabled: Boolean(isReady && userId),
+    staleTime: staleTimes.reference,
+    queryFn: () => learnerService.getPreferences(),
+  });
+  const tourDone = Boolean(preferences.data?.guides?.tourCompletedAt);
+
+  const save = useMutation({
+    mutationFn: () => learnerService.updatePreferences({ guides: { tourCompleted: true } }),
+    onSuccess: (next) => queryClient.setQueryData(key, next),
+    onError: (error) => logger.warn("tour", "Saving the finished tour failed", error),
+  });
 
   const openTour = useCallback(() => {
     setStep(0);
@@ -136,16 +128,9 @@ export function TourProvider({ children }: { children: ReactNode }) {
 
   const finish = useCallback(() => {
     setOpen(false);
-    if (userId) {
-      try {
-        localStorage.setItem(tourStorageKey(userId), new Date().toISOString());
-      } catch {
-        /* storage blocked: the tour simply is not remembered */
-      }
-    }
-    setDoneVersion((v) => v + 1);
+    if (!tourDone) save.mutate();
     toast.success("Tour complete. You can replay it from Settings under Help.");
-  }, [userId]);
+  }, [save, tourDone]);
 
   const value = useMemo(() => ({ openTour, tourDone }), [openTour, tourDone]);
   const current = TOUR_STEPS[Math.min(step, TOUR_STEPS.length - 1)];
