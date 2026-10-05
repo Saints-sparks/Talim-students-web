@@ -2500,7 +2500,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Authenticate user and get tokens */
+        /**
+         * Authenticate user and get tokens
+         * @description Signs a user in. The refresh token goes in the httpOnly cookie of the app
+         *     named in `X-Talim-App` (or the shared cookie without one); with the header,
+         *     an account whose role does not belong in that app is refused with 403.
+         */
         post: operations["AuthenticationController_login"];
         delete?: never;
         options?: never;
@@ -2553,7 +2558,7 @@ export interface paths {
         put?: never;
         /**
          * Refresh access token
-         * @description Browsers: reads the httpOnly `refreshToken` cookie, rotates it, and returns `{ access_token }` (the new refresh token is set as the cookie; it is never in the body). Native apps: send no cookie and `{ refreshToken }` in the body; the response is `{ access_token, refresh_token }` with the rotated token. When the request carries the cookie the body is ignored.
+         * @description Browsers: reads the httpOnly `refreshToken` cookie, rotates it, and returns `{ access_token }` (the new refresh token is set as the cookie; it is never in the body). Native apps: send no cookie and `{ refreshToken }` in the body; the response is `{ access_token, refresh_token }` with the rotated token. When the request carries the cookie the body is ignored. With `X-Talim-App`, the app’s own `refreshToken_<app>` cookie is read and rotated instead, and the session’s account must have a role that belongs in the app (401 otherwise); a shared `refreshToken` cookie from before is used once, only when its role fits, and moved into the app’s cookie.
          */
         post: operations["AuthenticationController_refreshToken"];
         delete?: never;
@@ -2573,7 +2578,7 @@ export interface paths {
         put?: never;
         /**
          * Logout user and invalidate tokens
-         * @description Revokes the refresh token from the cookie (browsers) or, when there is no cookie, from the optional `{ refreshToken }` body (native apps), then ends the user’s sessions and blacklists the access token.
+         * @description Revokes the refresh token from the cookie (browsers) or, when there is no cookie, from the optional `{ refreshToken }` body (native apps), then ends the user’s sessions and blacklists the access token. With `X-Talim-App`, only that app’s `refreshToken_<app>` cookie is read and cleared.
          */
         post: operations["AuthenticationController_logout"];
         delete?: never;
@@ -2765,7 +2770,12 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Talim admin portal login — only role=admin users are granted access */
+        /**
+         * Talim admin portal login — only role=admin users are granted access
+         * @description Signs a Talim platform administrator in (any other role gets 403). The
+         *     refresh token goes in the `platform-admin` app's cookie when the request
+         *     sends `X-Talim-App: platform-admin`, else in the shared cookie.
+         */
         post: operations["AuthenticationController_adminLogin"];
         delete?: never;
         options?: never;
@@ -2839,7 +2849,11 @@ export interface paths {
         };
         get?: never;
         put?: never;
-        /** Login using a previously enrolled biometric credential */
+        /**
+         * Login using a previously enrolled biometric credential
+         * @description Signs in with an enrolled biometric credential (native apps). Follows
+         *     `X-Talim-App` like `POST /auth/login` if a client sends it.
+         */
         post: operations["AuthenticationController_biometricLogin"];
         delete?: never;
         options?: never;
@@ -2916,7 +2930,7 @@ export interface paths {
         post?: never;
         /**
          * Sign out one session
-         * @description Revokes one of the caller's sessions (404 for anyone else's). Its next refresh fails with 401. Revoking the current session also clears the refresh cookie.
+         * @description Revokes one of the caller's sessions (404 for anyone else's). Its next refresh fails with 401. Revoking the current session also clears the refresh cookie (with `X-Talim-App`, that app's own cookie).
          */
         delete: operations["AuthSessionsController_revoke"];
         options?: never;
@@ -3812,7 +3826,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get detail for a specific linked child */
+        /**
+         * Get detail for a specific linked child
+         * @description One linked child's detail. `ChildTenantGuard` has already found and
+         *     checked the child in the path; the service reuses that.
+         */
         get: operations["ParentsController_getMyChild"];
         put?: never;
         post?: never;
@@ -4038,7 +4056,11 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Change parent account password */
+        /**
+         * Change parent account password
+         * @description Changes the parent's password, ends their other sessions and replaces the
+         *     refresh cookie (the `parents` app's own with `X-Talim-App`).
+         */
         patch: operations["ParentSettingsController_changePassword"];
         trace?: never;
     };
@@ -4942,7 +4964,7 @@ export interface paths {
         put?: never;
         /**
          * Create a new chat room
-         * @description A one_to_one room is refused (403) for a student caller and when the other member is a student: students message in their class and subject groups only (B10).
+         * @description A one_to_one room is refused (403) for a student caller and when the other member is a student: students message in their class and subject groups only (B10). The answer is the stored room (as before) plus the fields of the room view `GET /chat/rooms` shows, such as `subtitle` and `callPhone`.
          */
         post: operations["ChatController_createChatRoom"];
         delete?: never;
@@ -6206,7 +6228,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update the finance settings */
+        /**
+         * Update the finance settings
+         * @description Changes the finance settings (`manage:settings`).
+         */
         patch: operations["SettingsController_updateFinanceSettings"];
         trace?: never;
     };
@@ -8221,12 +8246,24 @@ export interface components {
             /** @description Days from today (0 for today or an event already under way). */
             daysAway: number;
         };
+        NotificationTargetDto: {
+            /** @enum {string} */
+            page: "attendance" | "grading" | "messages" | "resources" | "subjects" | "leave" | "announcements" | "timetable" | "settings" | "payments" | "results" | "children";
+            classId?: string;
+            courseId?: string;
+            assessmentId?: string;
+            /** @description The term the page should open on (score and results publications). */
+            termId?: string;
+            roomId?: string;
+            week?: number;
+            date?: string;
+        };
         FeedItemDto: {
+            /** @enum {string} */
+            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
             senderName: string | null;
             /** @description Where the item's button leads (§30 `metadata.target`). */
-            target: {
-                [key: string]: unknown;
-            } | null;
+            target: components["schemas"]["NotificationTargetDto"] | null;
             actionLabel: string | null;
             /** @description The school it came from (parents span several, A11). */
             school?: components["schemas"]["IdNameDto"] | null;
@@ -8236,7 +8273,6 @@ export interface components {
             id: string;
             title: string;
             message: string;
-            category: string;
             /** @description ISO instant. */
             createdAt: string;
             isRead: boolean;
@@ -8480,7 +8516,8 @@ export interface components {
         ReportRowDto: {
             course: components["schemas"]["LearnerCourseDto"];
             teacher: components["schemas"]["IdNameDto"] | null;
-            scores: number[] | null;
+            /** @description One per assessment column, in `columns` order; null where the student has no published score. */
+            scores: (number | null)[];
             total: number | null;
             percent: number | null;
             grade: string | null;
@@ -8528,7 +8565,13 @@ export interface components {
             columns: components["schemas"]["ReportColumnDto"][];
             rows: components["schemas"]["ReportRowDto"][];
             overall: components["schemas"]["ReportOverallDto"];
+            /** @description The subject with the highest percent; null with no scored subject. */
             strongest: components["schemas"]["ReportHighlightDto"] | null;
+            /**
+             * @description The subject with the lowest percent, never the same as `strongest`:
+             *     null with fewer than two scored subjects, or when every scored subject
+             *     has the same percent.
+             */
             weakest: components["schemas"]["ReportHighlightDto"] | null;
             scale: components["schemas"]["GradeBandDto"][];
             attendance: components["schemas"]["ReportAttendanceDto"];
@@ -9572,6 +9615,28 @@ export interface components {
              */
             isCurrent?: boolean;
         };
+        SchoolTermDto: {
+            /**
+             * @description The session (academic year), e.g. "2025/2026"; null when the year is missing.
+             * @example 2025/2026
+             */
+            session: string | null;
+            /** @description Same as `id`. */
+            _id: string;
+            id: string;
+            name: string;
+            /** @description ISO instant. */
+            startDate: string;
+            /** @description ISO instant. */
+            endDate: string;
+            academicYearId: string;
+            schoolId: string;
+            isCurrent: boolean;
+        };
+        SchoolTermsResponseDto: {
+            terms: components["schemas"]["SchoolTermDto"][];
+            message: string;
+        };
         CreateTimetableDto: {
             /**
              * @description Id of the class this period belongs to
@@ -10113,6 +10178,46 @@ export interface components {
              */
             platform?: string;
         };
+        IntrospectUserDto: {
+            /** @enum {string} */
+            role: "admin" | "school_admin" | "school_sub_admin" | "teacher" | "student" | "parent";
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            schoolId: string | null;
+            schoolName: string | null;
+            schoolLogo: string | null;
+            phoneNumber: string | null;
+            userAvatar: string | null;
+            isActive: boolean;
+            isEmailVerified: boolean;
+            /** @description Students: their Student record id; null for other roles. */
+            studentId?: string | null;
+            /** @description Students: their admission number. */
+            admissionNumber?: string | null;
+            /** @description Students: their class. */
+            classId?: string | null;
+            /** @description Students: their class's name. */
+            className?: string | null;
+            /** @description Students only: the date of birth on their account (`YYYY-MM-DD`), null when not recorded. */
+            dateOfBirth?: string | null;
+            /** @description The school's current term, null when it has none. */
+            termId: string | null;
+            onboardingCompleted: boolean;
+            permissions: string[];
+            isSubAdmin: boolean;
+            mustChangePassword: boolean;
+        };
+        IntrospectResponseDto: {
+            active: boolean;
+            /** @description Expiry (seconds since the epoch), when active. */
+            exp?: number;
+            /** @description Issued at (seconds since the epoch), when active. */
+            iat?: number;
+            /** @description The account, when active. */
+            user?: components["schemas"]["IntrospectUserDto"];
+        };
         UpdateAvatarDto: {
             /** @description Hosted image URL, or an empty string to remove the avatar */
             avatarUrl?: string;
@@ -10125,10 +10230,104 @@ export interface components {
             /** @example iOS */
             os: string | null;
             ip: string | null;
+            id: string;
+            /** Format: date-time */
+            lastUsedAt: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** @description The session of this request's refresh token. */
+            current: boolean;
         };
-        RevokeOthersDto: Record<string, never>;
-        RevokeSessionDto: Record<string, never>;
-        PasswordPolicyDto: Record<string, never>;
+        RevokeOthersDto: {
+            revoked: number;
+        };
+        RevokeSessionDto: {
+            id: string;
+            revoked: boolean;
+            /** @description True when it was this request's own session (its cookie is cleared). */
+            current: boolean;
+        };
+        PasswordPolicyDto: {
+            minLength: number;
+            requireUppercase: boolean;
+            requireLowercase: boolean;
+            requireNumber: boolean;
+            requireSymbol: boolean;
+            /** @description Recent passwords a new one may not repeat (1: the current one). */
+            historyCount: number;
+            maxLength: number;
+            /** @description The characters that count as a symbol. */
+            symbols: string;
+        };
+        TeacherClassDto: {
+            _id: string;
+            name: string;
+            classDescription?: string;
+            classCapacity?: string;
+            studentCount: number;
+        };
+        TeacherCourseSlotDto: {
+            day: string;
+            startTime: string;
+            endTime: string;
+            /** @description `"<start> - <end>"`. */
+            time: string;
+            classId: string;
+        };
+        TeacherCourseDto: {
+            /** @description The course's class: populated (`{ _id, name, ... }`) on the profile, an id on the roster. */
+            classId?: string | {
+                [key: string]: unknown;
+            };
+            /** @description Profile only: the course's periods. */
+            timetable?: components["schemas"]["TeacherCourseSlotDto"][];
+            _id: string;
+            courseCode?: string;
+            title?: string;
+            description?: string;
+        };
+        TeacherClassRefDto: {
+            id: string;
+            name: string;
+        };
+        TeacherRosterProfileDto: {
+            staffNumber: string | null;
+            classTeacherClasses: components["schemas"]["TeacherClassDto"][];
+            assignedCourses: components["schemas"]["TeacherCourseDto"][];
+            classTeacherOf: components["schemas"]["TeacherClassRefDto"][];
+            hasTeacherProfile: boolean;
+            isFormTeacher: boolean;
+        };
+        TeacherRosterRowDto: {
+            userAvatar?: string | null;
+            /** @description Null until the teacher's profile is created. */
+            teacherProfile: components["schemas"]["TeacherRosterProfileDto"] | null;
+            _id: string;
+            userId: string;
+            email: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+            phoneNumber?: string;
+            isActive?: boolean;
+            isEmailVerified?: boolean;
+            lastLogin?: string;
+            schoolId: string;
+            createdAt?: string;
+            updatedAt?: string;
+        };
+        TeacherRosterMetaDto: {
+            total: number;
+            page: number;
+            lastPage: number;
+            limit: number;
+        };
+        TeacherRosterResponseDto: {
+            data: components["schemas"]["TeacherRosterRowDto"][];
+            meta: components["schemas"]["TeacherRosterMetaDto"];
+            /** @description Total number of teachers. */
+            count: number;
+        };
         UpdateTeacherStatusDto: {
             /** @example false */
             isActive: boolean;
@@ -10225,6 +10424,28 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+        };
+        TeacherProfileResponseDto: {
+            availableTime?: {
+                [key: string]: unknown;
+            };
+            assignedCourses: components["schemas"]["TeacherCourseDto"][];
+            /** @description The classes the teacher leads or is assigned on the profile (mixed). */
+            classTeacherClasses: components["schemas"]["TeacherClassDto"][];
+            /** @description Only the classes whose `classTeacherId` is this teacher. */
+            classTeacherOf: components["schemas"]["TeacherClassRefDto"][];
+            /** @description The Teacher profile id. */
+            _id: string;
+            /** @description The teacher's user id. */
+            userId: string;
+            employmentType?: string;
+            employmentRole?: string;
+            availabilityDays?: string[];
+            highestAcademicQualification?: string;
+            yearsOfExperience?: number;
+            specialization?: string;
+            staffNumber?: string;
+            isFormTeacher?: boolean;
         };
         Class: Record<string, never>;
         UpdateTeacherEmploymentDto: {
@@ -10920,6 +11141,89 @@ export interface components {
              */
             relationship: "MOTHER" | "FATHER" | "GUARDIAN" | "OTHER";
         };
+        ChildCardUserDto: {
+            _id: string;
+            firstName?: string;
+            lastName?: string;
+            userAvatar?: string;
+        };
+        ChildCardRefDto: {
+            id: string;
+            name: string;
+        };
+        ChildCardSchoolDto: {
+            city: string | null;
+            id: string;
+            name: string;
+        };
+        ChildCardPositionDto: {
+            rank: number;
+            of: number;
+        };
+        ParentChildCardDto: {
+            /** @description Older: the populated login. */
+            userId: components["schemas"]["ChildCardUserDto"];
+            /** @description Older: the populated class. */
+            classIdLegacy?: {
+                [key: string]: unknown;
+            };
+            admissionNumber: string | null;
+            class: components["schemas"]["ChildCardRefDto"] | null;
+            school: components["schemas"]["ChildCardSchoolDto"];
+            /** @description The current term's attendance rate (1 dp); null when nothing is marked. */
+            attendanceRate: number | null;
+            /** @description The current term's average (published scores, 1 dp); null without any. */
+            average: number | null;
+            /** @description The average's letter. */
+            averageGrade: string | null;
+            gradeLevel: string | null;
+            position: components["schemas"]["ChildCardPositionDto"] | null;
+            /** @enum {string|null} */
+            relationship: "MOTHER" | "FATHER" | "GUARDIAN" | "OTHER" | null;
+            avatarUrl: string | null;
+            /** @description Older: same as `id`. */
+            childId: string;
+            /** @description Older: the child's user id. */
+            childUserId?: string;
+            firstName?: string;
+            lastName?: string;
+            /** @description Older: same as `avatarUrl`. */
+            avatar?: string;
+            classId?: string;
+            className?: string;
+            /** @description Older: the grade level (not the average's letter; that is `averageGrade`). */
+            grade?: string;
+            schoolId?: string;
+            schoolName: string;
+            isActive: boolean;
+            isDefault: boolean;
+            /**
+             * @description Older: the current term's attendance (1 dp), **0** when nothing is
+             *     marked, because mobile shows it as a number. `attendanceRate` is null
+             *     in that case; new clients read `attendanceRate`.
+             */
+            attendancePercentage: number;
+            /** @description Older: the letter of the current term's average, `N/A` without published scores. */
+            currentGradeSummary: string;
+            subjectsCount: number;
+            teachersCount: number;
+            /** @description The Student id. */
+            id: string;
+            name: string;
+            /** @description Fees still owed, naira (the family fees, C2). */
+            outstanding: number;
+        };
+        LinkedChildResponseDto: {
+            /** @enum {string} */
+            relationship: "MOTHER" | "FATHER" | "GUARDIAN" | "OTHER";
+            /** @description The card `GET /parents/me/children` lists; null only if it could not be built. */
+            child: components["schemas"]["ParentChildCardDto"] | null;
+            /** @description The Student id. */
+            childId: string;
+            schoolId: string;
+            /** Format: date-time */
+            linkedAt: string;
+        };
         UpdateChildProfileDto: {
             /**
              * @description How the parent is related to the child (B13: stored on the link).
@@ -10950,6 +11254,79 @@ export interface components {
             schoolId?: components["schemas"]["ObjectId"];
             /** @description Children's user ids; each becomes a link (A11) with the child's school */
             children?: string[];
+        };
+        ParentSettingsProfileDto: {
+            avatar?: string | null;
+            occupation: string | null;
+            address: string | null;
+            id: string;
+            fullName: string;
+            firstName: string;
+            lastName: string;
+            email: string;
+            phoneNumber?: string;
+            role: string;
+            isEmailVerified: boolean;
+            isPhoneVerified: boolean;
+        };
+        ParentSettingsChildDto: {
+            avatar: string | null;
+            /** @enum {string} */
+            status: "Active" | "Inactive";
+            /** @description Older: the populated login. */
+            userId: {
+                [key: string]: unknown;
+            };
+            /** @description Older: the populated class. */
+            classId: {
+                [key: string]: unknown;
+            };
+            /** @description The Student id. */
+            id: string;
+            fullName: string;
+            className: string;
+            grade: string;
+            schoolName: string;
+        };
+        ParentNotificationSwitchesDto: {
+            attendanceAlerts: boolean;
+            academicUpdates: boolean;
+            schoolAnnouncements: boolean;
+            messages: boolean;
+            paymentReminders: boolean;
+            feeDueDateReminders: boolean;
+            resultsPublishedAlerts: boolean;
+            leaveRequestUpdates: boolean;
+        };
+        ParentGuidesDto: {
+            /**
+             * Format: date-time
+             * @description When the tour was finished; null until then.
+             */
+            tourCompletedAt: string | null;
+        };
+        ParentSettingsPreferencesDto: {
+            notifications: components["schemas"]["ParentNotificationSwitchesDto"];
+            /** @enum {string} */
+            theme: "light" | "dark" | "system";
+            /**
+             * @description The payment method the parents app offers first (C7); null for none.
+             * @enum {string|null}
+             */
+            preferredProvider: "paystack" | "opay" | "stripe" | "bank_transfer" | null;
+            guides: components["schemas"]["ParentGuidesDto"];
+            language: string;
+        };
+        ParentSettingsSecurityDto: {
+            lastPasswordChangedAt: string | null;
+            twoFactorEnabled: boolean;
+            emailOtpEnabled: boolean;
+        };
+        ParentSettingsResponseDto: {
+            profile: components["schemas"]["ParentSettingsProfileDto"];
+            children: components["schemas"]["ParentSettingsChildDto"][];
+            preferences: components["schemas"]["ParentSettingsPreferencesDto"];
+            security: components["schemas"]["ParentSettingsSecurityDto"];
         };
         UpdateParentProfileDto: {
             /** @description Full display name of the parent */
@@ -10995,12 +11372,23 @@ export interface components {
              */
             preferredProvider: "paystack" | "opay" | "stripe" | "bank_transfer" | null;
         };
+        PreferredProviderUpdatedDto: {
+            /** @enum {string|null} */
+            preferredProvider: "paystack" | "opay" | "stripe" | "bank_transfer" | null;
+            success: boolean;
+            message: string;
+        };
         ParentGuidesInputDto: {
             /** @description True stamps `guides.tourCompletedAt` with now; false clears it. */
             tourCompleted?: boolean;
         };
         UpdateParentPreferencesDto: {
             guides?: components["schemas"]["ParentGuidesInputDto"];
+        };
+        ParentPreferencesUpdatedDto: {
+            guides: components["schemas"]["ParentGuidesDto"];
+            success: boolean;
+            message: string;
         };
         TeacherSettingsProfileDto: {
             phoneNumber: string | null;
@@ -11242,7 +11630,6 @@ export interface components {
             reaction: string;
             userId: string;
         };
-        Announcement: Record<string, never>;
         EditAnnouncementDto: {
             title?: string;
             content?: string;
@@ -11272,6 +11659,19 @@ export interface components {
         SetUserOnlineDto: {
             userId: string;
             isOnline: boolean;
+        };
+        NotificationSenderDto: {
+            role: string | null;
+            id: string;
+            name: string;
+        };
+        NotificationSenderAccountDto: {
+            userAvatar?: string | null;
+            _id: string;
+            firstName?: string;
+            lastName?: string;
+            email?: string;
+            role?: string;
         };
         CreateNotificationDto: {
             /** @example Important Announcement */
@@ -11305,7 +11705,88 @@ export interface components {
             isScheduled?: boolean;
             deliveryChannels?: ("inApp" | "email" | "push" | "webPush")[];
         };
-        Notification: Record<string, never>;
+        NotificationAttachmentFileDto: {
+            /** @enum {string} */
+            kind: "pdf" | "image" | "doc" | "slides" | "video" | "other";
+            /** @description Unknown from a URL alone; always null for now. */
+            size: number | null;
+            url: string;
+            /** @description The last path segment, URL-decoded. */
+            name: string;
+        };
+        NotificationSchoolDto: {
+            id: string;
+            name: string;
+        };
+        NotificationItemDto: {
+            /** @enum {string} */
+            source: "school" | "talim" | "system";
+            /** @enum {string} */
+            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            /** @enum {string} */
+            priority?: "low" | "medium" | "high";
+            metadata?: {
+                target?: components["schemas"]["NotificationTargetDto"];
+                actionLabel?: string;
+                childId?: string;
+                studentId?: string;
+            } & {
+                [key: string]: unknown;
+            };
+            attachmentFiles: components["schemas"]["NotificationAttachmentFileDto"][];
+            /** @description Parents' own list only: the school the row came from. */
+            school?: components["schemas"]["NotificationSchoolDto"] | null;
+            /** @description `{ id, name, role }` for teachers, students and parents; the populated account for staff. */
+            senderId: (components["schemas"]["NotificationSenderDto"] | components["schemas"]["NotificationSenderAccountDto"]) | null;
+            /** @description Staff only: the push and email delivery state. */
+            delivery?: {
+                [key: string]: unknown;
+            };
+            /**
+             * @description Staff only.
+             * @enum {string}
+             */
+            status?: "pending" | "sent" | "failed";
+            /** @description Staff only: who has read it. */
+            readBy?: {
+                [key: string]: unknown;
+            }[];
+            /** @description Staff only. */
+            targetSchools?: {
+                [key: string]: unknown;
+            }[];
+            _id: string;
+            /** @description Same as `_id`. */
+            id: string;
+            title: string;
+            message: string;
+            type?: string;
+            sourceLabel: string;
+            attachments?: string[];
+            /** @description The reader (absent on broadcasts). */
+            recipientId?: string;
+            schoolId?: string;
+            /** @description Whether the caller (or, for staff, the listed recipient) has read it. */
+            isRead: boolean;
+            senderName: string;
+            scheduledFor?: string;
+            createdAt: string;
+            updatedAt?: string;
+            /** @description Staff only. */
+            deliveryChannels?: string[];
+            /** @description Staff only. */
+            recipientRoles?: string[];
+        };
+        NotificationPageMetaDto: {
+            total: number;
+            page: number;
+            lastPage: number;
+            limit: number;
+        };
+        NotificationListResponseDto: {
+            data: components["schemas"]["NotificationItemDto"][];
+            meta: components["schemas"]["NotificationPageMetaDto"];
+        };
         UpdateNotificationDto: {
             /** @example Important Announcement */
             title?: string;
@@ -11331,6 +11812,7 @@ export interface components {
             isScheduled?: boolean;
             deliveryChannels?: ("inApp" | "email" | "push" | "webPush")[];
         };
+        Notification: Record<string, never>;
         ScheduleNotificationDto: {
             notification: components["schemas"]["CreateNotificationDto"];
             /** Format: date-time */
@@ -11365,7 +11847,12 @@ export interface components {
             avatarUrl: string | null;
             /** @enum {string} */
             group: "class_teacher" | "teacher" | "office";
-            /** @description Null: teachers' numbers are not shared with parents. */
+            /**
+             * @description The office entry: the school's office number (its first primary
+             *     contact's, as `GET /parents/me/children/:childId/school` shows it), null
+             *     when the school has none. Teachers: always null, their numbers are not
+             *     shared with parents.
+             */
             phone: string | null;
             /** @description Older field: the same as `avatarUrl`. */
             userAvatar: string | null;
@@ -11394,57 +11881,6 @@ export interface components {
             /** @description Participant user IDs */
             participants: string[];
         };
-        ChatRoomResponseDto: {
-            _id: string;
-            /** @enum {string} */
-            type: "class_group" | "course_group" | "one_to_one" | "admin_parent_group" | "parent_group" | "custom_group" | "office";
-            schoolId?: string;
-            name?: string;
-            classId?: string;
-            courseId?: string;
-            termId?: string;
-            participants: string[];
-            lastMessageId?: string;
-            createdBy?: string;
-            isActive?: boolean;
-            /** @description Create endpoints only: true when an existing room was returned instead of a new one. */
-            reused?: boolean;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            updatedAt: string;
-        };
-        CreateGroupChatDto: {
-            /**
-             * @description Type of group chat room (class_group, course_group, parent_group, admin_parent_group or custom_group)
-             * @example admin_parent_group
-             * @enum {string}
-             */
-            type: "class_group" | "course_group" | "parent_group" | "admin_parent_group" | "custom_group";
-            /** @description Class ID for class group chat (required if type is class_group) */
-            classId?: string;
-            /** @description Course ID for course group chat (required if type is course_group) */
-            courseId?: string;
-            /** @description Term ID for group chats */
-            termId?: string;
-            /** @description Custom name for the group chat */
-            name?: string;
-            /**
-             * @description Array of user IDs to be added as participants (including teacher creating the group)
-             * @example [
-             *       "user_id"
-             *     ]
-             */
-            participants?: string[];
-        };
-        UpdateChatRoomDto: {
-            /** @example JSS1 A Parents */
-            name?: string;
-            /** @description Group description; null or an empty string clears it. */
-            description?: string | null;
-            /** @description Group picture URL from POST /upload/chat-attachment; null clears it. */
-            avatarUrl?: string | null;
-        };
         ChatRoomAdminDto: {
             id: string;
             name: string;
@@ -11452,17 +11888,6 @@ export interface components {
         RoomSchoolDto: {
             id: string;
             name: string;
-        };
-        ChatParticipantDto: {
-            _id: string;
-            /** @description Same as `_id`. */
-            userId: string;
-            firstName: string;
-            lastName: string;
-            role: string;
-            userAvatar: string | null;
-            isActive: boolean;
-            isOnline: boolean;
         };
         ChatAttachmentViewDto: {
             /** @enum {string} */
@@ -11491,6 +11916,128 @@ export interface components {
             content: string;
             attachments: components["schemas"]["ChatAttachmentViewDto"][];
             duration?: number;
+        };
+        ChatRoomCreatedDto: {
+            /** @enum {string} */
+            type: "class_group" | "course_group" | "one_to_one" | "admin_parent_group" | "parent_group" | "custom_group" | "office";
+            /** @description The group description; null when there is none, and always for direct and office rooms. */
+            description: string | null;
+            /** @description Group admins (the creator first): they and school staff edit the name and description. */
+            admins: components["schemas"]["ChatRoomAdminDto"][];
+            /**
+             * @description Office rooms only (B10).
+             * @enum {string}
+             */
+            ownerRole?: "teacher" | "parent";
+            /**
+             * @description How the viewer's Messages screen groups the room.
+             * @enum {string}
+             */
+            category: "parent" | "colleague" | "class_group" | "office" | "group";
+            /**
+             * @description The number the Voice button dials (`tel:`): set only for a teacher in a
+             *     direct message with a parent of one of their students.
+             */
+            callPhone: string | null;
+            _id: string;
+            schoolId?: string;
+            name?: string;
+            classId?: string;
+            courseId?: string;
+            termId?: string;
+            participants: string[];
+            lastMessageId?: string;
+            createdBy?: string;
+            isActive?: boolean;
+            /** @description Create endpoints only: true when an existing room was returned instead of a new one. */
+            reused?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+            /** @description Same as `_id`. */
+            roomId: string;
+            avatarUrl?: string;
+            /** @description The room's school; on a parent's list, which spans schools (A11). */
+            school?: components["schemas"]["RoomSchoolDto"] | null;
+            /** @description Office rooms only (B10): whose thread it is, a teacher or a parent. */
+            officeOwnerId?: string;
+            /** @description Teacher office rooms only: the teacher, the same as `officeOwnerId`. */
+            officeTeacherId?: string;
+            lastMessage: components["schemas"]["ChatLastMessageDto"] | null;
+            /** @description Messages the caller has not read. */
+            unreadCount: number;
+            /** Format: date-time */
+            lastReadAt?: string;
+            /**
+             * @description For the viewer, e.g. "Parent of Ada Obi · Grade 5A", "Class group · 12
+             *     students", "Mathematics · colleague", "School office · Easy Sparks"; an
+             *     admin sees an office room as "Office thread · {teacher name}", or
+             *     "Office thread · {parent name} (parent of {child first names})".
+             */
+            subtitle: string;
+        };
+        CreateGroupChatDto: {
+            /**
+             * @description Type of group chat room (class_group, course_group, parent_group, admin_parent_group or custom_group)
+             * @example admin_parent_group
+             * @enum {string}
+             */
+            type: "class_group" | "course_group" | "parent_group" | "admin_parent_group" | "custom_group";
+            /** @description Class ID for class group chat (required if type is class_group) */
+            classId?: string;
+            /** @description Course ID for course group chat (required if type is course_group) */
+            courseId?: string;
+            /** @description Term ID for group chats */
+            termId?: string;
+            /** @description Custom name for the group chat */
+            name?: string;
+            /**
+             * @description Array of user IDs to be added as participants (including teacher creating the group)
+             * @example [
+             *       "user_id"
+             *     ]
+             */
+            participants?: string[];
+        };
+        ChatRoomResponseDto: {
+            _id: string;
+            /** @enum {string} */
+            type: "class_group" | "course_group" | "one_to_one" | "admin_parent_group" | "parent_group" | "custom_group" | "office";
+            schoolId?: string;
+            name?: string;
+            classId?: string;
+            courseId?: string;
+            termId?: string;
+            participants: string[];
+            lastMessageId?: string;
+            createdBy?: string;
+            isActive?: boolean;
+            /** @description Create endpoints only: true when an existing room was returned instead of a new one. */
+            reused?: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
+        UpdateChatRoomDto: {
+            /** @example JSS1 A Parents */
+            name?: string;
+            /** @description Group description; null or an empty string clears it. */
+            description?: string | null;
+            /** @description Group picture URL from POST /upload/chat-attachment; null clears it. */
+            avatarUrl?: string | null;
+        };
+        ChatParticipantDto: {
+            _id: string;
+            /** @description Same as `_id`. */
+            userId: string;
+            firstName: string;
+            lastName: string;
+            role: string;
+            userAvatar: string | null;
+            isActive: boolean;
+            isOnline: boolean;
         };
         ChatRoomViewDto: {
             /** @enum {string} */
@@ -12442,6 +12989,24 @@ export interface components {
             settings: components["schemas"]["ReceiptSettingsDto"];
             success: boolean;
         };
+        FinanceSettingsDto: {
+            defaultBankAccountId: string | null;
+            /** @description Absent until the school first saves its finance settings. */
+            _id?: string;
+            schoolId: string;
+            /** @description Withdrawals need an emailed one-time code. */
+            requireEmailOtpForWithdrawals: boolean;
+            minimumWithdrawalAmount: number;
+            /** @description The least a parent may pay towards a fee that allows part payment; 0 for no minimum. */
+            minimumPartPayment: number;
+            updatedBy?: string;
+            createdAt?: string;
+            updatedAt?: string;
+        };
+        FinanceSettingsResponseDto: {
+            settings: components["schemas"]["FinanceSettingsDto"];
+            success: boolean;
+        };
         UpdateFinanceSettingsDto: {
             requireEmailOtpForWithdrawals?: boolean;
             minimumWithdrawalAmount?: number;
@@ -12567,6 +13132,12 @@ export interface components {
             /** @description `HH:mm`; after this a teacher can no longer change the day's register. */
             registerEditUntil?: string;
         };
+        SessionTermRefDto: {
+            /** @description The session (academic year), e.g. "2026/2027"; null when unknown. */
+            session: string | null;
+            id: string;
+            name: string;
+        };
         SchoolRefDto: {
             id: string;
             name: string;
@@ -12598,8 +13169,12 @@ export interface components {
             /** @description A checkout or bank transfer already holds this fee. */
             pendingPayment: boolean;
             termId: string | null;
+            /** @description The late fee inside `amount` (naira); 0 until it applies. */
+            lateFee: number;
         };
         FamilyChildFeesDto: {
+            /** @description The term the bill is for: the one asked for, else the school's current one. */
+            term: components["schemas"]["SessionTermRefDto"] | null;
             child: components["schemas"]["FamilyChildRefDto"];
             outstanding: number;
             paid: number;
@@ -12607,6 +13182,8 @@ export interface components {
             /** @description Balance of fees past their due date. */
             overdue: number;
             items: components["schemas"]["FamilyFeeItemDto"][];
+            /** @description The school's minimum part payment (naira); 0 when it has none. */
+            minimumPartPayment: number;
         };
         FamilyTotalsDto: {
             outstanding: number;
@@ -12704,6 +13281,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             paidAt?: string;
+            /** @description Bank transfers only: the reported transfer and the bursary's decision. */
+            bankTransfer?: components["schemas"]["BankTransferInfoDto"];
         };
         ParentHistoryResponseDto: {
             data: components["schemas"]["ParentHistoryRowDto"][];
@@ -12717,10 +13296,6 @@ export interface components {
             logo: string;
             address: string;
         };
-        TermRefDto: {
-            id: string;
-            name: string;
-        };
         ReceiptLineDto: {
             feeAssignmentId: string | null;
             label: string;
@@ -12728,6 +13303,13 @@ export interface components {
             amount: number;
         };
         ParentReceiptDto: {
+            term: components["schemas"]["SessionTermRefDto"] | null;
+            id: string;
+            school: components["schemas"]["ReceiptSchoolDto"] | null;
+            child: components["schemas"]["PersonRefDto"];
+            items: components["schemas"]["ReceiptLineDto"][];
+            /** @description False when the school does not let parents download receipts (the download route answers 403). */
+            downloadAllowed: boolean;
             _id: string;
             schoolId: string;
             parentId: string;
@@ -12759,19 +13341,14 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
-            id: string;
-            school: components["schemas"]["ReceiptSchoolDto"] | null;
-            child: components["schemas"]["PersonRefDto"];
-            term: components["schemas"]["TermRefDto"] | null;
-            items: components["schemas"]["ReceiptLineDto"][];
-            /** @description False when the school does not let parents download receipts (the download route answers 403). */
-            downloadAllowed: boolean;
         };
         ParentReceiptListResponseDto: {
             data: components["schemas"]["ParentReceiptDto"][];
             total: number;
             page: number;
             limit: number;
+            /** @description The terms the children (or the one child) have receipts in, newest first: the term picker. */
+            terms: components["schemas"]["SessionTermRefDto"][];
         };
         ParentReceiptResponseDto: {
             success: boolean;
@@ -12885,7 +13462,9 @@ export interface components {
         EnabledProvidersResponseDto: {
             providers: components["schemas"]["EnabledProviderDto"][];
         };
-        ChildRefDto: {
+        TransferChildRefDto: {
+            /** @description The child's class; null when the class is gone. */
+            class: components["schemas"]["ClassRefDto"] | null;
             id: string;
             name: string;
             admissionNumber?: string;
@@ -12898,7 +13477,7 @@ export interface components {
             amount: number;
             /** Format: date-time */
             submittedAt: string;
-            child: components["schemas"]["ChildRefDto"];
+            child: components["schemas"]["TransferChildRefDto"];
             parent: components["schemas"]["PersonRefDto"];
             items: components["schemas"]["PaidItemDto"][];
             transferReference: string;
@@ -15681,28 +16260,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        /** @example Terms fetched successfully */
-                        message?: string;
-                        terms?: {
-                            /** @example 6791378c4ef5965469896850 */
-                            id?: string;
-                            /** @example First Term */
-                            name?: string;
-                            /** @example 2025/2026 */
-                            session?: string | null;
-                            /** @example 2025-09-01T00:00:00Z */
-                            startDate?: string;
-                            /** @example 2025-12-20T00:00:00Z */
-                            endDate?: string;
-                            /** @example 6791378c4ef5965469896850 */
-                            academicYearId?: string;
-                            /** @example 6791378c4ef5965469896850 */
-                            schoolId?: string;
-                            /** @example true */
-                            isCurrent?: boolean;
-                        }[];
-                    };
+                    "application/json": components["schemas"]["SchoolTermsResponseDto"];
                 };
             };
         };
@@ -17467,7 +18025,10 @@ export interface operations {
     AuthenticationController_login: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -17485,7 +18046,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Login successful. The refresh token is set as the httpOnly `refreshToken` cookie; a native app (`platform` of `ios` or `android`) also gets it as `refresh_token` in the body. */
+            /** @description Login successful. The refresh token is set as the httpOnly `refreshToken` cookie (`refreshToken_<app>` when `X-Talim-App` is sent); a native app (`platform` of `ios` or `android`) also gets it as `refresh_token` in the body. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -17496,6 +18057,13 @@ export interface operations {
             };
             /** @description Invalid credentials */
             401: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description FORBIDDEN — `X-Talim-App` names an app this account’s role does not belong in (the message names the role) */
+            403: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -17551,7 +18119,10 @@ export interface operations {
     AuthenticationController_refreshToken: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -17584,6 +18155,8 @@ export interface operations {
             query?: never;
             header: {
                 authorization: string;
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
             };
             path?: never;
             cookie?: never;
@@ -17685,7 +18258,10 @@ export interface operations {
     AuthenticationController_changePassword: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -17751,12 +18327,14 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Token introspection result with user data */
+            /** @description Token introspection result with user data; `{ active: false }` for an invalid, expired or orphaned token. */
             200: {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["IntrospectResponseDto"];
+                };
             };
         };
     };
@@ -17851,7 +18429,10 @@ export interface operations {
     AuthenticationController_adminLogin: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -17945,7 +18526,10 @@ export interface operations {
     AuthenticationController_biometricLogin: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -18002,6 +18586,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
                 /** @description Native apps: the refresh token, so the current session is marked. Browsers send the refresh cookie instead. */
                 "x-refresh-token"?: string;
             };
@@ -18024,6 +18610,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
                 "x-refresh-token"?: string;
             };
             path?: never;
@@ -18045,6 +18633,8 @@ export interface operations {
         parameters: {
             query?: never;
             header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
                 "x-refresh-token"?: string;
             };
             path: {
@@ -18104,19 +18694,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": {
-                        data?: {
-                            [key: string]: unknown;
-                        }[];
-                        /** @description Total number of teachers */
-                        count?: number;
-                        meta?: {
-                            total?: number;
-                            page?: number;
-                            lastPage?: number;
-                            limit?: number;
-                        };
-                    };
+                    "application/json": components["schemas"]["TeacherRosterResponseDto"];
                 };
             };
             /** @description Unauthorized */
@@ -18353,7 +18931,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["TeacherProfileResponseDto"];
+                };
             };
             /** @description Teacher profile not found */
             404: {
@@ -19584,7 +20164,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["LinkedChildResponseDto"];
+                };
             };
         };
     };
@@ -19601,7 +20183,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ParentChildCardDto"][];
+                };
             };
         };
     };
@@ -19923,7 +20507,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ParentSettingsResponseDto"];
+                };
             };
             /** @description Parent profile not found */
             404: {
@@ -19959,7 +20545,10 @@ export interface operations {
     ParentSettingsController_changePassword: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
@@ -20112,7 +20701,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["PreferredProviderUpdatedDto"];
+                };
             };
         };
     };
@@ -20134,7 +20725,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["ParentPreferencesUpdatedDto"];
+                };
             };
         };
     };
@@ -20618,7 +21211,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Announcement"];
+                    "application/json": Record<string, never>;
                 };
             };
             /** @description Invalid input */
@@ -21050,7 +21643,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["NotificationListResponseDto"];
+                };
             };
         };
     };
@@ -21122,7 +21717,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["Notification"][];
+                    "application/json": components["schemas"]["NotificationItemDto"][];
                 };
             };
         };
@@ -21144,7 +21739,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["NotificationItemDto"];
                 };
             };
             /** @description Notification not found */
@@ -21221,7 +21816,7 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["NotificationItemDto"];
                 };
             };
         };
@@ -21304,13 +21899,13 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Chat room created successfully */
+            /** @description Chat room created (or reused) */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": components["schemas"]["ChatRoomResponseDto"];
+                    "application/json": components["schemas"]["ChatRoomCreatedDto"];
                 };
             };
         };
@@ -21398,20 +21993,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatRoomViewDto"];
-                };
-            };
+            /** @description The office room, as the room list shows it */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ChatRoomViewDto"];
                 };
             };
         };
@@ -21428,20 +22016,13 @@ export interface operations {
         };
         requestBody?: never;
         responses: {
-            200: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["ChatRoomViewDto"];
-                };
-            };
+            /** @description The subject group, as the room list shows it */
             201: {
                 headers: {
                     [name: string]: unknown;
                 };
                 content: {
-                    "application/json": Record<string, never>;
+                    "application/json": components["schemas"]["ChatRoomViewDto"];
                 };
             };
         };
@@ -23357,7 +23938,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FinanceSettingsResponseDto"];
+                };
             };
         };
     };
@@ -23378,7 +23961,9 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["FinanceSettingsResponseDto"];
+                };
             };
         };
     };
@@ -23427,7 +24012,10 @@ export interface operations {
     SettingsController_changePassword: {
         parameters: {
             query?: never;
-            header?: never;
+            header?: {
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
             path?: never;
             cookie?: never;
         };
