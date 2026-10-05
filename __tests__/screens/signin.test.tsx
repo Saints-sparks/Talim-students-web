@@ -6,6 +6,7 @@ import ForgotPasswordPage from "@/app/forgot-password/page";
 import { validateResetStep } from "@/hooks/useForgotPassword";
 import { rulesFromPolicy } from "@/lib/passwordPolicy";
 import { accessDeniedMessage, INVALID_CREDENTIALS_TEXT } from "@/lib/auth/signIn";
+import { ApiError } from "@/lib/apiError";
 import { authService } from "@/services/auth.service";
 import { accountService } from "@/services/account.service";
 
@@ -53,6 +54,17 @@ describe("sign-in form", () => {
     expect(alert).toHaveTextContent("Access denied");
     expect(alert).toHaveTextContent('This portal is for students only. Your account is registered as "teacher".');
     expect(login).toHaveBeenCalledWith(expect.objectContaining({ identifier: "teacher@school.test", rememberMe: false }));
+  });
+
+  it("shows the same banner for the API's 403 refusal (X-Talim-App)", async () => {
+    login.mockRejectedValue(new ApiError("FORBIDDEN", accessDeniedMessage("parent"), 403));
+    render(<SignInForm />);
+    await userEvent.type(screen.getByLabelText("Email or Student ID"), "parent@school.test");
+    await userEvent.type(screen.getByLabelText("Password"), "Secret#1");
+    await userEvent.click(screen.getByRole("button", { name: "Sign in" }));
+    const alert = await screen.findByRole("alert");
+    expect(alert).toHaveTextContent("Access denied");
+    expect(alert).toHaveTextContent('This portal is for students only. Your account is registered as "parent".');
   });
 
   it("shows the amber banner for wrong credentials and marks both fields", async () => {

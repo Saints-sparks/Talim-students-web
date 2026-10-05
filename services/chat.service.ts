@@ -1,4 +1,4 @@
-import { API_BASE_URL } from "@/lib/constants";
+import { API_BASE_URL, TALIM_APP, TALIM_APP_HEADER } from "@/lib/constants";
 import { refreshAccessToken } from "@/lib/authFetch";
 import { sessionStore } from "@/lib/session";
 import type { ChatAttachment } from "@/types/chat";
@@ -29,7 +29,8 @@ interface UploadResponseBody {
 }
 
 /**
- * One multipart POST with upload progress (fetch can't report it).
+ * One multipart POST with upload progress (fetch can't report it). Carries
+ * `X-Talim-App` like every other request from this portal.
  *
  * @param url - Absolute upload URL.
  * @param form - The multipart body.
@@ -48,6 +49,7 @@ function postWithProgress(
     xhr.open("POST", url);
     xhr.withCredentials = true;
     xhr.setRequestHeader("Accept", "application/json");
+    xhr.setRequestHeader(TALIM_APP_HEADER, TALIM_APP);
     if (token) xhr.setRequestHeader("Authorization", `Bearer ${token}`);
     if (onProgress) {
       xhr.upload.onprogress = (event) => {

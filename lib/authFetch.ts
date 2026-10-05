@@ -1,5 +1,5 @@
 import { destroyCookie, setCookie } from "nookies";
-import { API_ENDPOINTS } from "@/lib/constants";
+import { API_ENDPOINTS, TALIM_APP, TALIM_APP_HEADER } from "@/lib/constants";
 import { ApiError } from "@/lib/apiError";
 import { sessionStore } from "@/lib/session";
 
@@ -74,7 +74,8 @@ let refreshPromise: Promise<string> | null = null;
 
 /**
  * Exchanges the refresh cookie for a new access token (single-flight: every
- * caller during a refresh awaits the same promise). On failure the client
+ * caller during a refresh awaits the same promise). Sends `X-Talim-App`, so
+ * the API reads the students' own `refreshToken_students` cookie. On failure the client
  * session is cleared and `auth-refresh-failed` is fired, which AuthContext
  * turns into a sign-out.
  *
@@ -85,7 +86,7 @@ export async function refreshAccessToken(): Promise<string> {
   if (!refreshPromise) {
     refreshPromise = fetch(API_ENDPOINTS.REFRESH, {
       method: "POST",
-      headers: { Accept: "application/json", "Content-Type": "application/json" },
+      headers: { Accept: "application/json", "Content-Type": "application/json", [TALIM_APP_HEADER]: TALIM_APP },
       credentials: "include",
     })
       .then(async (response) => {
@@ -227,8 +228,10 @@ async function doFetch(input: RequestInfo | URL, config: RequestConfig): Promise
 }
 
 /**
- * Builds the headers for one request: the caller's, plus `Accept` and the
- * bearer token unless `skipAuth` was set.
+ * Builds the headers for one request: the caller's, plus `Accept`, this
+ * portal's `X-Talim-App` (on every request, public or not, so every auth call
+ * reads and writes the students' own refresh cookie) and the bearer token
+ * unless `skipAuth` was set.
  *
  * @param config - The request configuration.
  * @param tokenOverride - Token to use instead of the resolved one (on retry).
@@ -237,6 +240,7 @@ async function doFetch(input: RequestInfo | URL, config: RequestConfig): Promise
 function buildHeaders(config: RequestConfig, tokenOverride?: string | null): Headers {
   const headers = new Headers(config.headers);
   if (!headers.has("Accept")) headers.set("Accept", "application/json");
+  headers.set(TALIM_APP_HEADER, TALIM_APP);
   if (config.skipAuth) return headers;
 
   const token = tokenOverride ?? resolveToken(config.accessToken);
