@@ -2,9 +2,8 @@
  * Pure helpers for the Updates screen: the filter chips (B11's student map),
  * which items a chip shows, and where an update's button goes.
  */
-import { defaultActionLabel, targetHref } from "@/lib/learner/targets";
+import { defaultActionLabel, targetHref, type StoredTarget } from "@/lib/learner/targets";
 import type { NotificationCounts, StudentNotification } from "@/lib/notifications/normalize";
-import type { NotificationTarget } from "@/types/learner";
 
 /** A filter chip: everything, unread, or one category. */
 export type UpdateFilter = "all" | "unread" | "academics" | "resources" | "grading" | "announcement";
@@ -55,11 +54,11 @@ export function chipCounts(counts: NotificationCounts): Record<UpdateFilter, num
  * @param metadata - The update's metadata.
  * @returns The target, or null.
  */
-export function targetOf(metadata: Record<string, unknown> | undefined): NotificationTarget | null {
+export function targetOf(metadata: Record<string, unknown> | undefined): StoredTarget | null {
   const target = metadata?.target;
   if (!target || typeof target !== "object") return null;
   const page = (target as { page?: unknown }).page;
-  return typeof page === "string" && page ? (target as NotificationTarget) : null;
+  return typeof page === "string" && page ? (target as StoredTarget) : null;
 }
 
 /**

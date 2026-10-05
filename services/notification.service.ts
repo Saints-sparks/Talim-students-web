@@ -17,6 +17,7 @@ export type NotificationQuery = {
  * One notification or announcement exactly as the API returns it. The fields
  * vary by source, so normalisation lives in `lib/notifications/normalize.ts`
  * rather than being assumed here.
+ * HAND-WRITTEN (not `NotificationItemDto`): the normaliser also reads announcements and older payloads (`content`, `body`, `read`, `sender`…).
  */
 export interface RawNotification {
   _id?: string;
@@ -51,7 +52,7 @@ export interface RawNotification {
   [key: string]: unknown;
 }
 
-/** A page of notifications, as the list endpoints return it. */
+/** A page of notifications, as the list endpoints return it (loose like {@link RawNotification}, which it lists). */
 export interface NotificationListResponse {
   data?: RawNotification[];
   announcements?: RawNotification[];

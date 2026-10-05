@@ -23,20 +23,12 @@ import type {
   UpdateLearnerPreferences,
 } from "@/types/learner";
 import type { ChatRoomView } from "@/types/chat";
+import type { Schema } from "@/types/apiContract";
 
 const ME = `${API_BASE_URL}/students/me`;
 
 /** A term as `GET /academic-year-term/term/school` sends it. */
-interface RawSchoolTerm {
-  id?: string;
-  _id?: string;
-  name?: string;
-  session?: string | null;
-  startDate?: string;
-  endDate?: string;
-  isCurrent?: boolean;
-  academicYearId?: string;
-}
+type RawSchoolTerm = Schema<"SchoolTermDto">;
 
 /**
  * The school's terms as the pickers read them: the id however the API spelled
@@ -188,7 +180,7 @@ export const learnerService = {
       await fixtureDelay();
       return (await fixtures()).makeSchoolTerms();
     }
-    const body = await api.get<{ message?: string; terms?: RawSchoolTerm[] }>(`${API_BASE_URL}/academic-year-term/term/school`);
+    const body = await api.get<Schema<"SchoolTermsResponseDto">>(`${API_BASE_URL}/academic-year-term/term/school`);
     return toSchoolTerms(body?.terms ?? []);
   },
 

@@ -6,6 +6,13 @@
 import type { NotificationCategory, NotificationTarget } from "@/types/learner";
 
 /**
+ * A target as a notification carries it. HAND-WRITTEN wider `page`: the API's
+ * list (`NotificationTargetDto`) is fixed now, but notifications stored before
+ * it, and raw `metadata.target`, may name older pages ("today", "files"…).
+ */
+export type StoredTarget = Omit<NotificationTarget, "page"> & { page: string };
+
+/**
  * The app route for a notification target.
  *
  * @param target - The producer's target, or null.
@@ -13,7 +20,7 @@ import type { NotificationCategory, NotificationTarget } from "@/types/learner";
  *   term there (`metadata.termId`) rather than in the target.
  * @returns The path to open, or null when there is nowhere better than Updates.
  */
-export function targetHref(target: NotificationTarget | null | undefined, metadata?: Record<string, unknown> | null): string | null {
+export function targetHref(target: StoredTarget | null | undefined, metadata?: Record<string, unknown> | null): string | null {
   if (!target?.page) return null;
   const termId = target.termId ?? (typeof metadata?.termId === "string" ? metadata.termId : undefined);
   switch (target.page) {

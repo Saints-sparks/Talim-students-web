@@ -12,6 +12,8 @@ import type {
   NotificationCounts,
   PasswordPolicy,
   ReadAllResult,
+  RevokeOthersResult,
+  RevokeSessionResult,
   RoomMediaKind,
   RoomMediaPage,
   SupportTicketBody,
@@ -71,9 +73,9 @@ export const accountService = {
    * @returns `{ id, revoked, current }`.
    * @throws {ApiError} `NOT_FOUND` for a session that is not the student's.
    */
-  async revokeSession(sessionId: string): Promise<{ id: string; revoked: boolean; current: boolean }> {
+  async revokeSession(sessionId: string): Promise<RevokeSessionResult> {
     if (fixturesEnabled()) return { id: sessionId, revoked: true, current: false };
-    return api.delete<{ id: string; revoked: boolean; current: boolean }>(`${API_BASE_URL}/auth/sessions/${encodeURIComponent(sessionId)}`);
+    return api.delete<RevokeSessionResult>(`${API_BASE_URL}/auth/sessions/${encodeURIComponent(sessionId)}`);
   },
 
   /**
@@ -82,9 +84,9 @@ export const accountService = {
    * @returns How many were revoked.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  async revokeOtherSessions(): Promise<{ revoked: number }> {
+  async revokeOtherSessions(): Promise<RevokeOthersResult> {
     if (fixturesEnabled()) return { revoked: 1 };
-    return api.post<{ revoked: number }>(`${API_BASE_URL}/auth/sessions/revoke-others`);
+    return api.post<RevokeOthersResult>(`${API_BASE_URL}/auth/sessions/revoke-others`);
   },
 
   /**

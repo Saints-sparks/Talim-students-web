@@ -624,8 +624,8 @@ export function makeReportCard(variant: FixtureVariant = "normal", termId: strin
  */
 export function makeSchoolTerms(): SchoolTerm[] {
   return [
-    { id: FIXTURE_TERM.id, name: FIXTURE_TERM.name, session: FIXTURE_TERM.session, startDate: "2026-09-07T00:00:00.000Z", endDate: "2026-12-18T00:00:00.000Z", isCurrent: true },
-    { id: PREVIOUS_TERM.id, name: PREVIOUS_TERM.name, session: PREVIOUS_TERM.session, startDate: "2026-04-20T00:00:00.000Z", endDate: "2026-07-24T00:00:00.000Z", isCurrent: false },
+    { id: FIXTURE_TERM.id, name: FIXTURE_TERM.name, session: FIXTURE_TERM.session, startDate: "2026-09-07T00:00:00.000Z", endDate: "2026-12-18T00:00:00.000Z", isCurrent: true, academicYearId: "year-2026" },
+    { id: PREVIOUS_TERM.id, name: PREVIOUS_TERM.name, session: PREVIOUS_TERM.session, startDate: "2026-04-20T00:00:00.000Z", endDate: "2026-07-24T00:00:00.000Z", isCurrent: false, academicYearId: "year-2025" },
   ];
 }
 
