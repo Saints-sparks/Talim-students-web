@@ -189,6 +189,12 @@ function conflict(reason: string): ApiError {
 
 /** The store's calls, one per route. */
 export interface TicketFixtureStore {
+  /**
+   * `GET /tickets/mine`.
+   *
+   * @param query - Statuses (any of them; none for all), page and limit.
+   * @returns The page, most recent activity first.
+   */
   listMine(query?: MyTicketsQuery): TicketPage;
   get(id: string): Ticket;
   create(payload: CreateTicketPayload): Ticket;
@@ -228,7 +234,7 @@ export function createTicketStore(clock: () => Date = () => new Date()): TicketF
       const limit = query.limit ?? 20;
       const page = query.page ?? 1;
       const matching = tickets
-        .filter((item) => !query.status || item.status === query.status)
+        .filter((item) => !query.status?.length || query.status.includes(item.status))
         .sort((a, b) => b.lastActivityAt.localeCompare(a.lastActivityAt));
       const lastPage = Math.max(1, Math.ceil(matching.length / limit));
       return {

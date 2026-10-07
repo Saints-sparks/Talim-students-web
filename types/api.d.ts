@@ -23951,8 +23951,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of items per page */
                 limit?: number;
-                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
-                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+                /** @description The statuses to list; omit for all. Several go comma-separated in one parameter (`status=open,in_progress`) or as the parameter repeated (`status=open&status=in_progress`), one form per request: a repeated value is not split on commas. An unknown status is a 400. */
+                status?: ("open" | "in_progress" | "waiting_on_user" | "resolved" | "closed")[];
             };
             header?: never;
             path?: never;
@@ -23977,8 +23977,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of items per page */
                 limit?: number;
-                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
-                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+                /** @description The statuses to list; omit for all. Several go comma-separated in one parameter (`status=open,in_progress`) or as the parameter repeated (`status=open&status=in_progress`), one form per request: a repeated value is not split on commas. An unknown status is a 400. */
+                status?: ("open" | "in_progress" | "waiting_on_user" | "resolved" | "closed")[];
                 area?: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
                 priority?: "low" | "normal" | "high" | "urgent";
                 /** @description A staff user id, `me`, or `unassigned` (alias `none`). */
@@ -24032,8 +24032,8 @@ export interface operations {
                 page?: number;
                 /** @description Number of items per page */
                 limit?: number;
-                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
-                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+                /** @description The statuses to list; omit for all. Several go comma-separated in one parameter (`status=open,in_progress`) or as the parameter repeated (`status=open&status=in_progress`), one form per request: a repeated value is not split on commas. An unknown status is a 400. */
+                status?: ("open" | "in_progress" | "waiting_on_user" | "resolved" | "closed")[];
                 area?: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
                 priority?: "low" | "normal" | "high" | "urgent";
                 /** @description A staff user id, `me`, or `unassigned` (alias `none`). */

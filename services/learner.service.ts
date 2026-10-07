@@ -56,16 +56,18 @@ export function toSchoolTerms(raw: readonly RawSchoolTerm[]): SchoolTerm[] {
 }
 
 /**
- * Builds a query string from defined, non-empty values.
+ * Builds a query string from defined, non-empty values. A list (e.g. the
+ * tickets' `status`) goes as one comma-separated parameter (`status=open,closed`).
  *
- * @param params - The values to send.
+ * @param params - The values to send; `undefined`, `null`, `""` and empty lists are skipped.
  * @returns `?a=b…`, or an empty string.
  */
-export function toQuery(params: Record<string, string | number | null | undefined>): string {
+export function toQuery(params: Record<string, string | number | readonly string[] | null | undefined>): string {
   const search = new URLSearchParams();
   for (const [key, value] of Object.entries(params)) {
-    if (value === undefined || value === null || value === "") continue;
-    search.set(key, String(value));
+    const part = Array.isArray(value) ? value.join(",") : value === undefined || value === null ? "" : String(value);
+    if (part === "") continue;
+    search.set(key, part);
   }
   const text = search.toString();
   return text ? `?${text}` : "";

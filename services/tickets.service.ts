@@ -36,7 +36,7 @@ export const ticketsService = {
   /**
    * One page of the student's own tickets, newest activity first.
    *
-   * @param query - Optional status filter and paging.
+   * @param query - Optional statuses (any of them; sent comma-separated) and paging.
    * @returns `{ data, meta }`.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
