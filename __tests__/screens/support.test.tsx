@@ -74,18 +74,18 @@ beforeEach(() => {
 });
 
 describe("My tickets list", () => {
-  it("replaces Report a problem with the student's tickets: status chips, unread dot and last activity, in one call", async () => {
+  it("replaces Report a problem with the student's tickets: status chips, the 'N new' badge and last activity, in one call", async () => {
     renderSettings("tab=help");
     const list = await screen.findByRole("list", { name: "My tickets" });
     const rows = within(list).getAllByRole("button");
     expect(rows).toHaveLength(4);
-    expect(rows[0]).toHaveTextContent("New reply.");
+    expect(rows[0]).toHaveTextContent("1 new");
     expect(rows[0]).toHaveTextContent("Signed out every time I close the tab");
     expect(rows[0]).toHaveTextContent("TS-4K7QM · Talim support · Updated 3 h ago");
     expect(rows[0]).toHaveTextContent("Waiting on you");
-    expect(rows[1]).toHaveTextContent("CMP-2026-0142 · My school (Talim Test School)");
+    expect(rows[1]).toHaveTextContent("TCKT-20260142 · My school (Easy Sparks College)");
     expect(rows[1]).toHaveTextContent("Open");
-    expect(rows[1]).not.toHaveTextContent("New reply.");
+    expect(rows[1]).not.toHaveTextContent("new");
     expect(rows[2]).toHaveTextContent("Resolved");
     expect(service.listMine).toHaveBeenCalledTimes(1);
     expect(service.get).not.toHaveBeenCalled();
@@ -150,11 +150,11 @@ describe("Ticket thread", () => {
   });
 
   it("shows the 409 when the server refuses a reopen", async () => {
-    service.reopen.mockRejectedValueOnce(new ApiError("CONFLICT", "", 409));
+    service.reopen.mockRejectedValueOnce(new ApiError("CONFLICT", "Too late.", 409, [], undefined, "REOPEN_WINDOW_PASSED"));
     const dialog = await openThread("ticket-resolved");
     fireEvent.click(within(dialog).getByRole("button", { name: "Reopen" }));
     expect(await within(dialog).findByRole("alert")).toHaveTextContent(
-      "This ticket was resolved more than 7 days ago, so it can't be reopened. Raise a new ticket and mention CMP-2026-0131."
+      "This ticket was resolved more than 7 days ago, so it can't be reopened. Raise a new ticket and mention TCKT-20260131."
     );
   });
 
@@ -177,11 +177,11 @@ describe("Ticket thread", () => {
   });
 
   it("explains a 409 on a reply and keeps the draft", async () => {
-    service.reply.mockRejectedValueOnce(new ApiError("CONFLICT", "This ticket was closed by your school.", 409));
+    service.reply.mockRejectedValueOnce(new ApiError("CONFLICT", "Ticket is closed.", 409, [], undefined, "TICKET_CLOSED"));
     const dialog = await openThread("ticket-open");
     fireEvent.change(within(dialog).getByLabelText("Your reply"), { target: { value: "Any news?" } });
     fireEvent.click(within(dialog).getByRole("button", { name: "Send reply" }));
-    expect(await within(dialog).findByRole("alert")).toHaveTextContent("This ticket was closed by your school.");
+    expect(await within(dialog).findByRole("alert")).toHaveTextContent("This ticket is closed, so it takes no more replies. Raise a new ticket if you still need help.");
     expect(within(dialog).getByLabelText("Your reply")).toHaveValue("Any news?");
   });
 });
@@ -231,6 +231,7 @@ describe("New ticket", () => {
         subject: "Fee receipt missing",
         body: "I paid on Monday but have no receipt.",
         attachments: [{ url: "https://files.test/receipt.pdf", name: "receipt.pdf", mimeType: "application/pdf", size: 3 }],
+        context: { path: `${window.location.pathname}${window.location.search}`, appVersion: "1.5.0", userAgent: navigator.userAgent },
       })
     );
     expect(await screen.findByRole("heading", { name: "Fee receipt missing" })).toBeInTheDocument();

@@ -41,6 +41,8 @@ interface ApiErrorBody {
   message?: string | string[];
   error?: { code?: string; message?: string; details?: ApiErrorDetail[] } | string;
   requestId?: string;
+  /** A route's own reason, beside the generic `error.code` (e.g. 409 `TICKET_CLOSED`). */
+  code?: string;
 }
 
 const KNOWN_CODES = new Set<ApiErrorCode>([
@@ -114,13 +116,29 @@ export class ApiError extends Error {
   readonly status: number;
   readonly details: ApiErrorDetail[];
   readonly requestId?: string;
+  /**
+   * The route's own reason, which the API sends as a top-level `code` beside
+   * the generic `error.code` (a ticket's 409 says `TICKET_CLOSED`,
+   * `REOPEN_WINDOW_PASSED`, `MESSAGE_CAP` or `INVALID_TRANSITION`).
+   * Undefined when there is none.
+   */
+  readonly reasonCode?: string;
 
+  /**
+   * @param code - The generic error code.
+   * @param message - The message to show.
+   * @param status - The HTTP status (0 when the request never got one).
+   * @param details - Field-level problems.
+   * @param requestId - The server's request id, for support.
+   * @param reasonCode - The route's own reason, if it sent one.
+   */
   constructor(
     code: ApiErrorCode,
     message: string,
     status: number,
     details: ApiErrorDetail[] = [],
-    requestId?: string
+    requestId?: string,
+    reasonCode?: string
   ) {
     super(message);
     this.name = "ApiError";
@@ -128,6 +146,7 @@ export class ApiError extends Error {
     this.status = status;
     this.details = details;
     this.requestId = requestId;
+    this.reasonCode = reasonCode;
   }
 
   /**
@@ -161,7 +180,8 @@ export class ApiError extends Error {
     if (status === 401 && message && /expired/i.test(message)) code = "TOKEN_EXPIRED";
     if (!message || (status >= 500 && !errorObj)) message = messageForStatus(status);
 
-    return new ApiError(code, message, status, details, requestId);
+    const reasonCode = typeof body?.code === "string" && body.code ? body.code : undefined;
+    return new ApiError(code, message, status, details, requestId, reasonCode);
   }
 
   /**

@@ -4,10 +4,10 @@ import React, { useId, useState } from "react";
 import { ChevronRight, Plus } from "lucide-react";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { ScreenError, ScreenLoading } from "@/components/tl/states";
-import { focusRing, primaryButton, rowButton } from "@/components/tl/styles";
+import { focusRing, pill, pillTone, primaryButton, rowButton } from "@/components/tl/styles";
 import { useMyTickets } from "@/hooks/support/useTickets";
-import { deskLabel, relativeTime } from "@/lib/support/tickets";
-import type { TicketRole, TicketSummary } from "@/types/v15";
+import { deskLabel, relativeTime, unreadLabel } from "@/lib/support/tickets";
+import type { TicketRole, TicketSummary } from "@/types/tickets";
 import { NewTicketSheet } from "./NewTicketSheet";
 import { TicketThreadSheet } from "./TicketThreadSheet";
 import { StatusChip } from "./TicketBits";
@@ -23,7 +23,8 @@ export interface SupportSectionProps {
 /**
  * Settings → Help → My tickets (v1.5 §1): a "New ticket" button and the
  * student's tickets, most recent activity first, each with its status chip,
- * desk, reference, an unread dot when someone has written since, and when it
+ * desk, reference, an "N new" badge for replies since the student last
+ * opened it (`unread`; opening clears it on the server), and when it
  * last changed. One `GET /tickets/mine` per page ("Load more"); no call per
  * row. A row opens the thread; a new ticket opens its thread once sent.
  *
@@ -116,7 +117,7 @@ export function SupportSection({ openTicketId, onOpenTicket }: SupportSectionPro
 }
 
 /**
- * One ticket in the list as one 44px+ button: subject, unread dot,
+ * One ticket in the list as one 44px+ button: subject, "N new" badge,
  * reference, desk, last activity and the status chip.
  *
  * @param props - The ticket and what opening it does.
@@ -128,6 +129,7 @@ export function SupportSection({ openTicketId, onOpenTicket }: SupportSectionPro
  */
 function TicketRow({ ticket, now, schoolName, onOpen }: { ticket: TicketSummary; now: Date; schoolName?: string | null; onOpen: () => void }) {
   const updated = relativeTime(ticket.lastActivityAt, now);
+  const fresh = unreadLabel(ticket);
   return (
     <button
       type="button"
@@ -136,16 +138,12 @@ function TicketRow({ ticket, now, schoolName, onOpen }: { ticket: TicketSummary;
     >
       <span className="min-w-0 flex-1">
         <span className="flex items-center gap-2">
-          {ticket.unread ? (
-            <>
-              <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-tl-brand" />
-              <span className="sr-only">New reply. </span>
-            </>
-          ) : null}
+          {fresh ? <span aria-hidden className="h-2.5 w-2.5 shrink-0 rounded-full bg-tl-brand" /> : null}
           <span className="truncate text-[15px] font-extrabold text-tl-ink">{ticket.subject}</span>
+          {fresh ? <span className={`${pill} ${pillTone.accent}`}>{fresh}</span> : null}
         </span>
         <span className="mt-0.5 block text-[13px] text-tl-muted">
-          {ticket.reference} · {deskLabel(ticket.desk, schoolName)}
+          {ticket.reference} · {deskLabel(ticket.desk, ticket.school?.name ?? schoolName)}
           {updated ? ` · Updated ${updated}` : ""}
         </span>
       </span>

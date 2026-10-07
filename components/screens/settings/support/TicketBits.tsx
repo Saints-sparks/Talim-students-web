@@ -5,7 +5,7 @@ import { Paperclip } from "lucide-react";
 import { formatBytes } from "@/lib/learner/format";
 import { STATUS_META } from "@/lib/support/tickets";
 import { pill, pillTone } from "@/components/tl/styles";
-import type { Attachment, TicketStatus } from "@/types/v15";
+import type { Attachment, TicketStatus } from "@/types/tickets";
 
 /**
  * A ticket's status as a chip in the `tl` pill tones ("Open", "Waiting on

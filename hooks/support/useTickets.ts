@@ -13,7 +13,7 @@ import { ticketsService } from "@/services/tickets.service";
 import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { queryKeys } from "@/lib/queryKeys";
 import { messageForError } from "@/lib/errorMessages";
-import type { CreateTicketPayload, PostTicketMessagePayload, Ticket, TicketPage, TicketSummary } from "@/types/v15";
+import type { CreateTicketPayload, PostTicketMessagePayload, Ticket, TicketPage, TicketSummary } from "@/types/tickets";
 
 /** Tickets per page of the list. */
 export const TICKETS_PAGE_SIZE = 10;
@@ -89,19 +89,19 @@ export function useMyTickets(enabled = true): MyTicketsState {
 
 /**
  * Marks one ticket read in the cached list, as the API does when the
- * student opens it, so the unread dot goes without another list call.
+ * student opens it, so its "N new" badge goes without another list call.
  *
  * @param data - The cached pages.
  * @param ticketId - The opened ticket.
  * @returns The pages with that ticket read, or the same object when unchanged.
  */
 export function markReadInPages(data: InfiniteData<TicketPage> | undefined, ticketId: string): InfiniteData<TicketPage> | undefined {
-  if (!data?.pages.some((page) => page.data.some((ticket) => ticket.id === ticketId && ticket.unread))) return data;
+  if (!data?.pages.some((page) => page.data.some((ticket) => ticket.id === ticketId && ticket.unread > 0))) return data;
   return {
     ...data,
     pages: data.pages.map((page) => ({
       ...page,
-      data: page.data.map((ticket) => (ticket.id === ticketId ? { ...ticket, unread: false } : ticket)),
+      data: page.data.map((ticket) => (ticket.id === ticketId ? { ...ticket, unread: 0 } : ticket)),
     })),
   };
 }

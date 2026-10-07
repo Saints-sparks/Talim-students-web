@@ -21,7 +21,7 @@ import {
   validateReply,
   type TicketAction,
 } from "@/lib/support/tickets";
-import { TICKET_BODY_MAX, type Ticket } from "@/types/v15";
+import { TICKET_BODY_MAX, type Ticket } from "@/types/tickets";
 import { AttachmentField, useTicketFiles } from "./AttachmentField";
 import { AttachmentLinks, StatusChip } from "./TicketBits";
 
@@ -172,7 +172,7 @@ function ThreadBody({ ticket, onNewTicket }: { ticket: Ticket; onNewTicket: () =
 
       <ol aria-label="Messages" className="flex flex-col gap-3">
         {messages.map((message) => {
-          const author = authorLine(message.author, ticket.requester.userId);
+          const author = authorLine(message.author, ticket.requester.id);
           return (
             <li
               key={message.id}

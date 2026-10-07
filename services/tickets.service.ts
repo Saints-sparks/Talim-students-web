@@ -9,7 +9,7 @@ import { fixturesEnabled } from "@/lib/fixtures/flag";
 import { toQuery } from "@/services/learner.service";
 import { chatService } from "@/services/chat.service";
 import type { ChatUploadFn } from "@/components/chat-kit/useAttachmentUpload";
-import type { CreateTicketPayload, MyTicketsQuery, PostTicketMessagePayload, Ticket, TicketPage } from "@/types/v15";
+import type { CreateTicketPayload, MyTicketsQuery, PostTicketMessagePayload, Ticket, TicketPage } from "@/types/tickets";
 
 /**
  * Lazily loads the fixture store (dev only).
@@ -75,36 +75,36 @@ export const ticketsService = {
    *
    * @param id - The ticket's id.
    * @param payload - The text and attachments.
-   * @returns The API's answer (the ticket, by the contract).
-   * @throws {ApiError} `CONFLICT` (409) when the ticket is closed or holds 500 messages.
+   * @returns The ticket after the reply (as `GET /tickets/:id` reads it).
+   * @throws {ApiError} 409 with `reasonCode` `TICKET_CLOSED`, `REOPEN_WINDOW_PASSED` or `MESSAGE_CAP`.
    */
-  async reply(id: string, payload: PostTicketMessagePayload): Promise<unknown> {
+  async reply(id: string, payload: PostTicketMessagePayload): Promise<Ticket> {
     if (fixturesEnabled()) return (await fixtures()).reply(id, payload);
-    return api.post<unknown>(ticketUrl(id, "messages"), payload);
+    return api.post<Ticket>(ticketUrl(id, "messages"), payload);
   },
 
   /**
    * Reopens a resolved ticket.
    *
    * @param id - The ticket's id.
-   * @returns The API's answer.
-   * @throws {ApiError} `CONFLICT` (409) more than 7 days after it was resolved.
+   * @returns The reopened ticket.
+   * @throws {ApiError} 409 `REOPEN_WINDOW_PASSED` more than 7 days after it was resolved, `INVALID_TRANSITION` when it is not resolved.
    */
-  async reopen(id: string): Promise<unknown> {
+  async reopen(id: string): Promise<Ticket> {
     if (fixturesEnabled()) return (await fixtures()).reopen(id);
-    return api.post<unknown>(ticketUrl(id, "reopen"));
+    return api.post<Ticket>(ticketUrl(id, "reopen"));
   },
 
   /**
    * Closes the student's own ticket.
    *
    * @param id - The ticket's id.
-   * @returns The API's answer.
+   * @returns The closed ticket.
    * @throws {ApiError} On any non-2xx or connectivity failure.
    */
-  async close(id: string): Promise<unknown> {
+  async close(id: string): Promise<Ticket> {
     if (fixturesEnabled()) return (await fixtures()).close(id);
-    return api.post<unknown>(ticketUrl(id, "close"));
+    return api.post<Ticket>(ticketUrl(id, "close"));
   },
 
   /**

@@ -765,6 +765,7 @@ export function makeNotificationCounts(variant: FixtureVariant = "normal"): Noti
     account: zero,
     payments: zero,
     leave: zero,
+    support: zero,
     other: zero,
   };
   if (variant === "empty") return { all: 0, unread: 0, byCategory };

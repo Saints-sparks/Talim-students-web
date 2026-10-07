@@ -16,9 +16,14 @@ import {
   reopenExpiredText,
   reopenHint,
   supportHref,
+  ticketContext,
+  unreadLabel,
   validateNewTicket,
   validateReply,
+  INVALID_TRANSITION_TEXT,
+  TICKET_CHANGED_TEXT,
 } from "@/lib/support/tickets";
+import { markReadInPages } from "@/hooks/support/useTickets";
 import { createTicketStore } from "@/lib/fixtures/tickets.fixture";
 
 const NOW = new Date("2026-10-07T12:00:00.000Z");
@@ -101,7 +106,19 @@ describe("the 7-day reopen window", () => {
 describe("409 words", () => {
   const bare = new ApiError("CONFLICT", messageForStatus(409), 409);
 
-  it("prefers the server's message", () => {
+  it("maps the API's reason (top-level code) to its words", () => {
+    const reason = (code: string) => ApiError.fromResponse({ status: 409, headers: { get: () => null } } as unknown as Response, { code, message: "Server words.", error: { code: "CONFLICT", message: "Server words." } });
+    const resolved = { status: "resolved" as const, reference: "TS-1" };
+    expect(reason("MESSAGE_CAP").reasonCode).toBe("MESSAGE_CAP");
+    expect(conflictMessage(reason("TICKET_CLOSED"), "reply", resolved)).toBe(CLOSED_TICKET_TEXT);
+    expect(conflictMessage(reason("REOPEN_WINDOW_PASSED"), "reply", resolved)).toBe(reopenExpiredText("TS-1"));
+    expect(conflictMessage(reason("MESSAGE_CAP"), "reply", resolved)).toBe(messageCapText("TS-1"));
+    expect(conflictMessage(reason("INVALID_TRANSITION"), "reopen", resolved)).toBe(INVALID_TRANSITION_TEXT);
+    expect(conflictMessage(reason("TICKET_CHANGED"), "close", resolved)).toBe(TICKET_CHANGED_TEXT);
+    expect(conflictMessage(reason("SOMETHING_NEW"), "close", resolved)).toBe("Server words.");
+  });
+
+  it("prefers the server's message when there is no reason", () => {
     expect(conflictMessage(new ApiError("CONFLICT", "Resolved over 7 days ago.", 409), "reopen", { status: "resolved", reference: "TS-1" })).toBe("Resolved over 7 days ago.");
   });
 
@@ -117,7 +134,31 @@ describe("409 words", () => {
     expect(() => store.reopen("ticket-old")).toThrow(ApiError);
     expect(store.reopen("ticket-resolved").status).toBe("open");
     store.close("ticket-open");
-    expect(() => store.reply("ticket-open", { body: "Hello?" })).toThrow(expect.objectContaining({ status: 409 }));
+    expect(() => store.reply("ticket-open", { body: "Hello?" })).toThrow(expect.objectContaining({ status: 409, reasonCode: "TICKET_CLOSED" }));
+    expect(() => store.reply("ticket-old", { body: "Hello?" })).toThrow(expect.objectContaining({ status: 409, reasonCode: "REOPEN_WINDOW_PASSED" }));
+  });
+});
+
+describe("unread and context", () => {
+  it("reads the server's count as an 'N new' badge, cleared in the cached list once opened", () => {
+    expect(unreadLabel({ unread: 0 })).toBeNull();
+    expect(unreadLabel({ unread: 3 })).toBe("3 new");
+    const store = createTicketStore(() => NOW);
+    const pages = { pages: [store.listMine()], pageParams: [1] };
+    expect(pages.pages[0].data[0]).toMatchObject({ id: "ticket-waiting", unread: 1 });
+    const read = markReadInPages(pages, "ticket-waiting");
+    expect(read?.pages[0].data[0].unread).toBe(0);
+    expect(markReadInPages(read, "ticket-waiting")).toBe(read);
+  });
+
+  it("reads the reopen window from reopenableUntil when the detail has it", () => {
+    expect(canReopen({ status: "resolved", resolvedAt: new Date(NOW.getTime() - 9 * 864e5).toISOString(), reopenableUntil: new Date(NOW.getTime() + 864e5).toISOString() }, NOW)).toBe(true);
+    expect(canReopen({ status: "resolved", resolvedAt: new Date(NOW.getTime() - 864e5).toISOString(), reopenableUntil: new Date(NOW.getTime() - 1).toISOString() }, NOW)).toBe(false);
+  });
+
+  it("sends where the student was as context, cut to the API's lengths", () => {
+    expect(ticketContext("1.5.0", { path: "/settings?tab=help", userAgent: "y".repeat(501) })).toEqual({ path: "/settings?tab=help", appVersion: "1.5.0", userAgent: "y".repeat(500) });
+    expect(ticketContext("1.5.0", { path: null, userAgent: null })).toEqual({ appVersion: "1.5.0" });
   });
 });
 

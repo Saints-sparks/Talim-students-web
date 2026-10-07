@@ -8,7 +8,6 @@
  * is looser than what the API actually sends, and say why ("HAND-WRITTEN: …").
  */
 import type { Schema } from "./apiContract";
-import type { SupportNotificationTarget } from "./v15";
 
 /* ───────────────────────────── shared pieces ───────────────────────────── */
 
@@ -55,22 +54,16 @@ export type LessonTopic = Schema<"LessonTopicDto">;
 export type StudentLesson = Schema<"StudentLessonDto">;
 
 /**
- * Where a notification's button goes (round-4 §30 `metadata.target`).
- * NOT IN CONTRACT: `page: "support"` with its `ticketId` (v1.5 §1, see
- * {@link SupportNotificationTarget}); the generated `NotificationTargetDto`'s
- * `page` enum lacks `support` and it has no `ticketId`, so both are added here.
+ * Where a notification's button goes (round-4 §30 `metadata.target`); v1.5's
+ * support target is `{ page: "support", ticketId }`.
  */
-export type NotificationTarget = Omit<Schema<"NotificationTargetDto">, "page"> & {
-  page: Schema<"NotificationTargetDto">["page"] | SupportNotificationTarget["page"];
-  ticketId?: SupportNotificationTarget["ticketId"];
-};
+export type NotificationTarget = Schema<"NotificationTargetDto">;
 
 /**
  * The categories the notification API files items under (B11 adds payments
- * and leave). NOT IN CONTRACT: `support` (v1.5 §1 ticket replies and status
- * changes), which the generated `FeedItemDto.category` enum lacks.
+ * and leave; v1.5 adds `support`, ticket replies and status changes).
  */
-export type NotificationCategory = Schema<"FeedItemDto">["category"] | "support";
+export type NotificationCategory = Schema<"FeedItemDto">["category"];
 
 /** B1 `feed` item. */
 export type NotificationItem = Schema<"FeedItemDto">;

@@ -8,7 +8,7 @@ import { rowButton } from "@/components/tl/styles";
 import { formatBytes } from "@/lib/learner/format";
 import { MAX_TICKET_ATTACHMENTS } from "@/lib/support/tickets";
 import { ticketsService } from "@/services/tickets.service";
-import type { Attachment } from "@/types/v15";
+import type { Attachment } from "@/types/tickets";
 
 /** What {@link useTicketFiles} hands a form. */
 export interface TicketFiles {

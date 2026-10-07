@@ -19,7 +19,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Liveness probe */
+        /**
+         * Liveness probe
+         * @description The liveness probe.
+         */
         get: operations["AppController_getHello"];
         put?: never;
         post?: never;
@@ -36,8 +39,31 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Health probe used by the platform and rate-limit exemptions */
+        /**
+         * Health probe used by the platform and rate-limit exemptions
+         * @description The health probe.
+         */
         get: operations["AppController_health"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/version": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The API version, commit and build time
+         * @description `version` is the API `package.json` version; `commit` comes from `GIT_COMMIT` (else Render's `RENDER_GIT_COMMIT`), `builtAt` from `BUILD_TIME`; each is null when unset.
+         */
+        get: operations["AppController_version"];
         put?: never;
         post?: never;
         delete?: never;
@@ -3065,6 +3091,26 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/admin/users/search": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform admin: find users across schools
+         * @description Active users whose first name, last name or email contains every word of `q` (literal, any case), narrowed by `role` and `schoolId`; by name, at most `limit` (default 20, max 50). Without `q`, the first users of the role or school.
+         */
+        get: operations["AdminUsersController_search"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/teachers/{userId}": {
         parameters: {
             query?: never;
@@ -4389,7 +4435,7 @@ export interface paths {
         patch: operations["MyNotificationsController_updatePreferences"];
         trace?: never;
     };
-    "/admin/notifications/send": {
+    "/admin/broadcasts/preview": {
         parameters: {
             query?: never;
             header?: never;
@@ -4399,10 +4445,74 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a targeted notification to a set of users (admin only)
-         * @description Platform-admin broadcast to explicit users and/or whole schools.
+         * How many people an audience reaches, by school and role
+         * @description The union of (schoolIds × roles) and userIds; `all` is every active user. `roles` without `schoolIds` are those roles in every school; `schoolIds` without `roles` are every role there. Parents count in a school where they have a child. `bySchool` groups by the school on each account (null when none).
          */
-        post: operations["AdminNotificationController_sendAdminNotification"];
+        post: operations["AdminBroadcastsController_preview"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/broadcasts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Broadcasts, newest first, with their figures
+         * @description Lists broadcasts.
+         */
+        get: operations["AdminBroadcastsController_list"];
+        put?: never;
+        /**
+         * Send a broadcast now or at a set time
+         * @description `status` is `sending` (sent now, in the background) or `scheduled` (`sendAt` in the future, at most a year). Each recipient's switches (`announcementsEnabled`, push, email) and quiet hours decide their push and email; the in-app notification always arrives. 400 when the audience is empty.
+         */
+        post: operations["AdminBroadcastsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/broadcasts/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One broadcast with its figures
+         * @description One broadcast.
+         */
+        get: operations["AdminBroadcastsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/broadcasts/{id}/cancel": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Cancel a scheduled broadcast
+         * @description 409 `BROADCAST_NOT_SCHEDULED` once it has started.
+         */
+        post: operations["AdminBroadcastsController_cancel"];
         delete?: never;
         options?: never;
         head?: never;
@@ -5626,6 +5736,250 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/tickets": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Raise a support ticket to the school or to Talim
+         * @description Students and parents choose `school` or `talim`; teachers, school admins and sub-admins raise tickets to `talim` only (400 otherwise); the platform admin raises none (403). A parent may name `childId` (a linked child, else 404); the ticket takes the child's school. `context` (`path`, `appVersion`, `userAgent`) is shown to desk staff only. At most 5 attachments (400 beyond). The desk is told after the commit.
+         */
+        post: operations["TicketsController_create"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/mine": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My tickets, most recently active first
+         * @description `messageCount` counts the messages the requester sees (no internal notes); `unread` the public staff messages since the requester last opened the ticket or wrote on it. A parent's list spans every child (`X-Talim-Child` does not narrow it); each row carries its `childId`.
+         */
+        get: operations["TicketsController_mine"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/desk/school": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The school desk: the school's tickets
+         * @description School admin, or sub-admin with `manage:support`. Own school only, plus the tickets the school escalated to Talim (`access: observer`, read only). `assigneeId` takes a user id, `me` or `none`; `q` matches a reference exactly or words of the subject. `unread`: the requester's messages since a desk member last opened or acted on the ticket (0 on observed rows).
+         */
+        get: operations["TicketsController_schoolDesk"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/desk/school/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The school desk's counts by status, in all, unassigned and mine
+         * @description The school desk's own tickets (not those it escalated). `unassigned` and `mine` count the active ones (open, in progress, waiting on the user).
+         */
+        get: operations["TicketsController_schoolCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/desk/talim": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Talim desk: tickets raised to Talim or escalated
+         * @description Platform admin. `scope=all` also lists school-desk tickets (`access: observer`, read only until escalated); `schoolId` narrows to one school. `unread`: the requester's messages since a Talim admin last opened or acted on the ticket (0 on observed rows; an escalated ticket starts unread).
+         */
+        get: operations["TicketsController_talimDesk"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/desk/talim/counts": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The Talim desk's counts by status, in all, unassigned and mine
+         * @description `scope=all` counts school-desk tickets too. `unassigned` and `mine` count the active ones.
+         */
+        get: operations["TicketsController_talimCounts"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/desk/{desk}/staff": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Who a desk can assign tickets to
+         * @description `school`: the caller's school admins and sub-admins with `manage:support` (school desk staff only). `talim`: the platform admins (platform admin only). Others get 403.
+         */
+        get: operations["TicketsController_deskStaff"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * One ticket with its messages
+         * @description The requester never receives internal notes or `context`; desk staff and observers do. Opening it marks it read for the caller's side (the requester, or its desk; an observer's read marks nothing), so its `unread` is 0; `updatedAt` and `lastActivityAt` do not move.
+         */
+        get: operations["TicketsController_get"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Desk staff: set a ticket's status, priority or assignee
+         * @description Status changes follow the staff transitions (open, in_progress and waiting_on_user go anywhere; resolved goes to open, in_progress or closed; closed is final: 409 `TICKET_CLOSED`; else 409 `INVALID_TRANSITION`). `assigneeId: null` unassigns; an assignee must be staff of the ticket's desk (400 otherwise). Requesters get 403. Answers the ticket as `GET /tickets/:id` does.
+         */
+        patch: operations["TicketsController_update"];
+        trace?: never;
+    };
+    "/tickets/{id}/messages": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Reply, or (desk staff) add an internal note
+         * @description 409 when the ticket is closed (`TICKET_CLOSED`), holds 500 messages (`MESSAGE_CAP`), asks a status change the transitions do not allow (`INVALID_TRANSITION`), or the caller only observes it (`TICKET_NOT_ESCALATED`, `TICKET_ESCALATED`). A requester's reply to a resolved ticket reopens it within 7 days (to `in_progress` when assigned, else `open`; 409 `REOPEN_WINDOW_PASSED` after). At most 5 attachments (400 beyond). Writing marks the ticket read for the writer's side. The requester is told of every public staff reply and status change.
+         */
+        post: operations["TicketsController_addMessage"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/escalate": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * School desk: move a ticket to the Talim desk
+         * @description Keeps the history; the note is an internal note and the school's assignee is cleared. The school desk keeps read-only access. 409 `TICKET_ALREADY_TALIM` for a Talim ticket.
+         */
+        post: operations["TicketsController_escalate"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/reopen": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requester: reopen a resolved ticket within 7 days
+         * @description 409 `INVALID_TRANSITION` unless resolved; 409 `REOPEN_WINDOW_PASSED` after 7 days.
+         */
+        post: operations["TicketsController_reopen"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/tickets/{id}/close": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Requester: close my ticket
+         * @description Closing a closed ticket changes nothing.
+         */
+        post: operations["TicketsController_close"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/complaints": {
         parameters: {
             query?: never;
@@ -5633,10 +5987,16 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get all complaints */
+        /**
+         * Get all complaints (deprecated: GET /tickets/desk/talim?scope=all)
+         * @deprecated
+         */
         get: operations["ComplaintController_findAll"];
         put?: never;
-        /** Create a new complaint */
+        /**
+         * Create a new complaint (deprecated: POST /tickets)
+         * @deprecated
+         */
         post: operations["ComplaintController_create"];
         delete?: never;
         options?: never;
@@ -5651,7 +6011,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get complaints by school ID */
+        /**
+         * Get complaints by school ID (deprecated: GET /tickets/desk/school)
+         * @deprecated
+         */
         get: operations["ComplaintController_getComplaintsBySchool"];
         put?: never;
         post?: never;
@@ -5668,7 +6031,10 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get complaints by user ID */
+        /**
+         * Get complaints by user ID (deprecated: GET /tickets/mine)
+         * @deprecated
+         */
         get: operations["ComplaintController_getComplaintsByUser"];
         put?: never;
         post?: never;
@@ -5685,12 +6051,21 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Get a complaint by ID or ticket number */
+        /**
+         * Get a complaint by ID or ticket number (deprecated: GET /tickets/:id)
+         * @deprecated
+         */
         get: operations["ComplaintController_findOne"];
-        /** Update a complaint */
+        /**
+         * Update a complaint (deprecated)
+         * @deprecated
+         */
         put: operations["ComplaintController_update"];
         post?: never;
-        /** Delete a complaint */
+        /**
+         * Delete a complaint (deprecated)
+         * @deprecated
+         */
         delete: operations["ComplaintController_remove"];
         options?: never;
         head?: never;
@@ -5710,7 +6085,10 @@ export interface paths {
         delete?: never;
         options?: never;
         head?: never;
-        /** Update complaint status */
+        /**
+         * Update complaint status (deprecated: PATCH /tickets/:id)
+         * @deprecated
+         */
         patch: operations["ComplaintController_updateStatus"];
         trace?: never;
     };
@@ -7761,8 +8139,9 @@ export interface paths {
         get?: never;
         put?: never;
         /**
-         * Send a support ticket to Talim
-         * @description Any signed-in user. Stored apart from school complaints (the school never sees it) and emailed to Talim support (SUPPORT_EMAIL, default support@mytalim.com). A failed email doesn't fail the request.
+         * Send a support ticket to Talim (deprecated: POST /tickets)
+         * @deprecated
+         * @description Any signed-in user but the platform admin. Raises a Talim-desk ticket (the school never sees it; its subject is the description's first line), visible in `GET /tickets/mine`, and emails it to Talim support (SUPPORT_EMAIL, default support@mytalim.com). A failed email doesn't fail the request.
          */
         post: operations["SupportController_create"];
         delete?: never;
@@ -7775,6 +8154,12 @@ export interface paths {
 export type webhooks = Record<string, never>;
 export interface components {
     schemas: {
+        AppVersionDto: {
+            /** @example 1.5.0 */
+            version: string;
+            commit: string | null;
+            builtAt: string | null;
+        };
         TodayTermDto: {
             id: string;
             name: string;
@@ -8248,19 +8633,21 @@ export interface components {
         };
         NotificationTargetDto: {
             /** @enum {string} */
-            page: "attendance" | "grading" | "messages" | "resources" | "subjects" | "leave" | "announcements" | "timetable" | "settings" | "payments" | "results" | "children";
+            page: "attendance" | "grading" | "messages" | "resources" | "subjects" | "leave" | "announcements" | "timetable" | "settings" | "payments" | "results" | "children" | "support";
             classId?: string;
             courseId?: string;
             assessmentId?: string;
             /** @description The term the page should open on (score and results publications). */
             termId?: string;
             roomId?: string;
+            /** @description v1.5: the support ticket (`page: 'support'`). */
+            ticketId?: string;
             week?: number;
             date?: string;
         };
         FeedItemDto: {
             /** @enum {string} */
-            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             senderName: string | null;
             /** @description Where the item's button leads (§30 `metadata.target`). */
             target: components["schemas"]["NotificationTargetDto"] | null;
@@ -10332,6 +10719,18 @@ export interface components {
             /** @example false */
             isActive: boolean;
         };
+        AdminUserSchoolDto: {
+            id: string;
+            name: string;
+        };
+        AdminUserSearchItemDto: {
+            email: string | null;
+            /** @enum {string} */
+            role: "student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin";
+            school: components["schemas"]["AdminUserSchoolDto"] | null;
+            id: string;
+            name: string;
+        };
         CreateTeacherDto: {
             /**
              * @description Staff number. Left out, the school's next staff number is generated.
@@ -11539,6 +11938,8 @@ export interface components {
             payments: components["schemas"]["InboxCountDto"];
             /** @description B11: leave requests and their decisions. */
             leave: components["schemas"]["InboxCountDto"];
+            /** @description v1.5: support tickets (replies, status changes, new tickets for a desk). */
+            support: components["schemas"]["InboxCountDto"];
             other: components["schemas"]["InboxCountDto"];
         };
         InboxCountsDto: {
@@ -11582,19 +11983,148 @@ export interface components {
             /** @description IANA timezone string (e.g. "Africa/Lagos", "America/New_York") */
             timezone?: string;
         };
-        AdminSendNotificationDto: {
-            /** @example Scheduled maintenance */
-            title: string;
-            /** @example Talim will be unavailable from 1am to 2am. */
-            message: string;
-            /** @example system_notice */
-            type?: string;
-            recipientIds?: string[];
-            targetSchools?: string[];
-            recipientRoles?: ("student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin")[];
+        BroadcastAudienceDto: {
+            all?: boolean;
+            schoolIds?: string[];
+            roles?: ("teacher" | "student" | "parent" | "school_admin" | "school_sub_admin")[];
+            userIds?: string[];
+        };
+        PreviewBroadcastDto: {
+            audience: components["schemas"]["BroadcastAudienceDto"];
+        };
+        BroadcastPreviewSchoolDto: {
+            /** @description Null for recipients without a school on their account. */
+            schoolId: string | null;
+            name: string | null;
+            count: number;
+        };
+        BroadcastRoleCountsDto: {
+            teacher: number;
+            student: number;
+            parent: number;
+            school_admin: number;
+            school_sub_admin: number;
+        };
+        BroadcastPreviewDto: {
+            /** @description By the school on each user's account, largest first. */
+            bySchool: components["schemas"]["BroadcastPreviewSchoolDto"][];
+            /** @description Distinct active users the audience reaches now. */
+            recipients: number;
+            byRole: components["schemas"]["BroadcastRoleCountsDto"];
+        };
+        BroadcastTargetInputDto: {
             /** @enum {string} */
-            priority?: "low" | "medium" | "high";
-            data?: Record<string, never>;
+            page: "attendance" | "grading" | "messages" | "resources" | "subjects" | "leave" | "announcements" | "timetable" | "settings" | "payments" | "results" | "children" | "support";
+            classId?: string;
+            courseId?: string;
+            assessmentId?: string;
+            termId?: string;
+            roomId?: string;
+            ticketId?: string;
+            week?: number;
+            /** @example 2026-10-06 */
+            date?: string;
+        };
+        BroadcastChannelsDto: {
+            /**
+             * @description Phone and browser push.
+             * @default true
+             */
+            push: boolean;
+            /** @default false */
+            email: boolean;
+        };
+        CreateBroadcastDto: {
+            title: string;
+            body: string;
+            /** @description Uploaded files (https URLs), shown with the notification. */
+            attachments?: string[];
+            target?: components["schemas"]["BroadcastTargetInputDto"];
+            audience: components["schemas"]["BroadcastAudienceDto"];
+            channels: components["schemas"]["BroadcastChannelsDto"];
+            /**
+             * @description When to send (ISO 8601). Omitted or not in the future: now. At most a
+             *     year ahead.
+             * @example 2026-10-07T08:00:00.000Z
+             */
+            sendAt?: string;
+        };
+        BroadcastCreatedDto: {
+            /** @enum {string} */
+            status: "scheduled" | "sending";
+            id: string;
+            recipientsEstimate: number;
+        };
+        BroadcastRefDto: {
+            id: string;
+            name: string;
+        };
+        BroadcastUserDto: {
+            id: string;
+            name: string;
+            role: string;
+        };
+        BroadcastAudienceViewDto: {
+            /** @description `schoolIds` with their names. */
+            schools: components["schemas"]["BroadcastRefDto"][];
+            roles: ("teacher" | "student" | "parent" | "school_admin" | "school_sub_admin")[];
+            /** @description `GET /admin/broadcasts/:id` only: `userIds` with names. */
+            users?: components["schemas"]["BroadcastUserDto"][];
+            all: boolean;
+            schoolIds: string[];
+            userIds: string[];
+        };
+        BroadcastChannelsViewDto: {
+            /** @description Always true. */
+            inApp: boolean;
+            push: boolean;
+            email: boolean;
+        };
+        BroadcastStatsDto: {
+            /** @description Rows written (0 until it sends). */
+            recipients: number;
+            /** @description Rows whose delivery job ran. */
+            delivered: number;
+            read: number;
+            /** @description Rows pushed to a phone or a browser. */
+            pushSent: number;
+            /** @description Rows whose email was queued or sent. */
+            emailSent: number;
+            /** @description Rows with a failed status or channel. */
+            failed: number;
+        };
+        BroadcastDto: {
+            target: components["schemas"]["NotificationTargetDto"] | null;
+            /** @enum {string} */
+            status: "scheduled" | "sending" | "sent" | "cancelled" | "failed";
+            /** Format: date-time */
+            sentAt: string | null;
+            /** Format: date-time */
+            cancelledAt: string | null;
+            id: string;
+            title: string;
+            body: string;
+            attachments: string[];
+            audience: components["schemas"]["BroadcastAudienceViewDto"];
+            channels: components["schemas"]["BroadcastChannelsViewDto"];
+            /** Format: date-time */
+            sendAt: string;
+            /** @description The audience's size when it was created. */
+            recipientsEstimate: number;
+            createdBy: components["schemas"]["BroadcastRefDto"];
+            /** Format: date-time */
+            createdAt: string;
+            stats: components["schemas"]["BroadcastStatsDto"];
+        };
+        PageMetaDto: {
+            total: number;
+            page: number;
+            lastPage: number;
+            limit: number;
+        };
+        BroadcastListResponseDto: {
+            data: components["schemas"]["BroadcastDto"][];
+            meta: components["schemas"]["PageMetaDto"];
         };
         WebPushKeysDto: {
             p256dh: string;
@@ -11618,7 +12148,7 @@ export interface components {
             audience?: string[];
             attachments?: string[];
             /** @enum {string} */
-            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             targetAudience?: string[];
             /** @enum {string} */
             status?: "PENDING" | "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
@@ -11639,7 +12169,7 @@ export interface components {
             attachments?: string[];
             audience?: string[];
             /** @enum {string} */
-            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             /** @enum {string} */
             status?: "PENDING" | "DRAFT" | "SCHEDULED" | "PUBLISHED" | "ARCHIVED";
             scheduledFor?: string;
@@ -11696,7 +12226,7 @@ export interface components {
             /** @enum {string} */
             source?: "school" | "talim" | "system";
             /** @enum {string} */
-            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             /** @description Extra context used by clients to link notifications to modules. */
             metadata?: Record<string, never>;
             recipientId?: string;
@@ -11722,7 +12252,7 @@ export interface components {
             /** @enum {string} */
             source: "school" | "talim" | "system";
             /** @enum {string} */
-            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             /** @enum {string} */
             priority?: "low" | "medium" | "high";
             metadata?: {
@@ -11804,7 +12334,7 @@ export interface components {
             /** @enum {string} */
             source?: "school" | "talim" | "system";
             /** @enum {string} */
-            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+            category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
             /** @description Extra context used by clients to link notifications to modules. */
             metadata?: Record<string, never>;
             /** Format: date-time */
@@ -12502,6 +13032,251 @@ export interface components {
                 /** Format: date-time */
                 updatedAt?: string;
             };
+        };
+        TicketAttachmentInputDto: {
+            /** @example https://res.cloudinary.com/demo/raw/upload/a.pdf */
+            url: string;
+            /** @example report.pdf */
+            name: string;
+            /** @example application/pdf */
+            mimeType: string;
+            /** @description Bytes, up to 25 MB. */
+            size: number;
+        };
+        TicketContextInputDto: {
+            /**
+             * @description The app page, e.g. `/grading/term-2`.
+             * @example /grading
+             */
+            path?: string;
+            /**
+             * @description The app's version, e.g. `1.5.0`.
+             * @example 1.5.0
+             */
+            appVersion?: string;
+            /** @description The browser's or device's user agent. */
+            userAgent?: string;
+        };
+        CreateTicketDto: {
+            /**
+             * @description `school` or `talim`. Students and parents may use either; school staff
+             *     (teachers, school admins, sub-admins) raise tickets to `talim` only.
+             * @enum {string}
+             */
+            desk: "school" | "talim";
+            /** @enum {string} */
+            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+            subject: string;
+            body: string;
+            attachments?: components["schemas"]["TicketAttachmentInputDto"][];
+            /**
+             * @description Parents only: the child (Student record id) the ticket is about. Its
+             *     school becomes the ticket's school; a child not linked to the parent
+             *     answers 404.
+             */
+            childId?: string;
+            /** @description Where the requester was; desk staff see it, the requester never does. */
+            context?: components["schemas"]["TicketContextInputDto"];
+        };
+        TicketRefDto: {
+            id: string;
+            name: string;
+        };
+        TicketAttachmentDto: {
+            url: string;
+            name: string;
+            mimeType: string;
+            /** @description Bytes; 0 when unknown (attachments migrated from a bare URL). */
+            size: number;
+        };
+        TicketPersonDto: {
+            id: string;
+            name: string;
+            role: string;
+        };
+        TicketMessageDto: {
+            attachments: components["schemas"]["TicketAttachmentDto"][];
+            id: string;
+            author: components["schemas"]["TicketPersonDto"];
+            body: string;
+            /** @description Always false for a requester (internal notes are removed). */
+            internal: boolean;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TicketContextDto: {
+            path?: string | null;
+            appVersion?: string | null;
+            userAgent?: string | null;
+        };
+        TicketRequesterDto: {
+            email?: string | null;
+            id: string;
+            name: string;
+            role: string;
+        };
+        TicketDto: {
+            /** @enum {string} */
+            desk: "school" | "talim";
+            /** @enum {string} */
+            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+            /** @enum {string} */
+            status: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            school: components["schemas"]["TicketRefDto"] | null;
+            /**
+             * @description A parent's ticket about one child: its Student id (`child.id`), else
+             *     null. `GET /tickets/mine` lists a parent's tickets for every child,
+             *     whatever `X-Talim-Child` says.
+             */
+            childId: string | null;
+            child: components["schemas"]["TicketRefDto"] | null;
+            assignee: components["schemas"]["TicketRefDto"] | null;
+            /** @enum {string|null} */
+            escalatedFrom: "school" | null;
+            /**
+             * @description How the caller may use it: `requester`, `desk` (act on it) or
+             *     `observer` (read only: Talim on a school ticket before escalation, the
+             *     school desk on a ticket it escalated).
+             * @enum {string}
+             */
+            access: "requester" | "desk" | "observer";
+            /** Format: date-time */
+            firstResponseAt: string | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            messages: components["schemas"]["TicketMessageDto"][];
+            /**
+             * Format: date-time
+             * @description While resolved: the last moment it can be reopened (7 days).
+             */
+            reopenableUntil: string | null;
+            /** Format: date-time */
+            escalatedAt: string | null;
+            /** @description Desk staff only (null for the requester). */
+            context: components["schemas"]["TicketContextDto"] | null;
+            id: string;
+            /** @description `TS-XXXXX` (Talim desk) or `TCKT-XXXXXXXX` (school desk). */
+            reference: string;
+            subject: string;
+            requester: components["schemas"]["TicketRequesterDto"];
+            /** @description Messages the caller can see (internal notes count only for staff). */
+            messageCount: number;
+            /**
+             * @description Messages the caller's side has not read: for the requester, public
+             *     staff messages since they last opened the ticket (`GET /tickets/:id`)
+             *     or wrote on it; for its desk, the requester's messages since a desk
+             *     member last opened or acted on it. Always 0 for observers.
+             */
+            unread: number;
+            /** Format: date-time */
+            lastActivityAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TicketSummaryDto: {
+            /** @enum {string} */
+            desk: "school" | "talim";
+            /** @enum {string} */
+            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+            /** @enum {string} */
+            status: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            school: components["schemas"]["TicketRefDto"] | null;
+            /**
+             * @description A parent's ticket about one child: its Student id (`child.id`), else
+             *     null. `GET /tickets/mine` lists a parent's tickets for every child,
+             *     whatever `X-Talim-Child` says.
+             */
+            childId: string | null;
+            child: components["schemas"]["TicketRefDto"] | null;
+            assignee: components["schemas"]["TicketRefDto"] | null;
+            /** @enum {string|null} */
+            escalatedFrom: "school" | null;
+            /**
+             * @description How the caller may use it: `requester`, `desk` (act on it) or
+             *     `observer` (read only: Talim on a school ticket before escalation, the
+             *     school desk on a ticket it escalated).
+             * @enum {string}
+             */
+            access: "requester" | "desk" | "observer";
+            /** Format: date-time */
+            firstResponseAt: string | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            id: string;
+            /** @description `TS-XXXXX` (Talim desk) or `TCKT-XXXXXXXX` (school desk). */
+            reference: string;
+            subject: string;
+            requester: components["schemas"]["TicketRequesterDto"];
+            /** @description Messages the caller can see (internal notes count only for staff). */
+            messageCount: number;
+            /**
+             * @description Messages the caller's side has not read: for the requester, public
+             *     staff messages since they last opened the ticket (`GET /tickets/:id`)
+             *     or wrote on it; for its desk, the requester's messages since a desk
+             *     member last opened or acted on it. Always 0 for observers.
+             */
+            unread: number;
+            /** Format: date-time */
+            lastActivityAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        TicketListResponseDto: {
+            data: components["schemas"]["TicketSummaryDto"][];
+            meta: components["schemas"]["PageMetaDto"];
+        };
+        TicketCountsDto: {
+            open: number;
+            in_progress: number;
+            waiting_on_user: number;
+            resolved: number;
+            closed: number;
+            /** @description Every ticket counted, whatever its status. */
+            total: number;
+            /** @description Not resolved or closed, and nobody assigned. */
+            unassigned: number;
+            /** @description Not resolved or closed, and assigned to the caller. */
+            mine: number;
+        };
+        TicketStaffDto: {
+            email: string | null;
+            id: string;
+            name: string;
+            /** @description `admin` (Talim), `school_admin` or `school_sub_admin`. */
+            role: string;
+        };
+        AddTicketMessageDto: {
+            body: string;
+            attachments?: components["schemas"]["TicketAttachmentInputDto"][];
+            /** @description Desk staff only: a note the requester never sees. */
+            internal?: boolean;
+            /**
+             * @description Desk staff only: the status to set with this reply (one write, one
+             *     notification). Without it, a public staff reply moves an `open` ticket
+             *     to `in_progress`.
+             * @enum {string}
+             */
+            status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+        };
+        UpdateTicketDto: {
+            /** @enum {string} */
+            status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+            /** @enum {string} */
+            priority?: "low" | "normal" | "high" | "urgent";
+            /** @description A staff user of the ticket's desk; `null` unassigns. */
+            assigneeId?: string | null;
+        };
+        EscalateTicketDto: {
+            /** @description Why it goes to Talim; kept as an internal note on the ticket. */
+            note: string;
         };
         CreateComplaintDto: {
             /**
@@ -13956,7 +14731,7 @@ export interface components {
              *       "manage:payments"
              *     ]
              */
-            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:sub_admins")[];
+            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:support" | "manage:sub_admins")[];
         };
         PromoteTeacherDto: {
             /**
@@ -13971,7 +14746,7 @@ export interface components {
              *       "manage:timetable"
              *     ]
              */
-            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:sub_admins")[];
+            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:support" | "manage:sub_admins")[];
         };
         UpdatePermissionsDto: {
             /**
@@ -13981,7 +14756,7 @@ export interface components {
              *       "manage:finance"
              *     ]
              */
-            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:sub_admins")[];
+            permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:support" | "manage:sub_admins")[];
         };
         SupportTicketContextDto: {
             /** @example /grading */
@@ -13992,7 +14767,7 @@ export interface components {
         };
         CreateSupportTicketDto: {
             /** @enum {string} */
-            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "results" | "other";
+            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
             description: string;
             /** @description An uploaded screenshot or file (https). */
             attachmentUrl?: string;
@@ -14046,6 +14821,25 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
+            };
+        };
+    };
+    AppController_version: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AppVersionDto"];
+                };
             };
         };
     };
@@ -18914,6 +19708,31 @@ export interface operations {
             };
         };
     };
+    AdminUsersController_search: {
+        parameters: {
+            query?: {
+                /** @description Name or email words (each must match; literal). */
+                q?: string;
+                role?: "student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin";
+                schoolId?: string;
+                limit?: number;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserSearchItemDto"][];
+                };
+            };
+        };
+    };
     TeacherController_getTeacherProfile: {
         parameters: {
             query?: never;
@@ -21017,7 +21836,7 @@ export interface operations {
             };
         };
     };
-    AdminNotificationController_sendAdminNotification: {
+    AdminBroadcastsController_preview: {
         parameters: {
             query?: never;
             header?: never;
@@ -21026,7 +21845,7 @@ export interface operations {
         };
         requestBody: {
             content: {
-                "application/json": components["schemas"]["AdminSendNotificationDto"];
+                "application/json": components["schemas"]["PreviewBroadcastDto"];
             };
         };
         responses: {
@@ -21034,7 +21853,101 @@ export interface operations {
                 headers: {
                     [name: string]: unknown;
                 };
-                content?: never;
+                content: {
+                    "application/json": components["schemas"]["BroadcastPreviewDto"];
+                };
+            };
+        };
+    };
+    AdminBroadcastsController_list: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-based) */
+                page?: number;
+                /** @description Number of items per page */
+                limit?: number;
+                status?: "scheduled" | "sending" | "sent" | "cancelled" | "failed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastListResponseDto"];
+                };
+            };
+        };
+    };
+    AdminBroadcastsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateBroadcastDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastCreatedDto"];
+                };
+            };
+        };
+    };
+    AdminBroadcastsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Broadcast id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastDto"];
+                };
+            };
+        };
+    };
+    AdminBroadcastsController_cancel: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Broadcast id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["BroadcastDto"];
+                };
             };
         };
     };
@@ -21626,7 +22539,7 @@ export interface operations {
                 /** @description Filter notifications for a specific recipient */
                 recipientId?: string;
                 source?: "school" | "talim" | "system";
-                category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+                category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
                 type?: string;
                 /** @description true: only notifications the caller has not read (with the other filters). */
                 unread?: boolean;
@@ -21679,7 +22592,7 @@ export interface operations {
                 /** @description Filter notifications for a specific recipient */
                 recipientId?: string;
                 source?: "school" | "talim" | "system";
-                category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "other";
+                category?: "announcement" | "attendance" | "academics" | "grading" | "resources" | "messages" | "account" | "payments" | "leave" | "support" | "other";
                 type?: string;
                 /** @description true: only notifications the caller has not read (with the other filters). */
                 unread?: boolean;
@@ -23004,6 +23917,333 @@ export interface operations {
                 };
                 content: {
                     "application/json": components["schemas"]["SchoolDashboardDto"];
+                };
+            };
+        };
+    };
+    TicketsController_create: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["CreateTicketDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_mine: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-based) */
+                page?: number;
+                /** @description Number of items per page */
+                limit?: number;
+                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
+                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListResponseDto"];
+                };
+            };
+        };
+    };
+    TicketsController_schoolDesk: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-based) */
+                page?: number;
+                /** @description Number of items per page */
+                limit?: number;
+                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
+                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+                area?: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+                priority?: "low" | "normal" | "high" | "urgent";
+                /** @description A staff user id, `me`, or `unassigned` (alias `none`). */
+                assigneeId?: string;
+                /** @description A reference (exact) or words of the subject. */
+                q?: string;
+                /** @description Talim desk only: `all` also lists school-desk tickets, read-only. */
+                scope?: "all";
+                /** @description Talim desk only: one school's tickets. */
+                schoolId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListResponseDto"];
+                };
+            };
+        };
+    };
+    TicketsController_schoolCounts: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCountsDto"];
+                };
+            };
+        };
+    };
+    TicketsController_talimDesk: {
+        parameters: {
+            query?: {
+                /** @description Page number (1-based) */
+                page?: number;
+                /** @description Number of items per page */
+                limit?: number;
+                /** @description One of open, in_progress, waiting_on_user, resolved, closed, or several separated by commas. */
+                status?: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+                area?: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+                priority?: "low" | "normal" | "high" | "urgent";
+                /** @description A staff user id, `me`, or `unassigned` (alias `none`). */
+                assigneeId?: string;
+                /** @description A reference (exact) or words of the subject. */
+                q?: string;
+                /** @description Talim desk only: `all` also lists school-desk tickets, read-only. */
+                scope?: "all";
+                /** @description Talim desk only: one school's tickets. */
+                schoolId?: string;
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketListResponseDto"];
+                };
+            };
+        };
+    };
+    TicketsController_talimCounts: {
+        parameters: {
+            query?: {
+                /** @description Talim desk only: `all` counts school-desk tickets too. */
+                scope?: "all";
+            };
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketCountsDto"];
+                };
+            };
+        };
+    };
+    TicketsController_deskStaff: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                desk: "school" | "talim";
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketStaffDto"][];
+                };
+            };
+        };
+    };
+    TicketsController_get: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_update: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateTicketDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_addMessage: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["AddTicketMessageDto"];
+            };
+        };
+        responses: {
+            201: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_escalate: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["EscalateTicketDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_reopen: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
+                };
+            };
+        };
+    };
+    TicketsController_close: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description Ticket id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["TicketDto"];
                 };
             };
         };

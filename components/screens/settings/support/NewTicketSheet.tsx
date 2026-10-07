@@ -5,8 +5,9 @@ import { Sheet } from "@/components/tl/Sheet";
 import { chip, fieldControl, fieldLabel, ghostButton, primaryButton } from "@/components/tl/styles";
 import { useCreateTicket } from "@/hooks/support/useTickets";
 import { messageForError } from "@/lib/errorMessages";
-import { AREA_LABELS, allowedDesks, areasFor, deskLabel, validateNewTicket, type NewTicketErrors, type NewTicketField } from "@/lib/support/tickets";
-import { TICKET_BODY_MAX, TICKET_SUBJECT_MAX, type Ticket, type TicketArea, type TicketDesk, type TicketRole } from "@/types/v15";
+import { APP_VERSION } from "@/lib/appInfo";
+import { AREA_LABELS, allowedDesks, areasFor, deskLabel, ticketContext, validateNewTicket, type NewTicketErrors, type NewTicketField } from "@/lib/support/tickets";
+import { TICKET_BODY_MAX, TICKET_SUBJECT_MAX, type Ticket, type TicketArea, type TicketDesk, type TicketRole } from "@/types/tickets";
 import { useRovingGroup } from "../roving";
 import { AttachmentField, useTicketFiles } from "./AttachmentField";
 
@@ -102,6 +103,7 @@ export function NewTicketSheet({ open, onOpenChange, role, schoolName, onCreated
         subject: subject.trim(),
         body: body.trim(),
         ...(attachments.length ? { attachments } : {}),
+        context: ticketContext(APP_VERSION),
       });
       onCreated(ticket);
     } catch (error) {
