@@ -194,12 +194,3 @@ export type RevokeSessionResult = Schema<"RevokeSessionDto">;
 
 /** `POST /auth/sessions/revoke-others` (§34). */
 export type RevokeOthersResult = Schema<"RevokeOthersDto">;
-
-/** `SUPPORT_AREAS` (§35 + B12). */
-export type SupportArea = Schema<"CreateSupportTicketDto">["area"];
-
-/** `POST /support/tickets` body (§35). */
-export type SupportTicketBody = Schema<"CreateSupportTicketDto">;
-
-/** `POST /support/tickets` answer (§35). */
-export type SupportTicketResult = Schema<"SupportTicketCreatedDto">;

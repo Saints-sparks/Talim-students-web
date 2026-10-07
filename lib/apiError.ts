@@ -70,7 +70,7 @@ const KNOWN_CODES = new Set<ApiErrorCode>([
  * @param status - The HTTP status of the failed response.
  * @returns A sentence safe to show a student.
  */
-function messageForStatus(status: number): string {
+export function messageForStatus(status: number): string {
   if (status === 401) return "Sign in to continue.";
   if (status === 403) return "You don't have access to this.";
   if (status === 404) return "We couldn't find that.";

@@ -1,5 +1,5 @@
 /**
- * Account, support and inbox calls the redesign adds (round-4 §29–§35 and the
+ * Account and inbox calls the redesign adds (round-4 §29–§35 and the
  * portals contract B10–B12), for every role. Behind `fixturesEnabled()` they
  * answer from the dev fixtures, except sign-out, which always calls the API.
  */
@@ -16,8 +16,6 @@ import type {
   RevokeSessionResult,
   RoomMediaKind,
   RoomMediaPage,
-  SupportTicketBody,
-  SupportTicketResult,
 } from "@/types/learner";
 
 /**
@@ -87,18 +85,6 @@ export const accountService = {
   async revokeOtherSessions(): Promise<RevokeOthersResult> {
     if (fixturesEnabled()) return { revoked: 1 };
     return api.post<RevokeOthersResult>(`${API_BASE_URL}/auth/sessions/revoke-others`);
-  },
-
-  /**
-   * §35: sends a problem report to the Talim support team (not the school).
-   *
-   * @param body - The area, the description and the page context.
-   * @returns The ticket reference ("TS-7KQ2P").
-   * @throws {ApiError} `VALIDATION_FAILED` for a description outside 10–2000 characters.
-   */
-  async createSupportTicket(body: SupportTicketBody): Promise<SupportTicketResult> {
-    if (fixturesEnabled()) return { reference: "TS-7KQ2P", createdAt: new Date().toISOString() };
-    return api.post<SupportTicketResult>(`${API_BASE_URL}/support/tickets`, body);
   },
 
   /**

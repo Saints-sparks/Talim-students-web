@@ -2,9 +2,9 @@
 
 /**
  * Account hooks for the Settings sheets: password policy and change, active
- * sessions, profile photo, and problem reports to Talim support.
+ * sessions and profile photo. Support tickets live in `hooks/support/useTickets.ts`.
  */
-import { useCallback } from "react";
+
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { setCookie } from "nookies";
 import { accountService } from "@/services/account.service";
@@ -14,8 +14,6 @@ import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { toScreenQuery } from "@/hooks/learner/queries";
-import { APP_VERSION } from "@/lib/appInfo";
-import type { SupportArea } from "@/types/learner";
 import type { User } from "@/types/auth";
 
 /**
@@ -111,37 +109,4 @@ export function useChangePhoto() {
       setAuthState(next, accessToken);
     },
   });
-}
-
-/** Where a problem happened, as the report sheet offers them. */
-export const SUPPORT_AREA_OPTIONS: ReadonlyArray<{ value: SupportArea; label: string }> = [
-  { value: "results", label: "Results" },
-  { value: "attendance", label: "Attendance" },
-  { value: "timetable", label: "Timetable" },
-  { value: "messages", label: "Messages" },
-  { value: "signing_in", label: "Signing in" },
-  { value: "other", label: "Something else" },
-];
-
-/**
- * §35 sends a problem report to Talim support, with the page it came from,
- * the app version and the browser.
- *
- * @returns `send(area, description)` and the mutation's state.
- */
-export function useSupportTicket() {
-  const mutation = useMutation({
-    mutationFn: ({ area, description }: { area: SupportArea; description: string }) =>
-      accountService.createSupportTicket({
-        area,
-        description: description.trim(),
-        context: {
-          path: typeof window === "undefined" ? "" : window.location.pathname.slice(0, 300),
-          appVersion: APP_VERSION,
-          userAgent: typeof navigator === "undefined" ? "" : navigator.userAgent.slice(0, 500),
-        },
-      }),
-  });
-  const send = useCallback((area: SupportArea, description: string) => mutation.mutateAsync({ area, description }), [mutation]);
-  return { send, ...mutation };
 }

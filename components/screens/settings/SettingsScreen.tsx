@@ -7,6 +7,7 @@ import { PageHeader } from "@/components/tl/bits";
 import { ScreenLoading } from "@/components/tl/states";
 import { focusRing } from "@/components/tl/styles";
 import { SETTINGS_TABS, parseSettingsTab, type SettingsTabKey } from "./settingsTabs";
+import { parseTicketParam, supportHref } from "@/lib/support/tickets";
 import { useRovingGroup } from "./roving";
 import type { SettingsSheetKey } from "./sheetKeys";
 import { AccountPanel } from "./AccountPanel";
@@ -17,7 +18,6 @@ import { PhotoSheet } from "./PhotoSheet";
 import { PasswordSheet } from "./PasswordSheet";
 import { SessionsSheet } from "./SessionsSheet";
 import { ContactSheet } from "./ContactSheet";
-import { ReportSheet } from "./ReportSheet";
 import { LegalSheet } from "./LegalSheet";
 
 const TAB_KEYS: readonly SettingsTabKey[] = SETTINGS_TABS.map((tab) => tab.key);
@@ -29,6 +29,10 @@ export interface SettingsViewProps {
   tab: SettingsTabKey;
   /** Called when the student picks another tab. */
   onTabChange: (tab: SettingsTabKey) => void;
+  /** The support ticket whose thread is open on Help (`?ticket=`), or null. */
+  ticketId?: string | null;
+  /** Opens a ticket's thread on Help, or closes it with null. */
+  onTicketChange?: (ticketId: string | null) => void;
 }
 
 /**
@@ -39,9 +43,11 @@ export interface SettingsViewProps {
  * @param props - See {@link SettingsViewProps}.
  * @param props.tab - The tab showing.
  * @param props.onTabChange - Picks another tab.
+ * @param props.ticketId - The support ticket whose thread is open.
+ * @param props.onTicketChange - Opens or closes a ticket's thread.
  * @returns The screen.
  */
-export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
+export function SettingsView({ tab, onTabChange, ticketId = null, onTicketChange = () => undefined }: SettingsViewProps) {
   const { user } = useAuthContext();
   const [sheet, setSheet] = useState<SettingsSheetKey | null>(null);
   const tabProps = useRovingGroup(TAB_KEYS, tab, onTabChange);
@@ -67,7 +73,7 @@ export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
       panel = <MessagesPanel />;
       break;
     case "help":
-      panel = <HelpPanel onOpenSheet={setSheet} />;
+      panel = <HelpPanel onOpenSheet={setSheet} ticketId={ticketId} onTicketChange={onTicketChange} />;
       break;
     case "security":
       panel = <SecurityPanel onOpenSheet={setSheet} />;
@@ -143,7 +149,6 @@ export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
       <PasswordSheet {...sheetProps("password")} />
       <SessionsSheet {...sheetProps("sessions")} />
       <ContactSheet {...sheetProps("contact")} />
-      <ReportSheet {...sheetProps("report")} />
       <LegalSheet kind="privacy" {...sheetProps("privacy")} />
       <LegalSheet kind="terms" {...sheetProps("terms")} />
     </div>
@@ -151,8 +156,9 @@ export function SettingsView({ tab, onTabChange }: SettingsViewProps) {
 }
 
 /**
- * Reads the chosen tab from `?tab=` and writes it back when the student picks
- * another, without adding history entries.
+ * Reads the chosen tab from `?tab=` (and an open support ticket from
+ * `?ticket=`, a support notification's link) and writes them back when the
+ * student picks another, without adding history entries.
  *
  * @returns The view for the tab in the URL.
  */
@@ -161,22 +167,34 @@ function SettingsFromUrl() {
   const router = useRouter();
   const pathname = usePathname();
   const fromUrl = parseSettingsTab(params.get("tab"));
+  const ticketFromUrl = parseTicketParam(params.get("ticket"));
   const [tab, setTab] = useState<SettingsTabKey>(fromUrl);
+  const [ticketId, setTicketId] = useState<string | null>(ticketFromUrl);
 
-  // Back/forward or a link to `?tab=…` while the screen is open.
+  // Back/forward or a link to `?tab=…` / `?ticket=…` while the screen is open.
   useEffect(() => setTab(fromUrl), [fromUrl]);
+  useEffect(() => setTicketId(ticketFromUrl), [ticketFromUrl]);
+
+  const changeTicket = useCallback(
+    (next: string | null) => {
+      setTicketId(next);
+      router.replace(supportHref(next), { scroll: false });
+    },
+    [router]
+  );
 
   const changeTab = useCallback(
     (next: SettingsTabKey) => {
       setTab(next);
       const query = new URLSearchParams(params.toString());
       query.set("tab", next);
+      query.delete("ticket");
       router.replace(`${pathname}?${query.toString()}`, { scroll: false });
     },
     [params, pathname, router]
   );
 
-  return <SettingsView tab={tab} onTabChange={changeTab} />;
+  return <SettingsView tab={tab} onTabChange={changeTab} ticketId={tab === "help" ? ticketId : null} onTicketChange={changeTicket} />;
 }
 
 /**

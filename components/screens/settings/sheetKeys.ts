@@ -1,5 +1,5 @@
 /** The sheets Settings opens, one at a time. */
-export type SettingsSheetKey = "photo" | "password" | "sessions" | "contact" | "report" | "privacy" | "terms";
+export type SettingsSheetKey = "photo" | "password" | "sessions" | "contact" | "privacy" | "terms";
 
 /** Props every Settings sheet takes. */
 export interface SettingsSheetProps {

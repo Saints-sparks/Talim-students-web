@@ -3,14 +3,12 @@ import { fireEvent, render, screen, waitFor, within } from "@/test-utils/render"
 import SettingsScreen from "@/components/screens/settings/SettingsScreen";
 import { PasswordSheet, passwordNote } from "@/components/screens/settings/PasswordSheet";
 import { SessionsSheet, sessionDetail, sessionTitle } from "@/components/screens/settings/SessionsSheet";
-import { ReportSheet } from "@/components/screens/settings/ReportSheet";
 import { ContactSheet, officeHoursLine, telHref } from "@/components/screens/settings/ContactSheet";
 import { PhotoSheet, photoProblem } from "@/components/screens/settings/PhotoSheet";
 import { accountService } from "@/services/account.service";
 import { settingsService } from "@/services/settings.service";
 import { learnerService } from "@/services/learner.service";
 import { ApiError } from "@/lib/apiError";
-import { APP_VERSION } from "@/lib/appInfo";
 import { makeSchoolContact, makeSessions } from "@/lib/fixtures/learner.fixture";
 
 let mockSearch = "";
@@ -26,7 +24,6 @@ jest.mock("@/services/account.service", () => ({
     getSessions: jest.fn(),
     revokeSession: jest.fn(),
     revokeOtherSessions: jest.fn(),
-    createSupportTicket: jest.fn(),
     updateAvatar: jest.fn(),
   },
 }));
@@ -167,41 +164,6 @@ describe("Active sessions sheet", () => {
     expect(sessionTitle({ ...current, browser: null, os: null })).toBe("Mac");
     expect(sessionDetail(current, new Date("2026-09-14T12:00:00Z"))).toBe("Mac · Last active today · 102.89.1.10");
     expect(sessionDetail({ ...current, device: null, ip: null }, new Date("2026-10-01T12:00:00Z"))).toBe("Last active 14 Sep");
-  });
-});
-
-describe("Report a problem sheet", () => {
-  it("sends the area, the description and the page context, then shows the reference", async () => {
-    mocked(accountService.createSupportTicket).mockResolvedValue({ reference: "TS-7KQ2P", createdAt: "2026-10-01T09:00:00.000Z" });
-    render(<ReportSheet open onOpenChange={jest.fn()} />);
-    const dialog = screen.getByRole("dialog", { name: "Tell Talim what is not working" });
-
-    const areas = within(dialog).getByRole("radiogroup", { name: "Where did it happen?" });
-    expect(within(areas).getByRole("radio", { name: "Results" })).toHaveAttribute("aria-checked", "true");
-    fireEvent.click(within(areas).getByRole("radio", { name: "Attendance" }));
-    expect(within(areas).getByRole("radio", { name: "Attendance" })).toHaveAttribute("aria-checked", "true");
-    expect(within(dialog).getByText("We reply to ada@talim.test. Your school can't see this report.")).toBeInTheDocument();
-
-    const send = within(dialog).getByRole("button", { name: "Send to Talim support" });
-    const box = within(dialog).getByLabelText("What went wrong");
-    expect(box).toHaveAttribute("placeholder", "e.g. My Biology results show a blank total.");
-    fireEvent.change(box, { target: { value: "Too short" } });
-    expect(send).toBeDisabled();
-    fireEvent.change(box, { target: { value: "  My attendance for Monday shows absent.  " } });
-    expect(within(dialog).getByText("42 / 2000")).toBeInTheDocument();
-    expect(send).toBeEnabled();
-
-    fireEvent.click(send);
-    await waitFor(() =>
-      expect(accountService.createSupportTicket).toHaveBeenCalledWith({
-        area: "attendance",
-        description: "My attendance for Monday shows absent.",
-        context: expect.objectContaining({ appVersion: APP_VERSION, path: expect.any(String), userAgent: expect.any(String) }),
-      })
-    );
-    expect(await within(dialog).findByText("Report sent")).toBeInTheDocument();
-    expect(within(dialog).getByText("Talim support will reply to ada@talim.test within one working day.")).toBeInTheDocument();
-    expect(within(dialog).getByText("TS-7KQ2P")).toBeInTheDocument();
   });
 });
 

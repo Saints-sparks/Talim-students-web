@@ -11,6 +11,7 @@ import {
   Filter,
   Info,
   LayoutGrid,
+  LifeBuoy,
   ListChecks,
   MessageSquareText,
   Printer,
@@ -148,6 +149,12 @@ export const guideConfigs: GuideConfig[] = [
     steps: [
       { target: "settings-tabs", eyebrow: "Account", title: "Settings", description: "Your profile, alerts, messages, help, security, theme and app details.", icon: Settings },
       { target: "settings-panel", title: "Make it yours", description: "Choose what reaches you, change your photo or password, and replay the portal tour under Help.", icon: Sparkles },
+      {
+        target: "settings-support",
+        title: "Your support tickets",
+        description: "Ask your school or Talim support, and follow the replies here. Reopen a ticket within 7 days of it being resolved, or close it when you're done.",
+        icon: LifeBuoy,
+      },
     ],
   },
 ];

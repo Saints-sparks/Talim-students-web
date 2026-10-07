@@ -37,6 +37,12 @@ jest.mock("@/hooks/useNotificationPreferences", () => ({
   }),
 }));
 
+jest.mock("@/services/tickets.service", () => {
+  const { createTicketStore } = jest.requireActual("@/lib/fixtures/tickets.fixture");
+  const store = createTicketStore();
+  return { ticketsService: { listMine: jest.fn(async (query: object) => store.listMine(query)), get: jest.fn(async (id: string) => store.get(id)) } };
+});
+
 jest.mock("@/services/settings.service", () => ({
   settingsService: {
     changePassword: jest.fn(),

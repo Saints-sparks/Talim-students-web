@@ -51,6 +51,14 @@ export const queryKeys = {
     passwordPolicy: () => ["account", "password-policy"] as const,
     sessions: (userId: string) => ["account", userId, "sessions"] as const,
   },
+  /** Support tickets (v1.5 §1). */
+  support: {
+    all: ["support"] as const,
+    /** Every page of the student's own tickets (`/tickets/mine`). */
+    mine: (userId: string) => ["support", userId, "mine"] as const,
+    /** One ticket with its thread (`/tickets/:id`). */
+    ticket: (userId: string, ticketId: string) => ["support", userId, "ticket", ticketId] as const,
+  },
 } as const;
 
 /**

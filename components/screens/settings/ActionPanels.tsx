@@ -6,6 +6,7 @@ import { useSessions } from "@/hooks/account/useAccount";
 import { APP_PLATFORM, APP_VERSION } from "@/lib/appInfo";
 import { LinkRow, RowList, ValueRow } from "./SettingRows";
 import type { SettingsSheetKey } from "./sheetKeys";
+import { SupportSection } from "./support/SupportSection";
 
 /** Props shared by the panels whose rows open sheets. */
 export interface SheetOpenerProps {
@@ -13,23 +14,36 @@ export interface SheetOpenerProps {
   onOpenSheet: (sheet: SettingsSheetKey) => void;
 }
 
+/** Props for {@link HelpPanel}. */
+export interface HelpPanelProps extends SheetOpenerProps {
+  /** The ticket whose thread is open (`?ticket=`, a support notification's link), or null. */
+  ticketId: string | null;
+  /** Opens a ticket's thread, or closes it with null. */
+  onTicketChange: (ticketId: string | null) => void;
+}
+
 /**
  * Settings → Help: replay the portal tour, contact the school office or
- * Talim, or report a problem. (The design's "Help centre" row is left out:
- * there is no help centre to link to yet.)
+ * Talim, and My tickets (v1.5 tickets to the school or Talim support, which
+ * replaced "Report a problem"). The design's "Help centre" row is left out:
+ * there is no help centre to link to yet.
  *
- * @param props - See {@link SheetOpenerProps}.
+ * @param props - See {@link HelpPanelProps}.
  * @param props.onOpenSheet - Opens a sheet.
+ * @param props.ticketId - The ticket whose thread is open.
+ * @param props.onTicketChange - Opens or closes a thread.
  * @returns The panel body.
  */
-export function HelpPanel({ onOpenSheet }: SheetOpenerProps) {
+export function HelpPanel({ onOpenSheet, ticketId, onTicketChange }: HelpPanelProps) {
   const { openTour } = useTour();
   return (
-    <RowList>
-      <LinkRow label="Getting started guide" description="Learn how to navigate Talim" onClick={openTour} />
-      <LinkRow label="Contact support" description="Your school office and the Talim team" onClick={() => onOpenSheet("contact")} />
-      <LinkRow label="Report a problem" description="Let us know if something isn't working" onClick={() => onOpenSheet("report")} />
-    </RowList>
+    <>
+      <RowList>
+        <LinkRow label="Getting started guide" description="Learn how to navigate Talim" onClick={openTour} />
+        <LinkRow label="Contact support" description="Your school office and the Talim team" onClick={() => onOpenSheet("contact")} />
+      </RowList>
+      <SupportSection openTicketId={ticketId} onOpenTicket={onTicketChange} />
+    </>
   );
 }
 
