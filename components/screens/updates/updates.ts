@@ -6,9 +6,13 @@ import { defaultActionLabel, targetHref, type StoredTarget } from "@/lib/learner
 import type { NotificationCounts, StudentNotification } from "@/lib/notifications/normalize";
 
 /** A filter chip: everything, unread, or one category. */
-export type UpdateFilter = "all" | "unread" | "academics" | "resources" | "grading" | "announcement";
+export type UpdateFilter = "all" | "unread" | "academics" | "resources" | "grading" | "announcement" | "support";
 
-/** The chips in the design's order (Assessments → academics, Files → resources, Results → grading, School → announcement). */
+/**
+ * The chips in the design's order (Assessments → academics, Files → resources,
+ * Results → grading, School → announcement), then v1.5's Support → support
+ * (replies and status changes on the student's tickets).
+ */
 export const UPDATE_FILTERS: ReadonlyArray<{ key: UpdateFilter; label: string; tip: string }> = [
   { key: "all", label: "All", tip: "Show everything" },
   { key: "unread", label: "Unread", tip: "Only what you have not opened" },
@@ -16,6 +20,7 @@ export const UPDATE_FILTERS: ReadonlyArray<{ key: UpdateFilter; label: string; t
   { key: "resources", label: "Files", tip: "Show files" },
   { key: "grading", label: "Results", tip: "Show results" },
   { key: "announcement", label: "School", tip: "Show school announcements" },
+  { key: "support", label: "Support", tip: "Show replies to your support tickets" },
 ];
 
 /**
@@ -45,6 +50,7 @@ export function chipCounts(counts: NotificationCounts): Record<UpdateFilter, num
     resources: counts.resources,
     grading: counts.grading,
     announcement: counts.announcement,
+    support: counts.support,
   };
 }
 

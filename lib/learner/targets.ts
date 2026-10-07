@@ -2,8 +2,11 @@
  * Where a notification's button goes. Producers set `metadata.target`
  * (round-4 §30) with a `page` and optional ids; this maps it onto the
  * students app's routes. Pages the app does not have fall back to Updates.
+ * A v1.5 support target (`{ page: "support", ticketId }`) opens the ticket's
+ * thread under Settings → Help (`/settings?tab=help&ticket=<id>`).
  */
 import type { NotificationCategory, NotificationTarget } from "@/types/learner";
+import { supportHref } from "@/lib/support/tickets";
 
 /**
  * A target as a notification carries it. HAND-WRITTEN wider `page`: the API's
@@ -46,6 +49,8 @@ export function targetHref(target: StoredTarget | null | undefined, metadata?: R
     case "announcements":
     case "notifications":
       return "/updates";
+    case "support":
+      return supportHref(target.ticketId);
     default:
       return null;
   }
@@ -60,6 +65,7 @@ const CATEGORY_TAG: Partial<Record<NotificationCategory, string>> = {
   attendance: "Attendance",
   messages: "Messages",
   account: "Account",
+  support: "Support",
 };
 
 /**
@@ -92,5 +98,6 @@ export function defaultActionLabel(href: string): string {
     "/updates": "Open Updates",
   };
   if (path.startsWith("/subjects/")) return "Open the subject";
+  if (path === "/settings" && href.includes("ticket=")) return "Open ticket";
   return names[path] ?? "Open";
 }

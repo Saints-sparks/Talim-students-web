@@ -5,6 +5,7 @@ import {
   CalendarDays,
   FileText,
   GraduationCap,
+  LifeBuoy,
   Megaphone,
   MessageSquare,
   ShieldCheck,
@@ -72,6 +73,13 @@ export const categoryMeta: Record<NotificationCategory, CategoryMeta> = {
     iconClass: "bg-slate-50 text-slate-700 dark:bg-slate-700/40 dark:text-slate-200",
     Icon: ShieldCheck,
   },
+  support: {
+    label: "Support",
+    badgeClass:
+      "bg-teal-50 text-teal-700 ring-teal-100 dark:bg-teal-900/30 dark:text-teal-200 dark:ring-teal-800/50",
+    iconClass: "bg-teal-50 text-teal-700 dark:bg-teal-900/30 dark:text-teal-200",
+    Icon: LifeBuoy,
+  },
   other: {
     label: "Others",
     badgeClass: "bg-gray-50 text-gray-700 ring-gray-100 dark:bg-slate-700/40 dark:text-slate-200 dark:ring-slate-600/50",
@@ -88,6 +96,7 @@ export const TABS: Array<{ key: TabKey; label: string }> = [
   { key: "academics", label: "Academics" },
   { key: "resources", label: "Resources" },
   { key: "grading", label: "Results" },
+  { key: "support", label: "Support" },
 ];
 
 /**

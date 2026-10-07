@@ -22,4 +22,13 @@ describe("notification targets", () => {
     expect(defaultActionLabel("/files?course=c1")).toBe("Open Files");
     expect(defaultActionLabel("/subjects/c1")).toBe("Open the subject");
   });
+
+  it("opens a support ticket's thread under Settings → Help (v1.5 deep link)", () => {
+    expect(targetHref({ page: "support", ticketId: "ticket-waiting" })).toBe("/settings?tab=help&ticket=ticket-waiting");
+    expect(targetHref({ page: "support", ticketId: "a b/c" })).toBe("/settings?tab=help&ticket=a%20b%2Fc");
+    expect(targetHref({ page: "support" })).toBe("/settings?tab=help");
+    expect(defaultActionLabel("/settings?tab=help&ticket=ticket-waiting")).toBe("Open ticket");
+    expect(defaultActionLabel("/settings?tab=help")).toBe("Open Settings");
+    expect(categoryTag("support")).toBe("Support");
+  });
 });

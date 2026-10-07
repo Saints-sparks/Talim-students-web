@@ -130,6 +130,26 @@ describe("Updates screen", () => {
     expect(rows()[0]).toHaveTextContent("Assembly moves to 8:15");
   });
 
+  it("files a ticket reply under Support, and its button opens the ticket", async () => {
+    const user = userEvent.setup();
+    const reply = {
+      ...makeRawNotifications()[1],
+      _id: "n-support",
+      category: "support",
+      title: "Talim support replied to TS-4K7QM",
+      message: "Which browser are you using?",
+      isRead: false,
+      metadata: { target: { page: "support", ticketId: "ticket-waiting" } },
+    };
+    svc.getNotifications.mockResolvedValue({ data: [...makeRawNotifications(), reply] });
+    render(<UpdatesScreen />);
+    await screen.findByText("Talim support replied to TS-4K7QM");
+    await user.click(screen.getByRole("button", { name: "Support 1" }));
+    expect(rows()).toHaveLength(1);
+    expect(rows()[0]).toHaveTextContent("Talim support replied to TS-4K7QM");
+    expect(actionFor(normalizeNotification(reply, "user-1"))).toEqual({ href: "/settings?tab=help&ticket=ticket-waiting", label: "Open ticket" });
+  });
+
   it("says when a filter has nothing", async () => {
     const user = userEvent.setup();
     svc.getNotifications.mockResolvedValue({ data: makeRawNotifications().filter((n) => n.category !== "announcement") });

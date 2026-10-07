@@ -6,7 +6,9 @@ export type NotificationSource = "school" | "talim" | "system";
 /**
  * The categories the API defines (`NotificationCategory` in
  * `notification.schema.ts`). There is deliberately no "assignment" category —
- * assignment-shaped notification types fall under `academics`.
+ * assignment-shaped notification types fall under `academics`. `support`
+ * (a reply or status change on one of the student's tickets) is v1.5's
+ * (§1), NOT IN CONTRACT yet in the generated enum.
  */
 export type NotificationCategory =
   | "announcement"
@@ -16,6 +18,7 @@ export type NotificationCategory =
   | "resources"
   | "messages"
   | "account"
+  | "support"
   | "other";
 
 /** One notification as the student screens render it. */
@@ -50,6 +53,7 @@ export const CATEGORIES: NotificationCategory[] = [
   "resources",
   "messages",
   "account",
+  "support",
   "other",
 ];
 
@@ -362,6 +366,7 @@ export function countByCategory(items: StudentNotification[]): NotificationCount
     resources: 0,
     messages: 0,
     account: 0,
+    support: 0,
     other: 0,
   } as NotificationCounts;
 
