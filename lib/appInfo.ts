@@ -1,10 +1,11 @@
 /**
- * The app's name and version as Settings → About and support reports show
- * them. The version comes from `NEXT_PUBLIC_APP_VERSION` at build time.
+ * The app's name and version as Settings → About shows them. The version is
+ * read from `package.json`, so a release bump shows up without another edit.
  */
+import packageJson from "../package.json";
 
-/** The version string, "1.0.0" unless the build sets one. */
-export const APP_VERSION = process.env.NEXT_PUBLIC_APP_VERSION || "1.0.0";
+/** The version in `package.json` (e.g. "1.5.0"). */
+export const APP_VERSION: string = packageJson.version;
 
 /** The platform line on Settings → About. */
 export const APP_PLATFORM = "Talim Students Web";

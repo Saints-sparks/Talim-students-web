@@ -7,6 +7,8 @@ import { parseSettingsTab } from "@/components/screens/settings/settingsTabs";
 import { rovingIndex } from "@/components/screens/settings/roving";
 import { TourProvider } from "@/components/tour/TourProvider";
 import { settingsService } from "@/services/settings.service";
+import { APP_VERSION } from "@/lib/appInfo";
+import packageJson from "../../package.json";
 import type { User } from "@/types/auth";
 
 const mockReplace = jest.fn();
@@ -204,11 +206,13 @@ describe("Settings screen", () => {
     expect(within(dialog).getByText("Step 1 of 8")).toBeInTheDocument();
   });
 
-  it("shows the app version and platform, and the session count only once known", () => {
+  it("shows the app with \"Version 1.5.0\" from package.json, and the session count only once known", () => {
     mockSearch = "tab=about";
     render(<SettingsScreen />, { user: student });
-    expect(screen.getByText("App version")).toBeInTheDocument();
+    expect(APP_VERSION).toBe(packageJson.version);
+    expect(APP_VERSION).toBe("1.5.0");
     expect(screen.getByText("Talim Students Web")).toBeInTheDocument();
+    expect(screen.getByText("Version 1.5.0")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Privacy Policy/ })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Terms of Service/ })).toBeInTheDocument();
     expect(sessionsValue(undefined)).toBe("Manage");

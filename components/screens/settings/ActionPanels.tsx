@@ -84,8 +84,8 @@ export function SecurityPanel({ onOpenSheet }: SheetOpenerProps) {
 }
 
 /**
- * Settings → About: the app's version and platform, and the privacy policy
- * and terms of service.
+ * Settings → About: the app and its version ("Version 1.5.0", read from
+ * `package.json`), and the privacy policy and terms of service.
  *
  * @param props - See {@link SheetOpenerProps}.
  * @param props.onOpenSheet - Opens a sheet.
@@ -94,8 +94,7 @@ export function SecurityPanel({ onOpenSheet }: SheetOpenerProps) {
 export function AboutPanel({ onOpenSheet }: SheetOpenerProps) {
   return (
     <RowList>
-      <ValueRow label="App version" value={APP_VERSION} />
-      <ValueRow label="Platform" value={APP_PLATFORM} />
+      <ValueRow label={APP_PLATFORM} value={`Version ${APP_VERSION}`} />
       <LinkRow label="Privacy Policy" description="What Talim holds about you and who sees it" onClick={() => onOpenSheet("privacy")} />
       <LinkRow label="Terms of Service" description="The rules for using your Talim account" onClick={() => onOpenSheet("terms")} />
     </RowList>
