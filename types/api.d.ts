@@ -8129,27 +8129,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/support/tickets": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Send a support ticket to Talim (deprecated: POST /tickets)
-         * @deprecated
-         * @description Any signed-in user but the platform admin. Raises a Talim-desk ticket (the school never sees it; its subject is the description's first line), visible in `GET /tickets/mine`, and emails it to Talim support (SUPPORT_EMAIL, default support@mytalim.com). A failed email doesn't fail the request.
-         */
-        post: operations["SupportController_create"];
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -14757,27 +14736,6 @@ export interface components {
              *     ]
              */
             permissions: ("manage:classes" | "manage:curriculum" | "manage:assessments" | "manage:timetable" | "manage:fees" | "manage:payments" | "manage:finance" | "manage:students" | "manage:teachers" | "manage:parents" | "manage:announcements" | "manage:leave_requests" | "manage:transit" | "manage:messages" | "manage:settings" | "manage:support" | "manage:sub_admins")[];
-        };
-        SupportTicketContextDto: {
-            /** @example /grading */
-            path?: string;
-            /** @example 2.4.0 */
-            appVersion?: string;
-            userAgent?: string;
-        };
-        CreateSupportTicketDto: {
-            /** @enum {string} */
-            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
-            description: string;
-            /** @description An uploaded screenshot or file (https). */
-            attachmentUrl?: string;
-            context?: components["schemas"]["SupportTicketContextDto"];
-        };
-        SupportTicketCreatedDto: {
-            /** @example TS-7K2QD */
-            reference: string;
-            /** Format: date-time */
-            createdAt: string;
         };
     };
     responses: never;
@@ -27246,29 +27204,6 @@ export interface operations {
                     [name: string]: unknown;
                 };
                 content?: never;
-            };
-        };
-    };
-    SupportController_create: {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        requestBody: {
-            content: {
-                "application/json": components["schemas"]["CreateSupportTicketDto"];
-            };
-        };
-        responses: {
-            201: {
-                headers: {
-                    [name: string]: unknown;
-                };
-                content: {
-                    "application/json": components["schemas"]["SupportTicketCreatedDto"];
-                };
             };
         };
     };
