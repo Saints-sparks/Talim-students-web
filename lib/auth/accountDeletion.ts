@@ -37,10 +37,13 @@ export function deletionScheduledMessage(scheduledFor: string | null | undefined
 /**
  * The sign-in URL to land on after a deletion request, carrying the date.
  *
- * @param scheduledFor - `scheduledFor` from the 200 response (ISO).
+ * @param scheduledFor - `scheduledFor` from the 200 response (ISO). The
+ *   contract marks it optional (it is sent with `status: "scheduled"` only);
+ *   without it the URL is the plain sign-in route.
  * @returns e.g. `/signin?deletionScheduledFor=2026-11-08T10%3A00%3A00.000Z`.
  */
-export function deletionScheduledRoute(scheduledFor: string): string {
+export function deletionScheduledRoute(scheduledFor: string | undefined): string {
+  if (!scheduledFor) return "/signin";
   return `/signin?${new URLSearchParams({ [DELETION_NOTICE_PARAM]: scheduledFor }).toString()}`;
 }
 

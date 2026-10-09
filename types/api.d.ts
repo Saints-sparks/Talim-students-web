@@ -2539,6 +2539,30 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/auth/account/deletion": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * My account deletion status
+         * @description `{ status: "none" }`, or `{ status: "scheduled", requestedAt, scheduledFor }` while a deletion is pending (rare: the request signs the account out, and signing in cancels it).
+         */
+        get: operations["AuthenticationController_getAccountDeletion"];
+        put?: never;
+        /**
+         * Delete my account (any role but the platform admin)
+         * @description Schedules the erase for 30 days after the request and signs the account out everywhere at once: every refresh token in every app is revoked, push registrations are removed, the access token is blacklisted and this app’s refresh cookie is cleared. The account is emailed the date. Signing in (`POST /auth/login`) before then cancels it. After that, a nightly job anonymises the account; grades, attendance, payments and tickets stay with the school, de-identified.
+         */
+        post: operations["AuthenticationController_requestAccountDeletion"];
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/auth/profile/{userId}": {
         parameters: {
             query?: never;
@@ -3100,7 +3124,7 @@ export interface paths {
         };
         /**
          * Platform admin: find users across schools
-         * @description Active users whose first name, last name or email contains every word of `q` (literal, any case), narrowed by `role` and `schoolId`; by name, at most `limit` (default 20, max 50). Without `q`, the first users of the role or school.
+         * @description Users whose first name, last name or email contains every word of `q` (literal, any case), narrowed by `role`, `schoolId` and `status` (`active` by default: not deactivated and no deletion pending; `inactive`; `deletion_scheduled`; `all`, erased accounts included); by name, at most `limit` (default 20, max 50). Without `q`, the first users of the role or school. Each hit carries its `status`.
          */
         get: operations["AdminUsersController_search"];
         put?: never;
@@ -3109,6 +3133,46 @@ export interface paths {
         options?: never;
         head?: never;
         patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Platform admin: one user
+         * @description Identity (`id, firstName, lastName, email, phoneNumber, avatarUrl, role, isActive, createdAt, lastLoginAt`), `status` (`active | inactive | deletion_scheduled | deleted`), `school`, a parent’s `children` (empty for other roles), a student’s `className` (null for other roles), `tickets: { open, total, recent }` (the 5 most recently active, as ticket list rows) and a pending `deletion`.
+         */
+        get: operations["AdminUsersController_detail"];
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/admin/users/{id}/status": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        /**
+         * Platform admin: deactivate or reactivate a user
+         * @description Deactivating signs the user out of every session in every app. Both are activity-logged with the reason. Answers the updated detail.
+         */
+        patch: operations["AdminUsersController_setStatus"];
         trace?: never;
     };
     "/teachers/{userId}": {
@@ -10473,6 +10537,13 @@ export interface components {
             gender?: "male" | "female" | "other";
         };
         AccessTokenResponseDto: {
+            /**
+             * @description `POST /auth/login` only, and only when true: this sign-in cancelled the
+             *     account's pending deletion. The apps show "Welcome back. Your account
+             *     deletion has been cancelled."
+             * @example true
+             */
+            deletionCancelled?: boolean;
             /** @description Send as `Authorization: Bearer <access_token>`. */
             access_token: string;
             /**
@@ -10481,6 +10552,26 @@ export interface components {
              *     Never present for browser clients.
              */
             refresh_token?: string;
+        };
+        RequestAccountDeletionDto: {
+            /** @description The account password, to confirm */
+            password: string;
+            /** @description Why the user is leaving (optional) */
+            reason?: string;
+        };
+        AccountDeletionStatusDto: {
+            /** @enum {string} */
+            status: "none" | "scheduled";
+            /**
+             * Format: date-time
+             * @description When the deletion was asked for (ISO); with `scheduled` only.
+             */
+            requestedAt?: string;
+            /**
+             * Format: date-time
+             * @description When the account will be erased (ISO); with `scheduled` only.
+             */
+            scheduledFor?: string;
         };
         User: Record<string, never>;
         UpdateProfileDto: {
@@ -10707,8 +10798,125 @@ export interface components {
             /** @enum {string} */
             role: "student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin";
             school: components["schemas"]["AdminUserSchoolDto"] | null;
+            /** @enum {string} */
+            status: "active" | "inactive" | "deletion_scheduled" | "deleted";
             id: string;
             name: string;
+        };
+        AdminUserChildDto: {
+            className: string | null;
+            school: components["schemas"]["AdminUserSchoolDto"] | null;
+            /** @description The child's user id (their own detail page). */
+            id: string;
+            /** @description The child's Student record id. */
+            studentId: string;
+            name: string;
+        };
+        AdminUserDeletionDto: {
+            /** Format: date-time */
+            requestedAt: string;
+            /** Format: date-time */
+            scheduledFor: string;
+        };
+        TicketRefDto: {
+            id: string;
+            name: string;
+        };
+        TicketRequesterDto: {
+            email?: string | null;
+            id: string;
+            name: string;
+            role: string;
+        };
+        TicketSummaryDto: {
+            /** @enum {string} */
+            desk: "school" | "talim";
+            /** @enum {string} */
+            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
+            /** @enum {string} */
+            status: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
+            /** @enum {string} */
+            priority: "low" | "normal" | "high" | "urgent";
+            school: components["schemas"]["TicketRefDto"] | null;
+            /**
+             * @description A parent's ticket about one child: its Student id (`child.id`), else
+             *     null. `GET /tickets/mine` lists a parent's tickets for every child,
+             *     whatever `X-Talim-Child` says.
+             */
+            childId: string | null;
+            child: components["schemas"]["TicketRefDto"] | null;
+            assignee: components["schemas"]["TicketRefDto"] | null;
+            /** @enum {string|null} */
+            escalatedFrom: "school" | null;
+            /**
+             * @description How the caller may use it: `requester`, `desk` (act on it) or
+             *     `observer` (read only: Talim on a school ticket before escalation, the
+             *     school desk on a ticket it escalated).
+             * @enum {string}
+             */
+            access: "requester" | "desk" | "observer";
+            /** Format: date-time */
+            firstResponseAt: string | null;
+            /** Format: date-time */
+            resolvedAt: string | null;
+            /** Format: date-time */
+            closedAt: string | null;
+            id: string;
+            /** @description `TS-XXXXX` (Talim desk) or `TCKT-XXXXXXXX` (school desk). */
+            reference: string;
+            subject: string;
+            requester: components["schemas"]["TicketRequesterDto"];
+            /** @description Messages the caller can see (internal notes count only for staff). */
+            messageCount: number;
+            /**
+             * @description Messages the caller's side has not read: for the requester, public
+             *     staff messages since they last opened the ticket (`GET /tickets/:id`)
+             *     or wrote on it; for its desk, the requester's messages since a desk
+             *     member last opened or acted on it. Always 0 for observers.
+             */
+            unread: number;
+            /** Format: date-time */
+            lastActivityAt: string;
+            /** Format: date-time */
+            createdAt: string;
+        };
+        AdminUserTicketsDto: {
+            /** @description The 5 most recently active, as ticket list rows. */
+            recent: components["schemas"]["TicketSummaryDto"][];
+            /** @description Tickets still open, in progress or waiting on the user. */
+            open: number;
+            /** @description Every ticket the user raised. */
+            total: number;
+        };
+        AdminUserDetailDto: {
+            email: string | null;
+            phoneNumber: string | null;
+            avatarUrl: string | null;
+            /** @enum {string} */
+            role: "student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin";
+            /** Format: date-time */
+            createdAt: string | null;
+            /** Format: date-time */
+            lastLoginAt: string | null;
+            /** @enum {string} */
+            status: "active" | "inactive" | "deletion_scheduled" | "deleted";
+            school: components["schemas"]["AdminUserSchoolDto"] | null;
+            /** @description A parent's linked children; empty for other roles. */
+            children: components["schemas"]["AdminUserChildDto"][];
+            /** @description A student's class name; null for other roles. */
+            className: string | null;
+            deletion: components["schemas"]["AdminUserDeletionDto"] | null;
+            id: string;
+            firstName: string;
+            lastName: string;
+            isActive: boolean;
+            tickets: components["schemas"]["AdminUserTicketsDto"];
+        };
+        UpdateAdminUserStatusDto: {
+            /** @description false deactivates (and signs out), true reactivates */
+            isActive: boolean;
+            /** @description Why, for the activity log */
+            reason?: string;
         };
         CreateTeacherDto: {
             /**
@@ -13057,10 +13265,6 @@ export interface components {
             /** @description Where the requester was; desk staff see it, the requester never does. */
             context?: components["schemas"]["TicketContextInputDto"];
         };
-        TicketRefDto: {
-            id: string;
-            name: string;
-        };
         TicketAttachmentDto: {
             url: string;
             name: string;
@@ -13087,12 +13291,6 @@ export interface components {
             path?: string | null;
             appVersion?: string | null;
             userAgent?: string | null;
-        };
-        TicketRequesterDto: {
-            email?: string | null;
-            id: string;
-            name: string;
-            role: string;
         };
         TicketDto: {
             /** @enum {string} */
@@ -13137,58 +13335,6 @@ export interface components {
             escalatedAt: string | null;
             /** @description Desk staff only (null for the requester). */
             context: components["schemas"]["TicketContextDto"] | null;
-            id: string;
-            /** @description `TS-XXXXX` (Talim desk) or `TCKT-XXXXXXXX` (school desk). */
-            reference: string;
-            subject: string;
-            requester: components["schemas"]["TicketRequesterDto"];
-            /** @description Messages the caller can see (internal notes count only for staff). */
-            messageCount: number;
-            /**
-             * @description Messages the caller's side has not read: for the requester, public
-             *     staff messages since they last opened the ticket (`GET /tickets/:id`)
-             *     or wrote on it; for its desk, the requester's messages since a desk
-             *     member last opened or acted on it. Always 0 for observers.
-             */
-            unread: number;
-            /** Format: date-time */
-            lastActivityAt: string;
-            /** Format: date-time */
-            createdAt: string;
-        };
-        TicketSummaryDto: {
-            /** @enum {string} */
-            desk: "school" | "talim";
-            /** @enum {string} */
-            area: "grading" | "attendance" | "timetable" | "messages" | "signing_in" | "payments" | "fees" | "results" | "transport" | "behaviour" | "other";
-            /** @enum {string} */
-            status: "open" | "in_progress" | "waiting_on_user" | "resolved" | "closed";
-            /** @enum {string} */
-            priority: "low" | "normal" | "high" | "urgent";
-            school: components["schemas"]["TicketRefDto"] | null;
-            /**
-             * @description A parent's ticket about one child: its Student id (`child.id`), else
-             *     null. `GET /tickets/mine` lists a parent's tickets for every child,
-             *     whatever `X-Talim-Child` says.
-             */
-            childId: string | null;
-            child: components["schemas"]["TicketRefDto"] | null;
-            assignee: components["schemas"]["TicketRefDto"] | null;
-            /** @enum {string|null} */
-            escalatedFrom: "school" | null;
-            /**
-             * @description How the caller may use it: `requester`, `desk` (act on it) or
-             *     `observer` (read only: Talim on a school ticket before escalation, the
-             *     school desk on a ticket it escalated).
-             * @enum {string}
-             */
-            access: "requester" | "desk" | "observer";
-            /** Format: date-time */
-            firstResponseAt: string | null;
-            /** Format: date-time */
-            resolvedAt: string | null;
-            /** Format: date-time */
-            closedAt: string | null;
             id: string;
             /** @description `TS-XXXXX` (Talim desk) or `TCKT-XXXXXXXX` (school desk). */
             reference: string;
@@ -18798,7 +18944,7 @@ export interface operations {
             };
         };
         responses: {
-            /** @description Login successful. The refresh token is set as the httpOnly `refreshToken` cookie (`refreshToken_<app>` when `X-Talim-App` is sent); a native app (`platform` of `ios` or `android`) also gets it as `refresh_token` in the body. */
+            /** @description Login successful. The refresh token is set as the httpOnly `refreshToken` cookie (`refreshToken_<app>` when `X-Talim-App` is sent); a native app (`platform` of `ios` or `android`) also gets it as `refresh_token` in the body. When the account had a pending deletion (v1.5), this sign-in cancels it and the body also carries `deletionCancelled: true`. */
             200: {
                 headers: {
                     [name: string]: unknown;
@@ -18807,7 +18953,7 @@ export interface operations {
                     "application/json": components["schemas"]["AccessTokenResponseDto"];
                 };
             };
-            /** @description Invalid credentials */
+            /** @description Invalid credentials (also for an account whose deletion has fallen due) */
             401: {
                 headers: {
                     [name: string]: unknown;
@@ -18816,6 +18962,73 @@ export interface operations {
             };
             /** @description FORBIDDEN — `X-Talim-App` names an app this account’s role does not belong in (the message names the role) */
             403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AuthenticationController_getAccountDeletion: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionStatusDto"];
+                };
+            };
+        };
+    };
+    AuthenticationController_requestAccountDeletion: {
+        parameters: {
+            query?: never;
+            header: {
+                authorization: string;
+                /** @description Web apps: which app is calling (`teachers`, `school-admin`, `students`, `parents`, `platform-admin`). With it the refresh token lives in that app’s own httpOnly cookie, `refreshToken_<app>`, and only an account whose role belongs in the app is signed in or refreshed. Without it (native apps, older clients) the shared `refreshToken` cookie is used as before. */
+                "X-Talim-App"?: "teachers" | "school-admin" | "students" | "parents" | "platform-admin";
+            };
+            path?: never;
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["RequestAccountDeletionDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AccountDeletionStatusDto"];
+                };
+            };
+            /** @description VALIDATION_FAILED — the password is wrong (`details[0].field` is `password`), or the body is invalid */
+            400: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description ADMIN_ACCOUNT — platform admins cannot delete themselves */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description LAST_SCHOOL_ADMIN — the only active school admin of their school (make another admin first, or contact Talim support); DELETION_SCHEDULED — a deletion is already pending */
+            409: {
                 headers: {
                     [name: string]: unknown;
                 };
@@ -19674,6 +19887,12 @@ export interface operations {
                 role?: "student" | "teacher" | "admin" | "parent" | "school_admin" | "school_sub_admin";
                 schoolId?: string;
                 limit?: number;
+                /**
+                 * @description Which accounts: `active` (default, as before), `inactive` (deactivated),
+                 *     `deletion_scheduled` (in the 30-day grace), or `all` (erased accounts
+                 *     included).
+                 */
+                status?: "active" | "inactive" | "deletion_scheduled" | "all";
             };
             header?: never;
             path?: never;
@@ -19688,6 +19907,82 @@ export interface operations {
                 content: {
                     "application/json": components["schemas"]["AdminUserSearchItemDto"][];
                 };
+            };
+        };
+    };
+    AdminUsersController_detail: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody?: never;
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDetailDto"];
+                };
+            };
+            /** @description NOT_FOUND — no such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+        };
+    };
+    AdminUsersController_setStatus: {
+        parameters: {
+            query?: never;
+            header?: never;
+            path: {
+                /** @description The user id */
+                id: string;
+            };
+            cookie?: never;
+        };
+        requestBody: {
+            content: {
+                "application/json": components["schemas"]["UpdateAdminUserStatusDto"];
+            };
+        };
+        responses: {
+            200: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content: {
+                    "application/json": components["schemas"]["AdminUserDetailDto"];
+                };
+            };
+            /** @description ADMIN_ACCOUNT — the target is a platform admin */
+            403: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description NOT_FOUND — no such user */
+            404: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
+            };
+            /** @description SELF — the admin targeted themselves; ACCOUNT_DELETED — the account has been erased */
+            409: {
+                headers: {
+                    [name: string]: unknown;
+                };
+                content?: never;
             };
         };
     };

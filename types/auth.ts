@@ -1,4 +1,6 @@
 // types/auth.ts
+import type { RequestBody, ResponseBody, Schema } from "./apiContract";
+
 export interface LoginCredentials {
   identifier?: string;
   email?: string;
@@ -41,29 +43,22 @@ export interface User {
   [key: string]: unknown;
 }
 
-export interface LoginResponse {
+/** `deletionCancelled` (generated): present, and true, only when this sign-in cancelled a scheduled account deletion. */
+export interface LoginResponse extends Pick<Schema<"AccessTokenResponseDto">, "deletionCancelled"> {
   access_token: string;
   refresh_token: string;
   user: User;
-  // TODO-switch to generated: `POST /auth/login`'s response once `npm run types:api` has it.
-  /** True when this sign-in cancelled a scheduled account deletion. */
-  deletionCancelled?: boolean;
 }
 
-// TODO-switch to generated: `RequestBody<"/auth/account/deletion">` once `npm run types:api` has the endpoint.
 /** `POST /auth/account/deletion` body: the account's password and an optional reason (at most 500 characters). */
-export interface AccountDeletionBody {
-  password: string;
-  reason?: string;
-}
+export type AccountDeletionBody = RequestBody<"/auth/account/deletion">;
 
-// TODO-switch to generated: the endpoint's 200 response once `npm run types:api` has it.
-/** `POST /auth/account/deletion` 200: the deletion is scheduled for `scheduledFor` (`requestedAt` + 30 days). */
-export interface AccountDeletionScheduled {
-  status: "scheduled";
-  requestedAt: string;
-  scheduledFor: string;
-}
+/**
+ * `POST /auth/account/deletion` 200 (`AccountDeletionStatusDto`). After a
+ * successful request `status` is `scheduled`, with `requestedAt` and
+ * `scheduledFor` (`requestedAt` + 30 days); `none` carries neither.
+ */
+export type AccountDeletionScheduled = ResponseBody<"/auth/account/deletion", "post">;
 
 export interface StudentDetails {
   userId: string;
