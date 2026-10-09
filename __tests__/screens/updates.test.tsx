@@ -202,6 +202,17 @@ describe("Updates screen", () => {
     expect(screen.getByRole("button", { name: "Mark all as read" })).toBeDisabled();
   });
 
+  it("keeps the chip counts and the selected row's time at full text contrast (axe color-contrast)", async () => {
+    setWide(true);
+    render(<UpdatesScreen />);
+    await screen.findByRole("region", { name: "New file in Computer Studies" });
+    const count = within(screen.getByRole("button", { name: "Unread 2" })).getByText("2");
+    expect(count.className).not.toMatch(/opacity-/);
+    const current = document.querySelector('button[aria-current="true"]');
+    expect(current).not.toBeNull();
+    expect(current!.querySelector(".text-tl-faint")).toBeNull();
+  });
+
   it("shows the newest update by default on a wide screen, without marking it read", async () => {
     setWide(true);
     render(<UpdatesScreen />);

@@ -442,10 +442,12 @@ html.dark {
 }
 
 /* Subject tones (the design's twelve subject colours). `ink` is the colour
-   for text on `tint`, darkened (light) or lightened (dark) to reach AA. */
+   for text on `tint`, darkened (light) or lightened (dark) to reach AA; `solid`
+   carries white initials (avatars), so it is AA against white too (teal and
+   amber are a shade darker than the design for that). */
 .subj-0 { --subj-solid: 79 70 200; --subj-tint: 236 234 250; --subj-ink: 79 70 200; }
 .subj-1 { --subj-solid: 44 95 224; --subj-tint: 232 239 251; --subj-ink: 44 95 224; }
-.subj-2 { --subj-solid: 18 134 126; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
+.subj-2 { --subj-solid: 16 128 120; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
 .subj-3 { --subj-solid: 27 122 85; --subj-tint: 226 241 234; --subj-ink: 26 118 82; }
 .subj-4 { --subj-solid: 53 115 181; --subj-tint: 233 240 249; --subj-ink: 50 108 170; }
 .subj-5 { --subj-solid: 14 124 146; --subj-tint: 225 240 244; --subj-ink: 13 113 133; }
@@ -454,10 +456,10 @@ html.dark {
 .subj-8 { --subj-solid: 87 129 44; --subj-tint: 237 243 226; --subj-ink: 79 118 40; }
 .subj-9 { --subj-solid: 42 100 128; --subj-tint: 230 239 244; --subj-ink: 42 100 128; }
 .subj-10 { --subj-solid: 163 68 56; --subj-tint: 247 231 228; --subj-ink: 163 68 56; }
-.subj-11 { --subj-solid: 176 106 32; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
+.subj-11 { --subj-solid: 166 99 29; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
 html.dark .subj-0 { --subj-solid: 99 91 206; --subj-tint: 30 34 80; --subj-ink: 143 137 220; }
 html.dark .subj-1 { --subj-solid: 44 95 224; --subj-tint: 22 40 86; --subj-ink: 115 149 234; }
-html.dark .subj-2 { --subj-solid: 18 134 126; --subj-tint: 16 50 62; --subj-ink: 84 168 162; }
+html.dark .subj-2 { --subj-solid: 16 128 120; --subj-tint: 16 50 62; --subj-ink: 84 168 162; }
 html.dark .subj-3 { --subj-solid: 27 122 85; --subj-tint: 18 47 52; --subj-ink: 97 163 137; }
 html.dark .subj-4 { --subj-solid: 53 115 181; --subj-tint: 24 45 75; --subj-ink: 115 158 204; }
 html.dark .subj-5 { --subj-solid: 14 124 146; --subj-tint: 15 47 67; --subj-ink: 88 164 180; }
@@ -466,7 +468,7 @@ html.dark .subj-7 { --subj-solid: 163 95 28; --subj-tint: 51 40 39; --subj-ink: 
 html.dark .subj-8 { --subj-solid: 87 129 44; --subj-tint: 32 48 42; --subj-ink: 134 164 103; }
 html.dark .subj-9 { --subj-solid: 59 112 138; --subj-tint: 21 41 63; --subj-ink: 119 156 174; }
 html.dark .subj-10 { --subj-solid: 170 83 72; --subj-tint: 51 34 45; --subj-ink: 194 131 123; }
-html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 54 43 40; --subj-ink: 196 143 87; }
+html.dark .subj-11 { --subj-solid: 166 99 29; --subj-tint: 54 43 40; --subj-ink: 196 143 87; }
 
 /* The design's break cell: a soft diagonal stripe. */
 .tl-break-stripes {
@@ -492,7 +494,7 @@ html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 54 43 40; --subj-ink
   /* The report card prints in the light subject tones even from dark mode. */
   html.dark .subj-0 { --subj-solid: 79 70 200; --subj-tint: 236 234 250; --subj-ink: 79 70 200; }
   html.dark .subj-1 { --subj-solid: 44 95 224; --subj-tint: 232 239 251; --subj-ink: 44 95 224; }
-  html.dark .subj-2 { --subj-solid: 18 134 126; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
+  html.dark .subj-2 { --subj-solid: 16 128 120; --subj-tint: 225 242 240; --subj-ink: 16 119 112; }
   html.dark .subj-3 { --subj-solid: 27 122 85; --subj-tint: 226 241 234; --subj-ink: 26 118 82; }
   html.dark .subj-4 { --subj-solid: 53 115 181; --subj-tint: 233 240 249; --subj-ink: 50 108 170; }
   html.dark .subj-5 { --subj-solid: 14 124 146; --subj-tint: 225 240 244; --subj-ink: 13 113 133; }
@@ -501,5 +503,5 @@ html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 54 43 40; --subj-ink
   html.dark .subj-8 { --subj-solid: 87 129 44; --subj-tint: 237 243 226; --subj-ink: 79 118 40; }
   html.dark .subj-9 { --subj-solid: 42 100 128; --subj-tint: 230 239 244; --subj-ink: 42 100 128; }
   html.dark .subj-10 { --subj-solid: 163 68 56; --subj-tint: 247 231 228; --subj-ink: 163 68 56; }
-  html.dark .subj-11 { --subj-solid: 176 106 32; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
+  html.dark .subj-11 { --subj-solid: 166 99 29; --subj-tint: 248 237 221; --subj-ink: 151 91 27; }
 }

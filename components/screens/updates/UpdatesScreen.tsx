@@ -122,7 +122,7 @@ export function UpdatesView({ notifications, counts, unreadTotal, isWide, onOpen
                   className={chip(filter === f.key)}
                 >
                   {f.label}
-                  <span className="ml-1.5 tabular-nums opacity-80">{perChip[f.key]}</span>
+                  <span className="ml-1.5 tabular-nums">{perChip[f.key]}</span>
                 </button>
               ))}
             </div>
@@ -213,7 +213,7 @@ function UpdateRow({ item, selected, onOpen, now }: UpdateRowProps) {
         </span>
         <span className="mt-1 line-clamp-2 block text-sm leading-normal text-tl-muted">{item.message}</span>
       </span>
-      <span className="whitespace-nowrap text-[13px] text-tl-faint">{relativeWhen(item.createdAt, now)}</span>
+      <span className="whitespace-nowrap text-[13px] text-tl-muted">{relativeWhen(item.createdAt, now)}</span>
     </button>
   );
 }
