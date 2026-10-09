@@ -1,12 +1,12 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Image from "next/image";
 import { useRouter } from "next/navigation";
 import { useAuthContext } from "@/contexts/AuthContext";
 import { SignInForm } from "@/components/auth/SignInForm";
 import { SignInErrorBanner, SignInFooter, SignInHeading, SignInLogoHeader, SignInShell } from "@/components/auth/signin-ui";
-import { deletionNoticeFromSearch } from "@/lib/auth/accountDeletion";
+import { deletionNoticeFromSearch, takeRememberedDeletionNotice } from "@/lib/auth/accountDeletion";
 import { SUPPORT_EMAIL } from "@/lib/appInfo";
 
 /**
@@ -23,9 +23,15 @@ export default function SignInPage() {
   const router = useRouter();
   const [deletionNotice, setDeletionNotice] = useState<string | null>(null);
 
-  // Read after mount from `window.location` (no `useSearchParams`, so the page needs no Suspense boundary).
+  // Read after mount from `window.location` (no `useSearchParams`, so the page needs no Suspense boundary),
+  // else the date remembered when the portal guard opened sign-in before the dated route.
+  // Once only: the remembered date is taken (removed), and Strict Mode runs mount effects twice.
+  const noticeRead = useRef(false);
   useEffect(() => {
-    setDeletionNotice(deletionNoticeFromSearch(window.location.search));
+    if (noticeRead.current) return;
+    noticeRead.current = true;
+    const remembered = takeRememberedDeletionNotice();
+    setDeletionNotice(deletionNoticeFromSearch(window.location.search) ?? remembered);
   }, []);
 
   useEffect(() => {

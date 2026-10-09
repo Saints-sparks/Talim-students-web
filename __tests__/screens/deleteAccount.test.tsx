@@ -19,6 +19,7 @@ import {
   deletionErrorMessage,
   deletionNoticeFromSearch,
   deletionScheduledRoute,
+  rememberDeletionNotice,
 } from "@/lib/auth/accountDeletion";
 
 const push = jest.fn();
@@ -226,6 +227,15 @@ describe("sign-in", () => {
     renderSignIn();
     expect(await screen.findByText("Your account will be deleted on 8 November 2026. Sign in before then to cancel.")).toBeInTheDocument();
     expect(deletionNoticeFromSearch("?deletionScheduledFor=nope")).toBeNull();
+  });
+
+  it("still says when, on plain sign-in, when the portal guard got there before the dated route", async () => {
+    window.history.replaceState({}, "", "/signin");
+    rememberDeletionNotice(SCHEDULED.scheduledFor!);
+    renderSignIn();
+    expect(await screen.findByText("Your account will be deleted on 8 November 2026. Sign in before then to cancel.")).toBeInTheDocument();
+    // Shown once: the remembered date is cleared.
+    expect(window.sessionStorage.getItem("talim_student_deletion_notice")).toBeNull();
   });
 
   it("toasts the cancelled notice when login answers deletionCancelled: true", async () => {

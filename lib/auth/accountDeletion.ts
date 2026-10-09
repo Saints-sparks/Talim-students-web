@@ -47,6 +47,40 @@ export function deletionScheduledRoute(scheduledFor: string | undefined): string
   return `/signin?${new URLSearchParams({ [DELETION_NOTICE_PARAM]: scheduledFor }).toString()}`;
 }
 
+/** Where the scheduled date waits for the sign-in page (one read, then gone). */
+const PENDING_NOTICE_KEY = "talim_student_deletion_notice";
+
+/**
+ * Keeps the scheduled date for the sign-in page. Signing out lets the portal
+ * guard open sign-in before the dated route is pushed, and the page reads its
+ * URL only once, so the date travels this way too.
+ *
+ * @param scheduledFor - When the account will be erased (ISO date-time).
+ * @returns Nothing; a browser that blocks storage keeps only the URL route.
+ */
+export function rememberDeletionNotice(scheduledFor: string): void {
+  try {
+    window.sessionStorage.setItem(PENDING_NOTICE_KEY, scheduledFor);
+  } catch {
+    /* storage blocked: the URL still carries the date when it wins */
+  }
+}
+
+/**
+ * Takes the remembered scheduled date (once) as the sign-in notice.
+ *
+ * @returns The notice, or null when nothing (or nothing readable) was remembered.
+ */
+export function takeRememberedDeletionNotice(): string | null {
+  try {
+    const value = window.sessionStorage.getItem(PENDING_NOTICE_KEY);
+    window.sessionStorage.removeItem(PENDING_NOTICE_KEY);
+    return value ? deletionNoticeFromSearch(`?${new URLSearchParams({ [DELETION_NOTICE_PARAM]: value }).toString()}`) : null;
+  } catch {
+    return null;
+  }
+}
+
 /**
  * The deletion notice a sign-in URL asks for.
  *

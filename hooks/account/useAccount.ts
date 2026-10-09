@@ -14,7 +14,7 @@ import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { toScreenQuery } from "@/hooks/learner/queries";
-import { deletionScheduledRoute } from "@/lib/auth/accountDeletion";
+import { deletionScheduledRoute, rememberDeletionNotice } from "@/lib/auth/accountDeletion";
 import type { AccountDeletionBody, AccountDeletionScheduled, User } from "@/types/auth";
 
 /**
@@ -126,6 +126,7 @@ export function useRequestAccountDeletion() {
   return useMutation<AccountDeletionScheduled, unknown, AccountDeletionBody>({
     mutationFn: (body) => accountService.requestDeletion(body),
     onSuccess: async ({ scheduledFor }) => {
+      if (scheduledFor) rememberDeletionNotice(scheduledFor);
       await logout({ redirectTo: deletionScheduledRoute(scheduledFor), sessionEnded: true });
     },
   });
