@@ -12,16 +12,21 @@ import type { SettingsSheetProps } from "./sheetKeys";
 const FORM_ID = "change-password-form";
 
 /** Props for {@link PasswordField}. */
-interface PasswordFieldProps {
+export interface PasswordFieldProps {
   label: string;
   value: string;
   onChange: (value: string) => void;
   autoComplete: "current-password" | "new-password";
   describedBy?: string;
+  /** A message about this field (a wrong password), shown under it and announced. */
+  error?: string | null;
+  /** True while the form is sending. */
+  disabled?: boolean;
 }
 
 /**
- * One password input with its label and a 44px show/hide button.
+ * One password input with its label and a 44px show/hide button (also the
+ * Delete account sheet's).
  *
  * @param props - See {@link PasswordFieldProps}.
  * @param props.label - The visible label.
@@ -29,11 +34,15 @@ interface PasswordFieldProps {
  * @param props.onChange - Called with the new text.
  * @param props.autoComplete - The password manager hint.
  * @param props.describedBy - The id of the checklist or note that describes it.
+ * @param props.error - A message about this field, shown under it.
+ * @param props.disabled - Disables the input while sending.
  * @returns The field.
  */
-function PasswordField({ label, value, onChange, autoComplete, describedBy }: PasswordFieldProps) {
+export function PasswordField({ label, value, onChange, autoComplete, describedBy, error, disabled }: PasswordFieldProps) {
   const id = useId();
+  const errorId = useId();
   const [visible, setVisible] = useState(false);
+  const described = [describedBy, error ? errorId : undefined].filter(Boolean).join(" ") || undefined;
   return (
     <div>
       <label htmlFor={id} className={`${fieldLabel} mb-[7px] block`}>
@@ -46,7 +55,9 @@ function PasswordField({ label, value, onChange, autoComplete, describedBy }: Pa
           autoComplete={autoComplete}
           value={value}
           onChange={(event) => onChange(event.target.value)}
-          aria-describedby={describedBy}
+          aria-describedby={described}
+          aria-invalid={error ? true : undefined}
+          disabled={disabled}
           className={`${fieldControl} min-h-[48px] pr-12 font-semibold`}
         />
         <button
@@ -58,6 +69,11 @@ function PasswordField({ label, value, onChange, autoComplete, describedBy }: Pa
           {visible ? <EyeOff aria-hidden className="h-[18px] w-[18px]" /> : <Eye aria-hidden className="h-[18px] w-[18px]" />}
         </button>
       </div>
+      {error ? (
+        <p id={errorId} role="alert" className="mt-1.5 text-[13px] font-semibold text-tl-danger">
+          {error}
+        </p>
+      ) : null}
     </div>
   );
 }

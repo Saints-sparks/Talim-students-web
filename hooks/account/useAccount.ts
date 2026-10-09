@@ -2,7 +2,7 @@
 
 /**
  * Account hooks for the Settings sheets: password policy and change, active
- * sessions and profile photo. Support tickets live in `hooks/support/useTickets.ts`.
+ * sessions, profile photo and deleting the account (v1.5). Support tickets live in `hooks/support/useTickets.ts`.
  */
 
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
@@ -14,7 +14,8 @@ import { useStudentIdentity } from "@/hooks/useStudentIdentity";
 import { uploadImageToCloudinary } from "@/lib/cloudinary";
 import { queryKeys, staleTimes } from "@/lib/queryKeys";
 import { toScreenQuery } from "@/hooks/learner/queries";
-import type { User } from "@/types/auth";
+import { deletionScheduledRoute } from "@/lib/auth/accountDeletion";
+import type { AccountDeletionBody, AccountDeletionScheduled, User } from "@/types/auth";
 
 /**
  * §34 the password rules; loaded once a sheet that needs them opens.
@@ -107,6 +108,25 @@ export function useChangePhoto() {
         /* storage full or blocked: the session still updates */
       }
       setAuthState(next, accessToken);
+    },
+  });
+}
+
+/**
+ * Asks for the student's account to be deleted (`POST /auth/account/deletion`).
+ * On success the server has already ended every session, so this signs out
+ * here through the auth context's `logout` with `sessionEnded` (cookies,
+ * storage and the query cache cleared, no more server calls) and lands on
+ * sign-in with the scheduled date. The mutation stays pending until then.
+ *
+ * @returns The mutation; `mutate` takes `{ password, reason? }` and fails with the `ApiError`.
+ */
+export function useRequestAccountDeletion() {
+  const { logout } = useAuthContext();
+  return useMutation<AccountDeletionScheduled, unknown, AccountDeletionBody>({
+    mutationFn: (body) => accountService.requestDeletion(body),
+    onSuccess: async ({ scheduledFor }) => {
+      await logout({ redirectTo: deletionScheduledRoute(scheduledFor), sessionEnded: true });
     },
   });
 }

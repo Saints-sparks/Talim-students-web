@@ -1,5 +1,13 @@
 import React, { type ReactNode } from "react";
+import { PRIVACY_POLICY_URL, SUPPORT_URL, TERMS_OF_SERVICE_URL } from "@/lib/appInfo";
 import { signInInlineLinkClass } from "./classes";
+
+/** The public pages the sign-in footer links to, in order. */
+const FOOTER_LINKS = [
+  { label: "Privacy", href: PRIVACY_POLICY_URL },
+  { label: "Terms", href: TERMS_OF_SERVICE_URL },
+  { label: "Support", href: SUPPORT_URL },
+] as const;
 
 /** Props for {@link SignInShell}. */
 export interface SignInShellProps {
@@ -64,7 +72,9 @@ export interface SignInFooterProps {
 }
 
 /**
- * The small print under the form: "© Talim 2026 · support@…".
+ * The small print under the form: "© Talim 2026 · support@…", then links to
+ * the Privacy, Terms and Support pages on www.mytalim.com (new tab, 44px tall
+ * targets).
  *
  * @param props - See {@link SignInFooterProps}.
  * @param props.supportEmail - The support address.
@@ -74,11 +84,27 @@ export interface SignInFooterProps {
  */
 export function SignInFooter({ supportEmail, brand = "Talim", year = new Date().getFullYear() }: SignInFooterProps) {
   return (
-    <p className="mt-10 text-center text-xs text-gray-500 dark:text-slate-400">
-      © {brand} {year} ·{" "}
-      <a href={`mailto:${supportEmail}`} className={signInInlineLinkClass}>
-        {supportEmail}
-      </a>
-    </p>
+    <div className="mt-10 text-center text-xs text-gray-500 dark:text-slate-400">
+      <p>
+        © {brand} {year} ·{" "}
+        <a href={`mailto:${supportEmail}`} className={signInInlineLinkClass}>
+          {supportEmail}
+        </a>
+      </p>
+      <nav aria-label="Talim policies and support" className="mt-1 flex items-center justify-center gap-1">
+        {FOOTER_LINKS.map((link) => (
+          <a
+            key={link.href}
+            href={link.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            className={`${signInInlineLinkClass} inline-flex min-h-[44px] items-center px-2`}
+          >
+            {link.label}
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+        ))}
+      </nav>
+    </div>
   );
 }

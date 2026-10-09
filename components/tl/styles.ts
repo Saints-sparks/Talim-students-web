@@ -21,6 +21,12 @@ export const rowButton = `inline-flex min-h-[44px] items-center justify-center w
 /** A text link with an arrow ("Full result sheet →"). */
 export const textLink = `inline-flex min-h-[44px] items-center whitespace-nowrap rounded-md text-sm font-bold text-tl-link hover:underline ${focusRing}`;
 
+/** The red outlined button that opens a destructive action (Delete account). AA on the surface in both themes. */
+export const dangerGhostButton = `inline-flex min-h-[44px] items-center justify-center whitespace-nowrap rounded-[13px] border border-tl-danger/40 bg-tl-surface px-4 py-2.5 text-sm font-bold text-tl-danger transition-colors hover:bg-tl-danger-bg disabled:cursor-not-allowed disabled:opacity-40 ${focusRing}`;
+
+/** The red filled button that confirms a destructive action. White on `tl-danger` (light) and the dark surface on it (dark) are both AA. */
+export const dangerButton = `inline-flex min-h-[44px] items-center justify-center gap-2 whitespace-nowrap rounded-[13px] bg-tl-danger px-[18px] py-3 text-[15px] font-bold text-tl-surface transition-colors hover:opacity-90 disabled:cursor-not-allowed disabled:opacity-40 ${focusRing}`;
+
 /** The white card (radius 22, soft shadow). */
 export const card =
   "rounded-[22px] border border-tl-line bg-tl-surface p-[clamp(18px,2.4vw,24px)] text-tl-ink shadow-[0_1px_2px_rgba(15,27,46,0.04),0_14px_30px_-22px_rgba(15,27,46,0.1)] dark:shadow-none";

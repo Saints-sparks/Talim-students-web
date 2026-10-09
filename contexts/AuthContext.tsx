@@ -14,14 +14,25 @@ import { startWebPushSync } from "@/lib/webPushSync";
 import { sessionStore } from "@/lib/session";
 import { logger } from "@/lib/logger";
 
+/** Options for {@link AuthContextType.logout}. */
+export interface LogoutOptions {
+  /** Where to land instead of plain `/signin` (e.g. sign-in with the deletion notice). */
+  redirectTo?: string;
+  /**
+   * The server has already ended every session (an account deletion): make
+   * no more server calls; the browser's push subscription is dropped locally.
+   */
+  sessionEnded?: boolean;
+}
+
 interface AuthContextType {
   user: User | null;
   isAuthenticated: boolean;
   isLoading: boolean;
   accessToken: string | null;
   checkAuth: () => Promise<boolean>;
-  /** Signs out on the server (`POST /auth/logout`) and here, then goes to sign-in. */
-  logout: () => Promise<void>;
+  /** Signs out on the server (`POST /auth/logout`) and here, then goes to sign-in (or `options.redirectTo`). */
+  logout: (options?: LogoutOptions) => Promise<void>;
   setAuthState: (user: User | null, token: string | null) => void;
 }
 
@@ -168,24 +179,31 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   /**
    * Signs out: browser push off, `POST /auth/logout`, then this browser's
    * session, cookies and query cache are cleared and the student goes to
-   * sign-in. A failed server call still signs out here.
+   * sign-in. A failed server call still signs out here. After an account
+   * deletion (`sessionEnded`) the server calls are skipped: the sessions are
+   * already gone.
    *
+   * @param options - See {@link LogoutOptions}.
    * @returns Resolves once signed out.
    */
-  const logout = useCallback(async () => {
+  const logout = useCallback(async (options?: LogoutOptions) => {
+    const sessionEnded = options?.sessionEnded === true;
+    const target = typeof options?.redirectTo === "string" && options.redirectTo ? options.redirectTo : "/signin";
     // Stop this browser receiving the student's pushes while the token still
     // works, then end the session on the server (revokes the refresh token
     // and clears its cookie). Neither may hold up signing out for long, and a
     // failure of either still signs out here.
     const token = localStorage.getItem("accessToken");
     await Promise.race([
-      unsubscribeBrowserPush(token, user?.userId || user?.id).catch(() => undefined),
+      unsubscribeBrowserPush(sessionEnded ? null : token, user?.userId || user?.id).catch(() => undefined),
       new Promise((resolve) => setTimeout(resolve, 3000)),
     ]);
-    try {
-      await accountService.logout(token ?? undefined);
-    } catch (error) {
-      logger.debug("auth", "Server sign-out failed; the refresh token will expire on its own", error);
+    if (!sessionEnded) {
+      try {
+        await accountService.logout(token ?? undefined);
+      } catch (error) {
+        logger.debug("auth", "Server sign-out failed; the refresh token will expire on its own", error);
+      }
     }
 
     destroyCookie(null, "access_token");
@@ -205,7 +223,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       window.dispatchEvent(new CustomEvent("auth-changed", { detail: { type: "logout" } }));
     }
 
-    router.push("/signin");
+    router.push(target);
   }, [queryClient, router, setAuthState, user?.id, user?.userId]);
 
   // Keep the backend's push subscription in step with the browser (heals a

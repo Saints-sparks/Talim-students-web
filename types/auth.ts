@@ -45,6 +45,24 @@ export interface LoginResponse {
   access_token: string;
   refresh_token: string;
   user: User;
+  // TODO-switch to generated: `POST /auth/login`'s response once `npm run types:api` has it.
+  /** True when this sign-in cancelled a scheduled account deletion. */
+  deletionCancelled?: boolean;
+}
+
+// TODO-switch to generated: `RequestBody<"/auth/account/deletion">` once `npm run types:api` has the endpoint.
+/** `POST /auth/account/deletion` body: the account's password and an optional reason (at most 500 characters). */
+export interface AccountDeletionBody {
+  password: string;
+  reason?: string;
+}
+
+// TODO-switch to generated: the endpoint's 200 response once `npm run types:api` has it.
+/** `POST /auth/account/deletion` 200: the deletion is scheduled for `scheduledFor` (`requestedAt` + 30 days). */
+export interface AccountDeletionScheduled {
+  status: "scheduled";
+  requestedAt: string;
+  scheduledFor: string;
 }
 
 export interface StudentDetails {

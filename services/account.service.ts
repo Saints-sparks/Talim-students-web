@@ -17,6 +17,7 @@ import type {
   RoomMediaKind,
   RoomMediaPage,
 } from "@/types/learner";
+import type { AccountDeletionBody, AccountDeletionScheduled } from "@/types/auth";
 
 /**
  * Lazily loads the fixture module (dev only).
@@ -133,5 +134,24 @@ export const accountService = {
   async getRoomMedia(roomId: string, kind: RoomMediaKind, cursor?: string | null): Promise<RoomMediaPage> {
     if (fixturesEnabled()) return (await fixtures()).makeRoomMedia(kind);
     return api.get<RoomMediaPage>(`${API_BASE_URL}/chat/rooms/${encodeURIComponent(roomId)}/media${toQuery({ kind, cursor, limit: 30 })}`);
+  },
+
+  /**
+   * v1.5: schedules the student's account for deletion in 30 days. The
+   * server ends every session at once, so the caller signs out here with
+   * `logout({ sessionEnded: true })`.
+   *
+   * @param body - The account's password and an optional reason.
+   * @returns `{ status: 'scheduled', requestedAt, scheduledFor }`.
+   * @throws {ApiError} 400 `VALIDATION_FAILED` with a `password` field error for a wrong password;
+   *   `reasonCode` `ADMIN_ACCOUNT` (403), `LAST_SCHOOL_ADMIN` or `DELETION_SCHEDULED` (409).
+   */
+  async requestDeletion(body: AccountDeletionBody): Promise<AccountDeletionScheduled> {
+    if (fixturesEnabled()) {
+      const requestedAt = new Date();
+      const scheduledFor = new Date(requestedAt.getTime() + 30 * 24 * 60 * 60_000);
+      return { status: "scheduled", requestedAt: requestedAt.toISOString(), scheduledFor: scheduledFor.toISOString() };
+    }
+    return api.post<AccountDeletionScheduled>(`${API_BASE_URL}/auth/account/deletion`, body);
   },
 };

@@ -19,6 +19,7 @@ import { PasswordSheet } from "./PasswordSheet";
 import { SessionsSheet } from "./SessionsSheet";
 import { ContactSheet } from "./ContactSheet";
 import { LegalSheet } from "./LegalSheet";
+import { DeleteAccountSheet } from "./DeleteAccountSheet";
 
 const TAB_KEYS: readonly SettingsTabKey[] = SETTINGS_TABS.map((tab) => tab.key);
 const PANEL_TITLE_ID = "settings-panel-title";
@@ -151,6 +152,7 @@ export function SettingsView({ tab, onTabChange, ticketId = null, onTicketChange
       <ContactSheet {...sheetProps("contact")} />
       <LegalSheet kind="privacy" {...sheetProps("privacy")} />
       <LegalSheet kind="terms" {...sheetProps("terms")} />
+      <DeleteAccountSheet {...sheetProps("delete")} />
     </div>
   );
 }

@@ -9,6 +9,8 @@ import { useAuthContext } from "@/contexts/AuthContext";
 import { ApiError } from "@/lib/apiError";
 import { INVALID_CREDENTIALS_TEXT, accessDeniedMessage, isStudentRole } from "@/lib/auth/signIn";
 import { logger } from "@/lib/logger";
+import { toast } from "@/components/CustomToast";
+import { DELETION_CANCELLED_MESSAGE } from "@/lib/auth/accountDeletion";
 import type { LoginCredentials, User } from "@/types/auth";
 
 /**
@@ -37,7 +39,8 @@ function postLoginRoute(userId: string | undefined): string {
  * token before storing anything, and for another role it revokes the session
  * the sign-in just created (`POST /auth/logout`) and throws the Teachers-style
  * "Access denied …" message. A wrong identifier or password throws
- * {@link INVALID_CREDENTIALS_TEXT}.
+ * {@link INVALID_CREDENTIALS_TEXT}. A sign-in that cancelled a scheduled
+ * account deletion (`deletionCancelled: true`) says so in a toast.
  *
  * @returns `login`, `logout` and whether a sign-in is running.
  */
@@ -86,6 +89,7 @@ export const useAuth = () => {
         localStorage.setItem("user", JSON.stringify(userData));
         setAuthState(userData, loginResponse.access_token);
         window.dispatchEvent(new CustomEvent("auth-changed", { detail: { type: "login", user: userData } }));
+        if (loginResponse.deletionCancelled) toast.success(DELETION_CANCELLED_MESSAGE);
 
         const userId = userData?.userId || (typeof userData?.id === "string" ? userData.id : undefined);
         router.push(postLoginRoute(userId));

@@ -3,7 +3,8 @@
 import React from "react";
 import { useTour } from "@/components/tour/TourProvider";
 import { useSessions } from "@/hooks/account/useAccount";
-import { APP_PLATFORM, APP_VERSION } from "@/lib/appInfo";
+import { APP_PLATFORM, APP_VERSION, SUPPORT_URL } from "@/lib/appInfo";
+import { DangerZone } from "./DeleteAccountSheet";
 import { LinkRow, RowList, ValueRow } from "./SettingRows";
 import type { SettingsSheetKey } from "./sheetKeys";
 import { SupportSection } from "./support/SupportSection";
@@ -60,9 +61,10 @@ export function sessionsValue(count: number | undefined): string {
 }
 
 /**
- * Settings → Security: change the password, and see or end the sessions the
- * account is signed in with. The sessions list is not fetched here; the row
- * shows the count only when an earlier visit cached it.
+ * Settings → Security: change the password, see or end the sessions the
+ * account is signed in with, and the Danger zone with Delete account (v1.5).
+ * The sessions list is not fetched here; the row shows the count only when
+ * an earlier visit cached it.
  *
  * @param props - See {@link SheetOpenerProps}.
  * @param props.onOpenSheet - Opens a sheet.
@@ -71,21 +73,25 @@ export function sessionsValue(count: number | undefined): string {
 export function SecurityPanel({ onOpenSheet }: SheetOpenerProps) {
   const { data } = useSessions(false);
   return (
-    <RowList>
-      <LinkRow label="Change password" description="Update your account password." onClick={() => onOpenSheet("password")} />
-      <LinkRow
-        label="Active sessions"
-        description="See where you're signed in and sign out of other devices."
-        value={sessionsValue(data?.length)}
-        onClick={() => onOpenSheet("sessions")}
-      />
-    </RowList>
+    <>
+      <RowList>
+        <LinkRow label="Change password" description="Update your account password." onClick={() => onOpenSheet("password")} />
+        <LinkRow
+          label="Active sessions"
+          description="See where you're signed in and sign out of other devices."
+          value={sessionsValue(data?.length)}
+          onClick={() => onOpenSheet("sessions")}
+        />
+      </RowList>
+      <DangerZone onDelete={() => onOpenSheet("delete")} />
+    </>
   );
 }
 
 /**
  * Settings → About: the app and its version ("Version 1.5.0", read from
- * `package.json`), and the privacy policy and terms of service.
+ * `package.json`), the privacy policy and terms of service (in-app sheets
+ * that link to the full pages), and Talim's support page.
  *
  * @param props - See {@link SheetOpenerProps}.
  * @param props.onOpenSheet - Opens a sheet.
@@ -97,6 +103,7 @@ export function AboutPanel({ onOpenSheet }: SheetOpenerProps) {
       <ValueRow label={APP_PLATFORM} value={`Version ${APP_VERSION}`} />
       <LinkRow label="Privacy Policy" description="What Talim holds about you and who sees it" onClick={() => onOpenSheet("privacy")} />
       <LinkRow label="Terms of Service" description="The rules for using your Talim account" onClick={() => onOpenSheet("terms")} />
+      <LinkRow label="Support" description="Guides and how to reach Talim" href={SUPPORT_URL} />
     </RowList>
   );
 }

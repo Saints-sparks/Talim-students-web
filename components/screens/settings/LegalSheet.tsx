@@ -2,8 +2,8 @@
 
 import React from "react";
 import { Sheet } from "@/components/tl/Sheet";
-import { primaryButton } from "@/components/tl/styles";
-import { SUPPORT_EMAIL } from "@/lib/appInfo";
+import { primaryButton, textLink } from "@/components/tl/styles";
+import { PRIVACY_POLICY_URL, SUPPORT_EMAIL, TERMS_OF_SERVICE_URL } from "@/lib/appInfo";
 import type { SettingsSheetProps } from "./sheetKeys";
 
 /** One heading and paragraph of a legal text. */
@@ -91,7 +91,8 @@ export interface LegalSheetProps extends SettingsSheetProps {
 }
 
 /**
- * The privacy policy or the terms of service, as headed sections in a sheet.
+ * The privacy policy or the terms of service, as headed sections in a sheet,
+ * with "Read the full policy" linking the full page on www.mytalim.com.
  *
  * @param props - See {@link LegalSheetProps}.
  * @param props.open - Whether it shows.
@@ -109,9 +110,15 @@ export function LegalSheet({ open, onOpenChange, kind }: LegalSheetProps) {
       title={kind === "privacy" ? "Privacy Policy" : "Terms of Service"}
       subtitle="For students · effective 19 September 2026"
       footer={
-        <button type="button" className={`${primaryButton} ml-auto`} onClick={() => onOpenChange(false)}>
-          Close
-        </button>
+        <>
+          <a href={kind === "privacy" ? PRIVACY_POLICY_URL : TERMS_OF_SERVICE_URL} target="_blank" rel="noopener noreferrer" className={textLink}>
+            Read the full policy
+            <span className="sr-only"> (opens in a new tab)</span>
+          </a>
+          <button type="button" className={`${primaryButton} ml-auto`} onClick={() => onOpenChange(false)}>
+            Close
+          </button>
+        </>
       }
     >
       {sections.map((section) => (

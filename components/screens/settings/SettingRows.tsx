@@ -76,41 +76,52 @@ export interface LinkRowProps {
   description?: string;
   /** A short value before the chevron ("2 devices"). */
   value?: ReactNode;
-  /** What the row opens. */
-  onClick: () => void;
+  /** What the row opens (a button row). */
+  onClick?: () => void;
+  /** An external page the row links to instead, opened in a new tab. */
+  href?: string;
   /** The guide target. */
   guide?: string;
 }
 
 /**
  * A row that opens something (a sheet, the tour): the whole row is one
- * button with a chevron (the design's `linkRow`).
+ * button with a chevron (the design's `linkRow`), or, with `href`, a link to
+ * an external page opened in a new tab.
  *
  * @param props - See {@link LinkRowProps}.
  * @param props.label - The bold line.
  * @param props.description - The grey line.
  * @param props.value - The value before the chevron.
- * @param props.onClick - Called on click.
+ * @param props.onClick - Called on click (a button row).
+ * @param props.href - The external page (a link row).
  * @param props.guide - Guide target name.
  * @returns The list item.
  */
-export function LinkRow({ label, description, value, onClick, guide }: LinkRowProps) {
+export function LinkRow({ label, description, value, onClick, href, guide }: LinkRowProps) {
+  const className = `group flex min-h-[44px] w-full items-center gap-4 rounded-[14px] py-4 text-left ${focusRing}`;
+  const content = (
+    <>
+      <span className="min-w-0 flex-1">
+        <span className={`block ${LABEL} group-hover:text-tl-brand`}>{label}</span>
+        {description ? <span className={`block ${DESC}`}>{description}</span> : null}
+        {href ? <span className="sr-only"> (opens in a new tab)</span> : null}
+      </span>
+      {value ? <span className="shrink-0 text-[15px] font-bold text-tl-muted">{value}</span> : null}
+      <ChevronRight aria-hidden className="h-5 w-5 shrink-0 text-tl-faint" />
+    </>
+  );
   return (
     <li className="border-t border-tl-line-soft">
-      <button
-        type="button"
-        onClick={onClick}
-        title={description}
-        data-guide={guide}
-        className={`group flex min-h-[44px] w-full items-center gap-4 rounded-[14px] py-4 text-left ${focusRing}`}
-      >
-        <span className="min-w-0 flex-1">
-          <span className={`block ${LABEL} group-hover:text-tl-brand`}>{label}</span>
-          {description ? <span className={`block ${DESC}`}>{description}</span> : null}
-        </span>
-        {value ? <span className="shrink-0 text-[15px] font-bold text-tl-muted">{value}</span> : null}
-        <ChevronRight aria-hidden className="h-5 w-5 shrink-0 text-tl-faint" />
-      </button>
+      {href ? (
+        <a href={href} target="_blank" rel="noopener noreferrer" title={description} data-guide={guide} className={className}>
+          {content}
+        </a>
+      ) : (
+        <button type="button" onClick={onClick} title={description} data-guide={guide} className={className}>
+          {content}
+        </button>
+      )}
     </li>
   );
 }
