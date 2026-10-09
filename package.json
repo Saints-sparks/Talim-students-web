@@ -10,7 +10,8 @@
     "test": "jest",
     "test:watch": "jest --watch",
     "typecheck": "tsc --noEmit",
-    "types:api": "node scripts/sync-api-types.mjs"
+    "types:api": "node scripts/sync-api-types.mjs",
+    "e2e": "playwright test"
   },
   "dependencies": {
     "@radix-ui/react-dialog": "^1.1.4",
@@ -33,6 +34,8 @@
     "typescript": "5.7.2"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.13.0",
+    "@playwright/test": "^1.63.0",
     "@testing-library/dom": "10.4.0",
     "@testing-library/jest-dom": "6.6.3",
     "@testing-library/react": "16.1.0",
