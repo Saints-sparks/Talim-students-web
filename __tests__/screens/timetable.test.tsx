@@ -69,6 +69,13 @@ describe("Timetable screen", () => {
     expect(within(table).getAllByText("Break")).toHaveLength(5);
   });
 
+  it("keeps the 1000px grid inside its scroller on a phone (contain: paint)", () => {
+    render(<TimetableView timetable={makeTimetable("normal")} onWeekChange={jest.fn()} />);
+    const grid = screen.getByRole("region", { name: /^Lessons, / });
+    expect(grid.className).toContain("overflow-x-auto");
+    expect(grid.className).toContain("[contain:paint]");
+  });
+
   it("lists every subject in the legend", () => {
     render(<TimetableView timetable={makeTimetable("normal")} onWeekChange={jest.fn()} />);
     const legend = screen.getByRole("list", { name: "Subjects" });

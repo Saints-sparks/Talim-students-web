@@ -142,11 +142,13 @@ export function TimetableView({ timetable, busy = false, onWeekChange }: Timetab
             hours={shownWindow.id}
             onHoursChange={setHours}
           />
+          {/* contain:paint keeps the 1000px grid inside its scroller on a phone: without it Chrome
+              widened the page to 927px and the whole screen scrolled sideways. */}
           <section
             aria-label={`Lessons, ${label}`}
             aria-busy={busy}
             data-guide="timetable-grid"
-            className={`${cardFrame} overflow-x-auto transition-opacity print:overflow-visible ${busy ? "opacity-60" : ""}`}
+            className={`${cardFrame} overflow-x-auto transition-opacity [contain:paint] print:overflow-visible print:[contain:none] ${busy ? "opacity-60" : ""}`}
           >
             <WeekGrid days={shownDays} periods={shownWindow.periods} lessons={lessonIndex} caption={`Your timetable, ${label}`} />
           </section>
