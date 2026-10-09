@@ -8,7 +8,9 @@ import { dismissGuide } from "./support/ui";
  * skeleton left, and no uncaught error, console.error or failed API call.
  * Subjects opens a subject's page.
  */
-const ALLOW: readonly Allowed[] = [];
+const ALLOW: readonly Allowed[] = [
+  { kind: "external", match: /fonts\.googleapis\.com|fonts\.gstatic\.com/, reason: "Google Fonts are blocked by the harness; the system font is used." },
+];
 
 test.use({ storageState: authFile("student") });
 

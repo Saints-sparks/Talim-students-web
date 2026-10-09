@@ -31,6 +31,10 @@ export default defineConfig({
     trace: "retain-on-failure",
     screenshot: "only-on-failure",
     viewport: { width: 1440, height: 900 },
+    // Nothing may leave this machine, in any context (the auth setup and signed-out pages too):
+    // every host but localhost fails to resolve at once. A request to a host the network
+    // black-holes (Google Fonts here) otherwise holds the page's load event and its close.
+    launchOptions: { args: ["--host-resolver-rules=MAP * ~NOTFOUND, EXCLUDE localhost, EXCLUDE 127.0.0.1"] },
   },
   projects: [
     { name: "setup", testMatch: /auth\.setup\.ts/ },

@@ -59,8 +59,9 @@ test.describe("mobile", () => {
       await dismissGuide(page, 2_000);
       await page.waitForLoadState("networkidle", { timeout: 15_000 }).catch(() => undefined);
       await page.waitForTimeout(600);
-      // No sideways scrolling on a phone.
-      const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+      // No sideways scrolling on a phone: neither the page nor the layout viewport may grow past 390px
+      // (Chrome widens the layout viewport to fit overflowing content, so innerWidth alone hides it).
+      const overflow = await page.evaluate(() => Math.max(document.documentElement.scrollWidth, window.innerWidth) - 390);
       expect(overflow, `${screen.path} scrolls sideways by ${overflow}px`).toBeLessThanOrEqual(1);
       await page.screenshot({ path: `e2e/screenshots/mobile/${screen.slug}.png`, fullPage: true });
     }

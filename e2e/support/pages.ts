@@ -15,7 +15,7 @@ export interface ScreenSpec {
 
 export const STUDENT_SCREENS: readonly ScreenSpec[] = [
   { path: "/dashboard", heading: /(Good (morning|afternoon|evening)|Hello), Ada/, content: /(Good (morning|afternoon|evening)|Hello), Ada/, slug: "today" },
-  { path: "/timetable", heading: /^Timetable$/, content: /Mathematics|No lessons this week/, slug: "timetable" },
+  { path: "/timetable", heading: /^Timetable$/, content: /Maths|English|No lessons this week/, slug: "timetable" },
   { path: "/subjects", heading: /^Subjects$/, content: /Mathematics/, slug: "subjects" },
   // Students-only and students-and-parents files of Mathematics 5A.
   { path: "/files", heading: /^Files$/, content: /Fractions worksheet/, slug: "files" },

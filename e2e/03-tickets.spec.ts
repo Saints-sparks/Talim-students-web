@@ -10,7 +10,9 @@ import { dismissGuide } from "./support/ui";
  * "1 new", and reply from the thread. Each run makes its own "E2E <run>" ticket.
  */
 const RUN = Date.now().toString(36).slice(-5);
-const ALLOW: readonly Allowed[] = [];
+const ALLOW: readonly Allowed[] = [
+  { kind: "external", match: /fonts\.googleapis\.com|fonts\.gstatic\.com/, reason: "Google Fonts are blocked by the harness; the system font is used." },
+];
 
 interface Ticket {
   id: string;
