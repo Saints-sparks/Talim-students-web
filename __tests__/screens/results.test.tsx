@@ -80,6 +80,13 @@ describe("Results screen", () => {
     expect(headers).toContain("Total/100");
   });
 
+  it("prints the maximum scores in the header at full strength (axe color-contrast on the brand row)", () => {
+    renderView(makeReportCard("normal"));
+    const maxima = within(reportTable()).getAllByText(/^\/\d+$/);
+    expect(maxima.length).toBeGreaterThan(0);
+    for (const label of maxima) expect(label.className).not.toMatch(/opacity-/);
+  });
+
   it("draws whatever columns the school uses, totalled from their maximum scores", () => {
     const base = makeReportCard("normal");
     const card: ReportCard = {

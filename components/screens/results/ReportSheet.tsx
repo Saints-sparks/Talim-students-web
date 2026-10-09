@@ -100,12 +100,12 @@ export function ReportSheet({ card }: { card: ReportCard }) {
               {columns.map((column) => (
                 <th key={column.id} scope="col" className={`${cellBase} text-xs font-extrabold uppercase tracking-[0.04em]`}>
                   {column.name}
-                  <span className="block text-[11px] font-bold normal-case tracking-normal opacity-80">/{column.maxScore}</span>
+                  <span className="block text-[11px] font-bold normal-case tracking-normal">/{column.maxScore}</span>
                 </th>
               ))}
               <th scope="col" className={`${cellBase} text-xs font-extrabold uppercase tracking-[0.04em]`}>
                 Total
-                <span className="block text-[11px] font-bold normal-case tracking-normal opacity-80">/{outOf}</span>
+                <span className="block text-[11px] font-bold normal-case tracking-normal">/{outOf}</span>
               </th>
               <th scope="col" className={`${cellBase} text-xs font-extrabold uppercase tracking-[0.04em]`}>
                 Grade
